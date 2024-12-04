@@ -276,7 +276,7 @@ extension TypeSignature {
             return "Ljava/lang/Object;"
         case .array:
             if options.contains(.kotlincompat) {
-                return "Lkotlin/collections/List;"
+                return "Ljava/util/List;"
             } else {
                 return "Lskip/lib/Array;"
             }
@@ -288,7 +288,7 @@ extension TypeSignature {
             return "Ljava/lang/Object;"
         case .dictionary:
             if options.contains(.kotlincompat) {
-                return "Lkotlin/collections/Map;"
+                return "Ljava/util/Map;"
             } else {
                 return "Lskip/lib/Dictionary;"
             }
@@ -365,7 +365,7 @@ extension TypeSignature {
             return "Ljava/lang/Object;"
         case .set:
             if options.contains(.kotlincompat) {
-                return "Lkotlin/collections/Set;"
+                return "Ljava/util/Set;"
             } else {
                 return "Lskip/lib/Set;"
             }
@@ -631,7 +631,7 @@ extension TypeSignature {
                 return nil
             }
             if options.contains(.kotlincompat) {
-                let listType: TypeSignature = .module("kotlin.collections", .named("List", [elementBridgable.kotlinType]))
+                let listType: TypeSignature = .module("java.util", .named("List", [elementBridgable.kotlinType]))
                 return Bridgable(type: self, kotlinType: listType, strategy: .convertible)
             } else {
                 return Bridgable(type: self, kotlinType: self, strategy: .convertible)
@@ -654,7 +654,7 @@ extension TypeSignature {
                 return nil
             }
             if options.contains(.kotlincompat) {
-                let mapType: TypeSignature = .module("kotlin.collections", .named("Map", [keyBridgable.kotlinType, valueBridgable.kotlinType]))
+                let mapType: TypeSignature = .module("java.util", .named("Map", [keyBridgable.kotlinType, valueBridgable.kotlinType]))
                 return Bridgable(type: self, kotlinType: mapType, strategy: .convertible)
             } else {
                 return Bridgable(type: self, kotlinType: self, strategy: .convertible)
@@ -725,12 +725,16 @@ extension TypeSignature {
                 sourceDerived.messages.append(.kotlinBridgeUnsupportedFeature(sourceDerived, feature: description, source: source))
             }
             return nil
-        case .set:
-            // TODO
-            if let sourceDerived, let source {
-                sourceDerived.messages.append(.kotlinBridgeUnsupportedFeature(sourceDerived, feature: description, source: source))
+        case .set(let elementType):
+            guard let elementBridgable = elementType?.checkBridgable(options: options, codebaseInfo: codebaseInfo, sourceDerived: sourceDerived, source: source) else {
+                return nil
             }
-            return nil
+            if options.contains(.kotlincompat) {
+                let setType: TypeSignature = .module("java.util", .named("Set", [elementBridgable.kotlinType]))
+                return Bridgable(type: self, kotlinType: setType, strategy: .convertible)
+            } else {
+                return Bridgable(type: self, kotlinType: self, strategy: .convertible)
+            }
         case .string:
             return Bridgable(type: self, kotlinType: self, strategy: .direct)
         case .tuple:
