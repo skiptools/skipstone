@@ -1039,7 +1039,7 @@ struct TranspileCommand: TranspilePhase, StreamingCommand {
                         try fs.createDirectory(destinationPath.parentDirectory, recursive: true)
                         if localeId == defaultLanguage {
                             // when there is a default language, set up a symbolic link so Android localization can know where to fall back in the case of a missing localization key
-                            try addLink(resourcesBasePath.appending(component: "default.lproj"), pointingAt: destinationPath.parentDirectory, relative: true)
+                            try addLink(resourcesBasePath.appending(component: "base.lproj"), pointingAt: destinationPath.parentDirectory, relative: true)
                         }
                         info("create \(lproj.pathString) from \(sourcePath.pathString)", sourceFile: destinationPath.sourceFile)
                         try writeChanges(tag: lproj.pathString, to: destinationPath, contents: stringsContent.utf8Data, readOnly: false)
