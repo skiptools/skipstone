@@ -117,7 +117,7 @@ extension ToolOptionsCommand where Self : StreamingCommand {
                 await checkFileContents(licenseLGPL, message: "Verify free software license", trailingContents: licenseLGPLContents)
             } else {
                 // either GPL or LGPL license file must exist for it to pass the free test
-                await checkFileContents(licenseGPL, message: "Verify free software license", trailingContents: licenseGPLContents)
+                await checkFileContents(licenseGPL, message: "Verify free software license", trailingContents: licenseGPL2Contents)
             }
 
             if await checkFolder(sourcesDir) {
