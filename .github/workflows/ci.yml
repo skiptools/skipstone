@@ -42,6 +42,8 @@ jobs:
         run: swift --version
 
       - name: Install dependencies
+        # this is only needed for ubuntu-20.04
+        if: false
         # need to update first or libcurl4-nss-dev isn't found
         # https://docs.github.com/en/actions/using-github-hosted-runners/about-github-hosted-runners/customizing-github-hosted-runners#installing-software-on-ubuntu-runners
         run: |
@@ -68,7 +70,8 @@ jobs:
         run: KOTLINC=kotlinc swift test -v -c debug --parallel
 
       - name: Build SkipRunner (Release)
-        if: ${{ startsWith(github.ref, 'refs/tags/') }}
+        if: false
+        #if: ${{ startsWith(github.ref, 'refs/tags/') }}
         working-directory: skipstone
         run: |
           # needs a clean build or else we get linker errors
