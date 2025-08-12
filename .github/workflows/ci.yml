@@ -32,9 +32,9 @@ jobs:
 
           echo "COMMIT_DATE=$(git log -1 --format=%ad --date=iso-strict ${TAG})" >> $GITHUB_ENV
 
-      - uses: swift-actions/setup-swift@v2
+      - uses: swift-actions/setup-swift@next
         with:
-          swift-version: "6.1"
+          swift-version: "6.1.2"
 
       - name: Get swift version
         run: swift --version
@@ -42,7 +42,7 @@ jobs:
       - name: Install Static Linux SDK
         # https://www.swift.org/install/linux/#install
         run: |
-          swift sdk install https://download.swift.org/swift-6.1-release/static-sdk/swift-6.1-RELEASE/swift-6.1-RELEASE_static-linux-0.0.1.artifactbundle.tar.gz --checksum 111c6f7d280a651208b8c74c0521dd99365d785c1976a6e23162f55f65379ac6
+          swift sdk install https://download.swift.org/swift-6.1.2-release/static-sdk/swift-6.1.2-RELEASE/swift-6.1.2-RELEASE_static-linux-0.0.1.artifactbundle.tar.gz --checksum df0b40b9b582598e7e3d70c82ab503fd6fbfdff71fd17e7f1ab37115a0665b3b
 
       - name: Build Linux Plugin
         working-directory: skipstone
