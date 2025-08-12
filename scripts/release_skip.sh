@@ -27,7 +27,7 @@
 set -o pipefail
 
 # get latest skip
-git pull
+git pull || true
 swift package update
 
 CONFIGURATION=${CONFIGURATION:-"release"}
@@ -89,7 +89,7 @@ else
 fi
 
 # also sync the plugin version in skip/Sources/SkipDrive/Version.swift
-git pull
+git pull || true
 SKIPDRIVE_VERSION_PATH="Sources/SkipDrive/Version.swift"
 sed -I '' 's;public let skipVersion = .*;public let skipVersion = "'${SKIP_VERSION}'";g' "${SKIPDRIVE_VERSION_PATH}"
 
@@ -173,7 +173,7 @@ git push --follow-tags
 
 # update the homebrew cask with the updated skip command
 cd ${SKIPBREWDIR}
-git pull
+git pull || true
 
 sed -I '' "s;version \".*\";version \"${SKIP_VERSION}\";g" Casks/skip.rb
 sed -I '' "s;sha256 \".*\";sha256 \"${PLUGIN_MACOS_CHECKSUM}\";g" Casks/skip.rb
