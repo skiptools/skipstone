@@ -46,28 +46,8 @@ jobs:
       #  with:
       #    swift-version: "6.1.2"
 
-      - name: Install Swift
-        run: |
-          curl -O https://download.swift.org/swiftly/linux/swiftly-$(uname -m).tar.gz && \
-          tar zxf swiftly-$(uname -m).tar.gz && \
-          ./swiftly init --quiet-shell-followup && \
-          . "${SWIFTLY_HOME_DIR:-$HOME/.local/share/swiftly}/env.sh" && \
-          hash -r
-          swiftly install --use 6.1.2
-          echo "PATH=$(dirname $(which swift)):${PATH}" >> $GITHUB_ENV
-
       - name: Get swift version
         run: swift --version
-
-      - name: Install Static Linux SDK
-        # https://www.swift.org/install/linux/#install
-        run: |
-          swift sdk install https://download.swift.org/swift-6.1.2-release/static-sdk/swift-6.1.2-RELEASE/swift-6.1.2-RELEASE_static-linux-0.0.1.artifactbundle.tar.gz --checksum df0b40b9b582598e7e3d70c82ab503fd6fbfdff71fd17e7f1ab37115a0665b3b
-
-      - name: Build Linux Plugin
-        working-directory: skipstone
-        run: |
-          CONFIGURATION=release SWIFT_TOOLCHAIN=$(dirname $(dirname $(which swift))) ./scripts/build_linux.sh
 
       - name: Install dependencies
         # this is only needed for ubuntu-20.04
