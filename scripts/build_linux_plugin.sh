@@ -19,7 +19,7 @@ PLUGIN_ZIP="${ARTIFACT}-linux.zip"
 ARTIFACT_BUILD_DIR=.build/artifactbundle-linux
 
 #SWIFT_VERSION="6.0.3"
-SWIFT_VERSION=${SWIFT_VERSION:-"6.1"}
+SWIFT_VERSION=${SWIFT_VERSION:-"6.1.2"}
 
 SWIFT_TOOLCHAIN=${SWIFT_TOOLCHAIN:-"${HOME}/Library/Developer/Toolchains/swift-${SWIFT_VERSION}-RELEASE.xctoolchain/usr"}
 

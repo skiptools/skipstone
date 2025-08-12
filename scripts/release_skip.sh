@@ -54,9 +54,10 @@ SKIPBREWDIR="../homebrew-skip"
 
 # once we get this repo sync'd, we can rely on both tags being the same
 cd ${SKIPPKGDIR}
-SKIP_VERSION_OLD=$(git tag -l --sort=-version:refname | grep '[0-9]*\.[0-9]*\.[0-9]*' | head -n 1)
 
-#SKIP_VERSION=$(semver bump "${SEMVER_BUMP:-patch}" "${SKIP_VERSION_OLD}")
+git tag -l --sort=-version:refname
+
+SKIP_VERSION_OLD=$(git tag -l --sort=-version:refname | grep '[0-9]*\.[0-9]*\.[0-9]*' | head -n 1)
 
 major=$(echo "${SKIP_VERSION_OLD}" | tr '.' '\n' | head -n 1 | tail -n 1)
 minor=$(echo "${SKIP_VERSION_OLD}" | tr '.' '\n' | head -n 2 | tail -n 1)
@@ -80,25 +81,23 @@ case "${SEMVER_BUMP:-patch}" in
         return 2
 esac
 
-SKIP_VERSION="${major}.${minor}.${patch}"
+if [[ "${DRY_RUN:-'0'}" != '0' ]]; then
+    echo "Dry run: not bumping Skip version from: ${SKIP_VERSION}"
+else
+    SKIP_VERSION="${major}.${minor}.${patch}"
+    echo "Creating release and tagging new skip version: ${SKIP_VERSION_OLD} -> ${SKIP_VERSION}"
+fi
+
+# also sync the plugin version in skip/Sources/SkipDrive/Version.swift
+git pull
+SKIPDRIVE_VERSION_PATH="Sources/SkipDrive/Version.swift"
+sed -I '' 's;public let skipVersion = .*;public let skipVersion = "'${SKIP_VERSION}'";g' "${SKIPDRIVE_VERSION_PATH}"
 
 cd '-'
-
-echo "Creating release and tagging new skip version: ${SKIP_VERSION}"
 
 # mark the internal version in skipstone/Sources/SkipSyntax/Version.swift
 SKIPSTONE_VERSION_PATH="Sources/SkipSyntax/Version.swift"
 sed -I '' 's;public let skipVersion = .*;public let skipVersion = "'${SKIP_VERSION}'";g' "${SKIPSTONE_VERSION_PATH}"
-#git diff "${SKIPSTONE_VERSION_PATH}" || true
-
-# also sync the plugin version in skip/Sources/SkipDrive/Version.swift
-cd ${SKIPPKGDIR}
-git pull
-SKIPDRIVE_VERSION_PATH="Sources/SkipDrive/Version.swift"
-sed -I '' 's;public let skipVersion = .*;public let skipVersion = "'${SKIP_VERSION}'";g' "${SKIPDRIVE_VERSION_PATH}"
-#git diff "${SKIPSTONE_VERSION_PATH}" || true
-cd -
-
 
 # make sure checkup passes
 # TODO: need a way to have `skip` forked from checkup use the local build
