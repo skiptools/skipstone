@@ -36,9 +36,22 @@ jobs:
 
           echo "COMMIT_DATE=$(git log -1 --format=%ad --date=iso-strict ${TAG})" >> $GITHUB_ENV
 
-      #- uses: swift-actions/setup-swift@v1
+      - uses: swift-actions/setup-swift@v2
+        with:
+          swift-version: "6.1.2"
+
       - name: Get swift version
         run: swift --version
+
+      - name: Install Static Linux SDK
+        # https://www.swift.org/install/linux/#install
+        run: |
+          swift sdk install https://download.swift.org/swift-6.1.2-release/static-sdk/swift-6.1.2-RELEASE/swift-6.1.2-RELEASE_static-linux-0.0.1.artifactbundle.tar.gz --checksum df0b40b9b582598e7e3d70c82ab503fd6fbfdff71fd17e7f1ab37115a0665b3b
+
+      - name: Build Linux Plugin
+        working-directory: skipstone
+        run: |
+          CONFIGURATION=release SWIFT_TOOLCHAIN=$(dirname $(dirname $(which swift))) ./scripts/build_linux.sh
 
       - name: Install dependencies
         # this is only needed for ubuntu-20.04
@@ -67,25 +80,6 @@ jobs:
       - name: Swift Test (Debug)
         working-directory: skipstone
         run: KOTLINC=kotlinc swift test -v -c debug --parallel
-
-      - name: Build SkipRunner (Release)
-        if: false
-        #if: ${{ startsWith(github.ref, 'refs/tags/') }}
-        working-directory: skipstone
-        run: |
-          # needs a clean build or else we get linker errors
-          rm -rf .build
-          swift build --product SkipRunner -c release --static-swift-stdlib
-          #swift build --product SkipKey -c release --static-swift-stdlib
-          ls -lah .build/x86_64-unknown-linux-gnu/release/
-          .build/x86_64-unknown-linux-gnu/release/SkipRunner version
-          mkdir -p .build/dist/
-          cp -a .build/x86_64-unknown-linux-gnu/release/SkipRunner .build/dist/skip
-          cd .build/dist/
-          zip -9 -q skip-linux-ubuntu-focal-${RELTAG}.zip skip
-          ls -lah
-          rm skip
-          cd -
 
       - name: "Release"
         # disabled due to "HTTP 403: Resource not accessible by integration"
