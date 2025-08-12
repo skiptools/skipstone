@@ -1,4 +1,4 @@
-#!/bin/sh -ex
+#!/bin/bash -ex
 # need to first install OSS Swift toolchain from:
 #
 # https://www.swift.org/download/#releases
