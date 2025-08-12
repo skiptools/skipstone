@@ -54,7 +54,7 @@ SKIPBREWDIR="../homebrew-skip"
 
 # once we get this repo sync'd, we can rely on both tags being the same
 cd ${SKIPPKGDIR}
-
+git fetch --tags
 git tag -l --sort=-version:refname
 
 SKIP_VERSION_OLD=$(git tag -l --sort=-version:refname | grep '[0-9]*\.[0-9]*\.[0-9]*' | head -n 1)
