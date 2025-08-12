@@ -82,9 +82,10 @@ case "${SEMVER_BUMP:-patch}" in
 esac
 
 if [[ "${DRY_RUN:-'0'}" != '0' ]]; then
+    export SKIP_VERSION="${SKIP_VERSION_OLD}"
     echo "Dry run: not bumping Skip version from: ${SKIP_VERSION}"
 else
-    SKIP_VERSION="${major}.${minor}.${patch}"
+    export SKIP_VERSION="${major}.${minor}.${patch}"
     echo "Creating release and tagging new skip version: ${SKIP_VERSION_OLD} -> ${SKIP_VERSION}"
 fi
 
