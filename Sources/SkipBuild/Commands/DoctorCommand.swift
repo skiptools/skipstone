@@ -56,8 +56,17 @@ extension ToolOptionsCommand where Self : StreamingCommand {
         func checkVersion(title: String, cmd: [String], min: Version? = nil, pattern: String, watch: Bool = false, hint: String? = nil) async throws {
 
             func parseVersion(_ result: Result<ProcessOutput, Error>?) -> (result: Result<ProcessOutput, Error>?, message: MessageBlock?) {
+                if let result = result, case .failure(let error) = result {
+                    self.outputOptions.logMessage("\(title): \(error)")
+                }
                 guard let res = try? result?.get() else {
-                    return (result: result, message: MessageBlock(status: .fail, title + ": error executing \(cmd.first ?? "")\(hint ?? "")"))
+                    let errorDetail: String
+                    if case .failure(let error) = result {
+                        errorDetail = ": \(error)"
+                    } else {
+                        errorDetail = ""
+                    }
+                    return (result: result, message: MessageBlock(status: .fail, title + ": error executing \(cmd.first ?? "")" + errorDetail + (hint ?? "")))
                 }
 
                 let output = res.stdout.trimmingCharacters(in: .newlines) + res.stderr.trimmingCharacters(in: .newlines)
