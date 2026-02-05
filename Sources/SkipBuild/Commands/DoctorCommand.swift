@@ -115,6 +115,33 @@ extension ToolOptionsCommand where Self : StreamingCommand {
             try await run(with: out, "macOS architecture", ["sysctl", "-n", "sysctl.proc_translated"], watch: false, resultHandler: checkResult)
         }
 
+        /// Check Xcode version with special handling for CommandLineTools error (https://github.com/skiptools/skip/issues/609).
+        func checkXcodeVersion(with out: MessageQueue) async throws {
+            let xcodeDeveloperPath = "/Applications/Xcode.app/Contents/Developer"
+            let commandLineToolsError = #/active developer directory.*is a command line tools instance/#
+            let installHint = " (install from: https://developer.apple.com/xcode/)"
+
+            let xcodeResult = try await run(with: out, "Xcode version", ["xcodebuild", "-version"], watch: false, permitFailure: true, resultHandler: { result in
+                guard let output = try? result?.get() else {
+                    return (result, MessageBlock(status: .fail, "Xcode version: error executing xcodebuild" + installHint))
+                }
+                if output.stderr.contains(commandLineToolsError) {
+                    if FileManager.default.fileExists(atPath: xcodeDeveloperPath) {
+                        return (result, MessageBlock(status: .fail, "Xcode version: xcodebuild requires Xcode command line tools. To fix this, run: sudo xcode-select --switch \(xcodeDeveloperPath)"))
+                    } else {
+                        return (result, MessageBlock(status: .fail, "Xcode version: Xcode not found" + installHint))
+                    }
+                }
+                if output.exitCode != 0 {
+                    return (result, MessageBlock(status: .fail, "Xcode version: error executing xcodebuild" + installHint))
+                }
+                return (result, nil)  // success: checkVersion will run and post the version message
+            })
+            if case .success(let output) = xcodeResult, !output.stderr.contains(commandLineToolsError), output.exitCode == 0 {
+                try await checkVersion(title: "Xcode version", cmd: ["xcodebuild", "-version"], min: Version("15.0.0"), pattern: "Xcode ([0-9.]+)")
+            }
+        }
+
         // enable overriding skip command with skip.local
         let skipcmd = ProcessInfo.processInfo.environment["SKIP_COMMAND_OVERRIDE"] ?? "skip"
 
@@ -134,8 +161,7 @@ extension ToolOptionsCommand where Self : StreamingCommand {
             try await checkVersion(title: "Swift Android SDK version", cmd: [skipcmd, "android", "toolchain", "version"], min: Version("6.1.0"), pattern: "Swift Package Manager - Swift ([0-9.]+)", hint: " (install with: skip android sdk install)")
         }
         #if os(macOS)
-        // TODO: add advice to run `xcode-select -s /Applications/Xcode.app/Contents/Developer` to work around https://github.com/skiptools/skip/issues/18
-        try await checkVersion(title: "Xcode version", cmd: ["xcodebuild", "-version"], min: Version("15.0.0"), pattern: "Xcode ([0-9.]+)", hint: " (install from: https://developer.apple.com/xcode/)")
+        try await checkXcodeVersion(with: out)
         await checkXcodeCommandLineTools(with: out)
         try await checkVersion(title: "Homebrew version", cmd: ["brew", "--version"], min: Version("4.1.0"), pattern: "Homebrew ([0-9.]+)", hint: " (install from: https://brew.sh)")
         #endif
