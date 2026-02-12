@@ -1,0 +1,4 @@
+[submodule "skip"]
+	path = skip
+	url = https://github.com/skiptools/skip.git
+	branch = main
