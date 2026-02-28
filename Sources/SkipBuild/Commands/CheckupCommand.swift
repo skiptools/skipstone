@@ -99,9 +99,9 @@ This command performs a full system checkup to ensure that Skip can create and b
     }
 
     func runCheckup(with out: MessageQueue) async throws {
-        try await runDoctor(checkNative: isNative, with: out)
+        let hasAndroidDevices = try await runDoctor(checkNative: isNative, with: out)
 
-        @Sendable func buildSampleProject(packageResolvedURL: URL? = nil) async throws -> (projectURL: URL, project: AppProjectLayout, artifacts: [URL: String?]) {
+        @Sendable func buildSampleProject(packageResolvedURL: URL? = nil, launchAndroid: Bool) async throws -> (projectURL: URL, project: AppProjectLayout, artifacts: [URL: String?]) {
             let primary = packageResolvedURL == nil
             // a random temporary folder for the project
             let tmpdir = NSTemporaryDirectory() + "/" + UUID().uuidString
@@ -141,18 +141,19 @@ This command performs a full system checkup to ensure that Skip can create and b
                 packageResolved: packageResolvedURL,
                 apk: true,
                 ipa: true,
+                launchAndroid: launchAndroid,
                 with: out
             )
         }
 
         // build a sample project (twice when performing a double-check)
-        let (p1URL, project, p1) = try await buildSampleProject()
+        let (p1URL, project, p1) = try await buildSampleProject(launchAndroid: hasAndroidDevices)
         let packageResolvedURL = p1URL.appendingPathComponent("Package.resolved", isDirectory: false)
         try registerPluginFingerprint(for: packageResolvedURL)
         if doubleCheck {
             // use the Package.resolved from the initial build to ensure that use double-check build uses the same dependency versions as the initial build
             // otherwise if a new version of a Skip library is tagged in between the two builds, the checksums won't match
-            let (_, project2, p2) = try await buildSampleProject(packageResolvedURL: packageResolvedURL)
+            let (_, project2, p2) = try await buildSampleProject(packageResolvedURL: packageResolvedURL, launchAndroid: hasAndroidDevices)
 
             let (_, _) = (project, project2)
             
