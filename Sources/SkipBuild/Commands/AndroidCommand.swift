@@ -1194,7 +1194,9 @@ struct AndroidEmulatorLaunchCommand: MessageCommand, ToolOptionsCommand {
         var exitCode: SkipDriveExternal.ProcessResult.ExitStatus? = nil
         //~/Library/Android/sdk/emulator/emulator -avd emulator-34-pixel_7
 
-        let emulatorName = name ?? UserDefaults.standard.string(forKey: lastEmulatorNameDefault) ?? "unknown"
+        guard let emulatorName = name ?? UserDefaults.standard.string(forKey: lastEmulatorNameDefault) else {
+            throw EmulatorLaunchError(errorDescription: "No emulator name provided and no default emulator name found")
+        }
         UserDefaults.standard.set(emulatorName, forKey: lastEmulatorNameDefault)
 
         var emulatorArgs = ["@\(emulatorName)", "-no-metrics"]
