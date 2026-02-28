@@ -1059,16 +1059,21 @@ struct ToolOptions: ParsableArguments {
 
     /// Returns the path to the emulator binary
     var emulatorBinary: String {
+        if let androidHome = ProcessInfo.androidHome {
+            let androidHomeEmulator = "\(androidHome)/emulator/emulator"
+            if FileManager.default.isExecutableFile(atPath: androidHomeEmulator) {
+                return androidHomeEmulator
+            }
+        }
+
         // on Linux for Homebrew: /home/linuxbrew/.linuxbrew/share/android-commandlinetools/emulator/emulator
         // on macOS for Homebrew: /opt/homebrew/share/android-commandlinetools/emulator/emulator
-        // on macOS: ~/Library/Android/sdk/emulator/emulator
-        var emulatorBinary = ProcessInfo.homebrewRoot + "/share/android-commandlinetools/emulator/emulator"
-        // check whether it exists, and if not, fallback to ~/Library/Android/sdk/emulator/emulator or path
-        if !FileManager.default.isExecutableFile(atPath: emulatorBinary) {
-            // TODO: search around for, e.g., Android Studio's version
-            emulatorBinary = "emulator" // fallback to checking PATH
+        let homebrewEmulator = "\(ProcessInfo.homebrewRoot)/share/android-commandlinetools/emulator/emulator"
+        if FileManager.default.isExecutableFile(atPath: homebrewEmulator) {
+            return homebrewEmulator
         }
-        return emulatorBinary
+        // last resort: try to find it in the PATH
+        return "emulator"
     }
 
 }
