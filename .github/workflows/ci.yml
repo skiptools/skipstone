@@ -60,8 +60,17 @@ jobs:
 
           ./scripts/build_${OSNAME}_plugin.sh
 
+          SKIP_BIN="${PWD}/.build/artifactbundle-${OSNAME}/skip.artifactbundle/bin"
+
           # set the PATH to include the newly-built `skip` command
-          echo "${PWD}/.build/artifactbundle-${OSNAME}/skip.artifactbundle/bin" >> $GITHUB_PATH
+          echo "${SKIP_BIN}" >> $GITHUB_PATH
+
+          # override skip plugin to use the locally built binary
+          echo "SKIP_COMMAND_OVERRIDE=${SKIP_BIN}/skip" >> $GITHUB_ENV
+
+          # workaround fail when ANDROID_NDK_ROOT is set
+          # see https://github.com/finagolfin/swift-android-sdk/issues/207
+          echo "ANDROID_NDK_ROOT=" >> $GITHUB_ENV
 
       - run: which skip
 
