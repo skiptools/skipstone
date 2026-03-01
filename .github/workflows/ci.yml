@@ -33,9 +33,11 @@ jobs:
 
       - run: brew install swiftly
 
-      - run: swiftly run swift --version
+      - run: swiftly init
 
       - run: swiftly install --use ${{ matrix.swift }}
+
+      - run: swiftly run swift --version
 
       - run: swift --version
 
