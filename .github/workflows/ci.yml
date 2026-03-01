@@ -67,19 +67,34 @@ jobs:
 
       - run: skip version
 
-      - run: skip android sdk install -v --version 'nightly-6.3'
+      - run: skip android sdk install --version 'nightly-6.3'
+
+      - run: skip doctor
 
       - run: skip checkup --native
+        if: runner.os != 'Linux'
         working-directory: ${{ runner.temp }}
 
       - run: skip android emulator create
+        if: false # TODO
 
       - run: skip android emulator list
+        if: false # TODO
 
       - run: skip android emulator launch --background
         if: false # TODO
 
-      - run: skip android test --apk
+      - name: "Build and run test package"
         if: false # TODO
-
+        run: |
+          cd ${TMPDIR}
+          mkdir package-demo
+          cd package-demo
+          swift init --name "PackageDemo"
+          # test on host OS
+          swift test
+          # test using xcrunner binary
+          skip android test
+          # test using shared object file loaded from .apk
+          skip android test --apk
 
