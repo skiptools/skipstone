@@ -34,7 +34,7 @@ jobs:
       - run: brew install swiftly
 
       - run: apt-get -y install libcurl4-openssl-dev
-        if: ${{ env.RUNNER_OS == 'Linux' }}
+        if: runner.os == 'Linux'
 
       - run: swiftly init --skip-install --assume-yes --quiet-shell-followup
 
@@ -46,20 +46,18 @@ jobs:
 
       - run: swift test -v -c debug --parallel
 
+      # Linux plugin requires the Static Linux SDK
+      - run: curl -fsSL -o 'swift-static-linux-sdk.tar.gz' 'https://download.swift.org/swift-${{ matrix.swift }}-release/static-sdk/swift-${{ matrix.swift }}-RELEASE/swift-${{ matrix.swift }}-RELEASE_static-linux-0.0.1.artifactbundle.tar.gz' && swift sdk install 'swift-static-linux-sdk.tar.gz'
+        if: runner.os == 'Linux'
+
       - name: Build plugin
         shell: bash
         run: |
           # Build plugins using the current installed version of Swift
           export USE_SWIFTLY=0
-
-          if [[ "${RUNNER_OS}" == "Linux" ]]; then
-            # install the static linux SDK for MUSL cross-compilation
-            curl -fsSL -o 'swift-static-linux-sdk.tar.gz' 'https://download.swift.org/swift-${{ matrix.swift }}-release/static-sdk/swift-${{ matrix.swift }}-RELEASE/swift-${{ matrix.swift }}-RELEASE_static-linux-0.0.1.artifactbundle.tar.gz'
-            swift sdk install 'swift-static-linux-sdk.tar.gz'
-          fi
-
           # "macos" or "linux"
           OSNAME=$(echo $RUNNER_OS | tr '[A-Z]' '[a-z]')
+
           ./scripts/build_${OSNAME}_plugin.sh
 
           # set the PATH to include the newly-built `skip` command
@@ -72,13 +70,16 @@ jobs:
       - run: skip android sdk install -v --version 'nightly-6.3'
 
       - run: skip checkup --native
-        working-directory: ${TMPDIR}
+        working-directory: ${{ runner.temp }}
 
       - run: skip android emulator create
 
       - run: skip android emulator list
 
       - run: skip android emulator launch --background
+        if: false # TODO
+
+      - run: skip android test --apk
         if: false # TODO
 
 
