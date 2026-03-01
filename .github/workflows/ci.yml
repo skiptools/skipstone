@@ -33,15 +33,18 @@ jobs:
 
       - run: brew install swiftly
 
-      - run: swiftly init
+      - run: apt-get -y install libcurl4-openssl-dev
+        if: ${{ env.RUNNER_OS == 'Linux' }}
 
-      - run: swiftly install --use ${{ matrix.swift }}
+      - run: swiftly init --skip-install --assume-yes --quiet-shell-followup
+
+      - run: swiftly install --assume-yes --use ${{ matrix.swift }}
 
       - run: swiftly run swift --version
 
       - run: swift --version
 
-      - run: test -v -c debug --parallel
+      - run: swift test -v -c debug --parallel
 
       - name: Build plugin
         shell: bash
