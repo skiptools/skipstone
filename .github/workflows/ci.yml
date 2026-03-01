@@ -33,7 +33,7 @@ jobs:
 
       - run: brew install swiftly
 
-      - run: sudo apt-get -y install libcurl4-openssl-dev
+      - run: sudo apt-get -y install libcurl4-openssl-dev || (sudo apt-get update && sudo apt-get -y install libcurl4-openssl-dev)
         if: runner.os == 'Linux'
 
       - run: swiftly init --skip-install --assume-yes --quiet-shell-followup
