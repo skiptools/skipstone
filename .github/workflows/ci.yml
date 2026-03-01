@@ -29,18 +29,17 @@ jobs:
           # skip.git submodule needed for SkipDriveExternal
           submodules: true
 
-      - uses: swift-actions/setup-swift@v3
-        with:
-          swift-version: ${{ matrix.swift }}
+      - uses: Homebrew/actions/setup-homebrew@main
 
-      - name: Get swift version
-        run: swift --version
+      - run: brew install swiftly
 
-      - name: Check kotlinc
-        run: which kotlinc
+      - run: swiftly run swift --version
 
-      - name: Swift Test (Debug)
-        run: KOTLINC=kotlinc swift test -v -c debug --parallel
+      - run: swiftly install --use ${{ matrix.swift }}
+
+      - run: swift --version
+
+      - run: test -v -c debug --parallel
 
       - name: Build plugin
         shell: bash
@@ -65,14 +64,10 @@ jobs:
 
       - run: skip version
 
-      - uses: Homebrew/actions/setup-homebrew@main
-
-      # skip android sdk install needs swiftly
-      - run: brew install swiftly
-
-      - run: skip android sdk install --version 'nightly-6.3'
+      - run: skip android sdk install -v --version 'nightly-6.3'
 
       - run: skip checkup --native
+        working-directory: ${TMPDIR}
 
       - run: skip android emulator create
 
