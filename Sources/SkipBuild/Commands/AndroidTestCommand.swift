@@ -241,7 +241,7 @@ fileprivate extension AndroidOperationCommand {
 
         try testHarnessPackageSwift.write(to: harnessDir.appendingPathComponent("Package.swift", isDirectory: false), atomically: true, encoding: .utf8)
         try testHarnessCHeader.write(to: cAndroidIncludeDir.appendingPathComponent("CAndroid.h", isDirectory: false), atomically: true, encoding: .utf8)
-        try harnessCSource.write(to: cAndroidSourceDir.appendingPathComponent("test_harness.c", isDirectory: false), atomically: true, encoding: .utf8)
+        try harnessCSource.write(to: cAndroidSourceDir.appendingPathComponent("\(test_harness).c", isDirectory: false), atomically: true, encoding: .utf8)
         try testHarnessSwiftSource.write(to: testHarnessSourceDir.appendingPathComponent("TestRunner.swift", isDirectory: false), atomically: true, encoding: .utf8)
 
         // Build the harness package for Android
@@ -261,16 +261,16 @@ fileprivate extension AndroidOperationCommand {
             arch.tripleKey(api: apiLevel, sdkVersion: tc.swiftSDKVersion),
             buildConfig.rawValue,
         ].joined(separator: "/")
-        let harnessLibPath = URL(fileURLWithPath: harnessBuildOutput).appendingPathComponent("libtest_harness.so", isDirectory: false)
+        let harnessLibPath = URL(fileURLWithPath: harnessBuildOutput).appendingPathComponent("lib\(test_harness).so", isDirectory: false)
         if !FileManager.default.fileExists(atPath: harnessLibPath.path) {
             throw AndroidError(errorDescription: "Expected test harness library did not exist at: \(harnessLibPath.path)")
         }
-        let harnessOutputPath = libDir.appendingPathComponent("libtest_harness.so", isDirectory: false)
+        let harnessOutputPath = libDir.appendingPathComponent("lib\(test_harness).so", isDirectory: false)
         try FileManager.default.copyItem(at: harnessLibPath, to: harnessOutputPath)
 
         // --- Generate AndroidManifest.xml ---
         let apkPackageName = "com.swift.test.\(packageName.lowercased().replacingOccurrences(of: "-", with: "_"))"
-        let manifestXML = generateTestManifest(packageName: apkPackageName, libName: "test_harness", androidAPILevel: apiLevel)
+        let manifestXML = generateTestManifest(packageName: apkPackageName, libName: test_harness, androidAPILevel: apiLevel)
         let manifestFile = stagingDir.appendingPathComponent("AndroidManifest.xml", isDirectory: false)
         try manifestXML.write(to: manifestFile, atomically: true, encoding: .utf8)
 
@@ -345,8 +345,7 @@ fileprivate extension AndroidOperationCommand {
 
         // Monitor logcat for test output
         var testExitCode: Int32 = -1
-        let sentinel = "SWIFT_TEST_EXIT_CODE="
-
+        let sentinel = "\(SWIFT_TEST_EXIT_CODE)="
         let logcatLines = try await launchTool("adb", arguments: ["logcat", "-s", "SwiftTest:I", "-v", "raw"])
         for try await outputLine in logcatLines {
             let line = outputLine.line
@@ -381,68 +380,71 @@ fileprivate extension AndroidOperationCommand {
 
 }
 
+private let test_harness = "test_harness"
+let SWIFT_TEST_EXIT_CODE = "SWIFT_TEST_EXIT_CODE"
+
 /// Package.swift for the generated Swift test harness package.
-/// Defines a dynamic library target that produces libtest_harness.so,
+/// Defines a dynamic library target that produces `libtest_harness.so`,
 /// with a CAndroid helper target for Android NDK C headers.
 private let testHarnessPackageSwift: String = """
-    // swift-tools-version: 6.0
-    import PackageDescription
+// swift-tools-version: 6.0
+import PackageDescription
 
-    let package = Package(
-        name: "test-harness",
-        products: [
-            .library(name: "test_harness", type: .dynamic, targets: ["CAndroid", "TestHarness"])
-        ],
-        targets: [
-            .target(
-                name: "CAndroid",
-                linkerSettings: [
-                    .linkedLibrary("android"),
-                    .linkedLibrary("log"),
-                    .linkedLibrary("dl"),
-                ]
-            ),
-            .target(
-                name: "TestHarness",
-                dependencies: ["CAndroid"],
-                linkerSettings: [
-                    .linkedLibrary("android"),
-                    .linkedLibrary("log"),
-                    .linkedLibrary("dl"),
-                ]
-            ),
-        ]
-    )
-    """
+let package = Package(
+    name: "test-harness",
+    products: [
+        .library(name: "\(test_harness)", type: .dynamic, targets: ["CAndroid", "TestHarness"])
+    ],
+    targets: [
+        .target(
+            name: "CAndroid",
+            linkerSettings: [
+                .linkedLibrary("android"),
+                .linkedLibrary("log"),
+                .linkedLibrary("dl"),
+            ]
+        ),
+        .target(
+            name: "TestHarness",
+            dependencies: ["CAndroid"],
+            linkerSettings: [
+                .linkedLibrary("android"),
+                .linkedLibrary("log"),
+                .linkedLibrary("dl"),
+            ]
+        ),
+    ]
+)
+"""
 
 /// C umbrella header for the CAndroid module, providing Android NDK and POSIX headers.
-/// Includes convenience wrappers around __android_log_print for Swift interop
+/// Includes convenience wrappers around `__android_log_print` for Swift interop
 /// (Swift cannot call variadic C functions directly).
 private let testHarnessCHeader: String = """
-    #pragma once
+#pragma once
 
-    #include <android/native_activity.h>
-    #include <android/log.h>
-    #include <dlfcn.h>
-    #include <fcntl.h>
-    #include <pthread.h>
-    #include <stdlib.h>
-    #include <stdio.h>
-    #include <string.h>
-    #include <stdint.h>
-    #include <unistd.h>
+#include <android/native_activity.h>
+#include <android/log.h>
+#include <dlfcn.h>
+#include <fcntl.h>
+#include <pthread.h>
+#include <stdlib.h>
+#include <stdio.h>
+#include <string.h>
+#include <stdint.h>
+#include <unistd.h>
 
-    // Convenience wrappers for __android_log_print (Swift cannot call variadic C functions directly)
-    static inline void android_log_print_info(const char *tag, const char *msg) {
-        __android_log_print(ANDROID_LOG_INFO, tag, "%s", msg);
-    }
-    static inline void android_log_print_error(const char *tag, const char *msg) {
-        __android_log_print(ANDROID_LOG_ERROR, tag, "%s", msg);
-    }
+// Convenience wrappers for __android_log_print (Swift cannot call variadic C functions directly)
+static inline void android_log_print_info(const char *tag, const char *msg) {
+    __android_log_print(ANDROID_LOG_INFO, tag, "%s", msg);
+}
+static inline void android_log_print_error(const char *tag, const char *msg) {
+    __android_log_print(ANDROID_LOG_ERROR, tag, "%s", msg);
+}
 
-    // Called from the Swift record handler to write JSON test records to stdout (-> logcat) and the event stream file
-    void handle_test_record(const char *json, size_t len);
-    """
+// Called from the Swift record handler to write JSON test records to stdout (-> logcat) and the event stream file
+void handle_test_record(const char *json, size_t len);
+"""
 
 /// C source for the APK test harness that handles NativeActivity lifecycle, stdio→logcat
 /// redirection, library loading, dlsym, thread management, and exit code sentinel.
@@ -456,188 +458,188 @@ private func testHarnessCSource(testLibName: String, eventStreamDevicePath: Stri
     }
 
     return """
-    #include "include/CAndroid.h"
+#include "include/CAndroid.h"
 
-    // Declaration of the Swift function that bridges to async and invokes the entry point
-    extern int32_t run_swift_tests(const void *entry_point);
+// Declaration of the Swift function that bridges to async and invokes the entry point
+extern int32_t run_swift_tests(const void *entry_point);
 
-    #define TAG "SwiftTest"
-    #define TEST_LIB_NAME "\(testLibName)"
+#define TAG "SwiftTest"
+#define TEST_LIB_NAME "\(testLibName)"
 
-    static ANativeActivity *g_activity = NULL;
-    static int g_event_fd = -1;
+static ANativeActivity *g_activity = NULL;
+static int g_event_fd = -1;
 
-    // --- Record handling ---
+// --- Record handling ---
 
-    void handle_test_record(const char *json, size_t len) {
-        // Write to stdout (redirected to logcat via log_reader threads)
-        fwrite(json, 1, len, stdout);
+void handle_test_record(const char *json, size_t len) {
+    // Write to stdout (redirected to logcat via log_reader threads)
+    fwrite(json, 1, len, stdout);
+    if (len == 0 || json[len - 1] != '\\n') {
+        fputc('\\n', stdout);
+    }
+    fflush(stdout);
+    // Write to event stream file
+    if (g_event_fd >= 0) {
+        write(g_event_fd, json, len);
         if (len == 0 || json[len - 1] != '\\n') {
-            fputc('\\n', stdout);
-        }
-        fflush(stdout);
-        // Write to event stream file
-        if (g_event_fd >= 0) {
-            write(g_event_fd, json, len);
-            if (len == 0 || json[len - 1] != '\\n') {
-                write(g_event_fd, "\\n", 1);
-            }
+            write(g_event_fd, "\\n", 1);
         }
     }
+}
 
-    // --- Logcat redirection ---
+// --- Logcat redirection ---
 
-    static void *log_reader(void *arg) {
-        int fd = (int)(intptr_t)arg;
-        char buf[4096];
-        while (1) {
-            ssize_t n = read(fd, buf, sizeof(buf) - 1);
-            if (n <= 0) break;
-            buf[n] = '\\0';
-            // Split on newlines and log each line
-            char *start = buf;
-            for (ssize_t i = 0; i < n; i++) {
-                if (buf[i] == '\\n') {
-                    buf[i] = '\\0';
-                    __android_log_print(ANDROID_LOG_INFO, TAG, "%s", start);
-                    start = &buf[i + 1];
-                }
-            }
-            if (*start != '\\0') {
+static void *log_reader(void *arg) {
+    int fd = (int)(intptr_t)arg;
+    char buf[4096];
+    while (1) {
+        ssize_t n = read(fd, buf, sizeof(buf) - 1);
+        if (n <= 0) break;
+        buf[n] = '\\0';
+        // Split on newlines and log each line
+        char *start = buf;
+        for (ssize_t i = 0; i < n; i++) {
+            if (buf[i] == '\\n') {
+                buf[i] = '\\0';
                 __android_log_print(ANDROID_LOG_INFO, TAG, "%s", start);
+                start = &buf[i + 1];
             }
         }
-        return NULL;
+        if (*start != '\\0') {
+            __android_log_print(ANDROID_LOG_INFO, TAG, "%s", start);
+        }
     }
+    return NULL;
+}
 
-    static void redirect_stdio(void) {
-        int stdout_pipe[2], stderr_pipe[2];
-        pipe(stdout_pipe);
-        pipe(stderr_pipe);
-        dup2(stdout_pipe[1], STDOUT_FILENO);
-        dup2(stderr_pipe[1], STDERR_FILENO);
-        close(stdout_pipe[1]);
-        close(stderr_pipe[1]);
+static void redirect_stdio(void) {
+    int stdout_pipe[2], stderr_pipe[2];
+    pipe(stdout_pipe);
+    pipe(stderr_pipe);
+    dup2(stdout_pipe[1], STDOUT_FILENO);
+    dup2(stderr_pipe[1], STDERR_FILENO);
+    close(stdout_pipe[1]);
+    close(stderr_pipe[1]);
 
-        pthread_t t1, t2;
-        pthread_create(&t1, NULL, log_reader, (void *)(intptr_t)stdout_pipe[0]);
-        pthread_create(&t2, NULL, log_reader, (void *)(intptr_t)stderr_pipe[0]);
-        pthread_detach(t1);
-        pthread_detach(t2);
-    }
+    pthread_t t1, t2;
+    pthread_create(&t1, NULL, log_reader, (void *)(intptr_t)stdout_pipe[0]);
+    pthread_create(&t2, NULL, log_reader, (void *)(intptr_t)stderr_pipe[0]);
+    pthread_detach(t1);
+    pthread_detach(t2);
+}
 
-    // --- Test runner ---
+// --- Test runner ---
 
-    static void *test_runner(void *arg) {
-        redirect_stdio();
+static void *test_runner(void *arg) {
+    redirect_stdio();
 
-        __android_log_print(ANDROID_LOG_INFO, TAG, "Loading test library: %s", TEST_LIB_NAME);
+    __android_log_print(ANDROID_LOG_INFO, TAG, "Loading test library: %s", TEST_LIB_NAME);
 
-        void *handle = dlopen(TEST_LIB_NAME, RTLD_NOW);
-        if (!handle) {
-            __android_log_print(ANDROID_LOG_ERROR, TAG, "dlopen failed: %s", dlerror());
-            __android_log_print(ANDROID_LOG_INFO, TAG, "SWIFT_TEST_EXIT_CODE=1");
-            if (g_activity) ANativeActivity_finish(g_activity);
-            return NULL;
-        }
-
-        // Look up swt_abiv0_getEntryPoint per ST-0002 JSON ABI
-        typedef const void *(*GetEntryPointFn)(void);
-        GetEntryPointFn getEntryPoint = (GetEntryPointFn)dlsym(handle, "swt_abiv0_getEntryPoint");
-        if (!getEntryPoint) {
-            __android_log_print(ANDROID_LOG_ERROR, TAG, "swt_abiv0_getEntryPoint not found");
-            __android_log_print(ANDROID_LOG_INFO, TAG, "SWIFT_TEST_EXIT_CODE=1");
-            if (g_activity) ANativeActivity_finish(g_activity);
-            return NULL;
-        }
-
-        const void *entryPoint = getEntryPoint();
-        if (!entryPoint) {
-            __android_log_print(ANDROID_LOG_ERROR, TAG, "swt_abiv0_getEntryPoint returned NULL");
-            __android_log_print(ANDROID_LOG_INFO, TAG, "SWIFT_TEST_EXIT_CODE=1");
-            if (g_activity) ANativeActivity_finish(g_activity);
-            return NULL;
-        }
-
-        __android_log_print(ANDROID_LOG_INFO, TAG, "Swift Testing entry point obtained");
-        __android_log_print(ANDROID_LOG_INFO, TAG, "Running Swift Testing...");
-
-        // Open event stream file if configured
-        const char *event_stream_path = \(eventStreamLiteral);
-        if (event_stream_path) {
-            g_event_fd = open(event_stream_path, O_WRONLY | O_CREAT | O_TRUNC, 0644);
-        }
-
-        // Delegate async invocation to Swift
-        int32_t exitCode = run_swift_tests(entryPoint);
-
-        // Close event stream file
-        if (g_event_fd >= 0) { close(g_event_fd); g_event_fd = -1; }
-
-        // exit code 69 (EX_UNAVAILABLE) means no tests found — not a failure
-        if (exitCode == 69) exitCode = 0;
-
-        fflush(stdout);
-        fflush(stderr);
-        // give log_reader threads time to drain pipes
-        usleep(500000);
-
-        __android_log_print(ANDROID_LOG_INFO, TAG, "SWIFT_TEST_EXIT_CODE=%d", exitCode);
+    void *handle = dlopen(TEST_LIB_NAME, RTLD_NOW);
+    if (!handle) {
+        __android_log_print(ANDROID_LOG_ERROR, TAG, "dlopen failed: %s", dlerror());
+        __android_log_print(ANDROID_LOG_INFO, TAG, "\(SWIFT_TEST_EXIT_CODE)=1");
         if (g_activity) ANativeActivity_finish(g_activity);
         return NULL;
     }
 
-    // --- NativeActivity entry point ---
-
-    void ANativeActivity_onCreate(ANativeActivity *activity, void *savedState, size_t savedStateSize) {
-        g_activity = activity;
-        pthread_t tid;
-        pthread_create(&tid, NULL, test_runner, NULL);
-        pthread_detach(tid);
+    // Look up swt_abiv0_getEntryPoint per ST-0002 JSON ABI
+    typedef const void *(*GetEntryPointFn)(void);
+    GetEntryPointFn getEntryPoint = (GetEntryPointFn)dlsym(handle, "swt_abiv0_getEntryPoint");
+    if (!getEntryPoint) {
+        __android_log_print(ANDROID_LOG_ERROR, TAG, "swt_abiv0_getEntryPoint not found");
+        __android_log_print(ANDROID_LOG_INFO, TAG, "\(SWIFT_TEST_EXIT_CODE)=1");
+        if (g_activity) ANativeActivity_finish(g_activity);
+        return NULL;
     }
-    """
+
+    const void *entryPoint = getEntryPoint();
+    if (!entryPoint) {
+        __android_log_print(ANDROID_LOG_ERROR, TAG, "swt_abiv0_getEntryPoint returned NULL");
+        __android_log_print(ANDROID_LOG_INFO, TAG, "\(SWIFT_TEST_EXIT_CODE)=1");
+        if (g_activity) ANativeActivity_finish(g_activity);
+        return NULL;
+    }
+
+    __android_log_print(ANDROID_LOG_INFO, TAG, "Swift Testing entry point obtained");
+    __android_log_print(ANDROID_LOG_INFO, TAG, "Running Swift Testing...");
+
+    // Open event stream file if configured
+    const char *event_stream_path = \(eventStreamLiteral);
+    if (event_stream_path) {
+        g_event_fd = open(event_stream_path, O_WRONLY | O_CREAT | O_TRUNC, 0644);
+    }
+
+    // Delegate async invocation to Swift
+    int32_t exitCode = run_swift_tests(entryPoint);
+
+    // Close event stream file
+    if (g_event_fd >= 0) { close(g_event_fd); g_event_fd = -1; }
+
+    // exit code 69 (EX_UNAVAILABLE) means no tests found — not a failure
+    if (exitCode == 69) exitCode = 0;
+
+    fflush(stdout);
+    fflush(stderr);
+    // give log_reader threads time to drain pipes
+    usleep(500000);
+
+    __android_log_print(ANDROID_LOG_INFO, TAG, "\(SWIFT_TEST_EXIT_CODE)=%d", exitCode);
+    if (g_activity) ANativeActivity_finish(g_activity);
+    return NULL;
+}
+
+// --- NativeActivity entry point ---
+
+void ANativeActivity_onCreate(ANativeActivity *activity, void *savedState, size_t savedStateSize) {
+    g_activity = activity;
+    pthread_t tid;
+    pthread_create(&tid, NULL, test_runner, NULL);
+    pthread_detach(tid);
+}
+"""
 }
 
 /// Minimal Swift source for the APK test harness.
 /// Only bridges sync C → async Swift to invoke the testing entry point.
 /// All I/O (logcat, event stream, record writing) is handled in C.
 private let testHarnessSwiftSource: String = """
-    import CAndroid
-    import Dispatch
+import CAndroid
+import Dispatch
 
-    /// Entry point type per ST-0002 JSON ABI.
-    typealias EntryPoint = @convention(thin) @Sendable (
-        _ configurationJSON: UnsafeRawBufferPointer?,
-        _ recordHandler: @escaping @Sendable (_ recordJSON: UnsafeRawBufferPointer) -> Void
-    ) async throws -> Bool
+/// Entry point type per ST-0002 JSON ABI.
+typealias EntryPoint = @convention(thin) @Sendable (
+    _ configurationJSON: UnsafeRawBufferPointer?,
+    _ recordHandler: @escaping @Sendable (_ recordJSON: UnsafeRawBufferPointer) -> Void
+) async throws -> Bool
 
-    /// Called from C with the raw entry point pointer.
-    /// Bridges to async, invokes the entry point, and returns the exit code.
-    @_cdecl("run_swift_tests")
-    public func runSwiftTests(_ entryPointRaw: UnsafeRawPointer) -> Int32 {
-        let entryPoint = unsafeBitCast(entryPointRaw, to: EntryPoint.self)
+/// Called from C with the raw entry point pointer.
+/// Bridges to async, invokes the entry point, and returns the exit code.
+@_cdecl("run_swift_tests")
+public func runSwiftTests(_ entryPointRaw: UnsafeRawPointer) -> Int32 {
+    let entryPoint = unsafeBitCast(entryPointRaw, to: EntryPoint.self)
 
-        // Record handler: delegate to C for stdout/logcat and event stream writing
-        let recordHandler: @Sendable (UnsafeRawBufferPointer) -> Void = { recordJSON in
-            if let base = recordJSON.baseAddress, recordJSON.count > 0 {
-                handle_test_record(base.assumingMemoryBound(to: CChar.self), recordJSON.count)
-            }
+    // Record handler: delegate to C for stdout/logcat and event stream writing
+    let recordHandler: @Sendable (UnsafeRawBufferPointer) -> Void = { recordJSON in
+        if let base = recordJSON.baseAddress, recordJSON.count > 0 {
+            handle_test_record(base.assumingMemoryBound(to: CChar.self), recordJSON.count)
         }
-
-        // Bridge sync context to async Swift via DispatchSemaphore
-        let semaphore = DispatchSemaphore(value: 0)
-        nonisolated(unsafe) var testSuccess = false
-        Task {
-            defer { semaphore.signal() }
-            do {
-                testSuccess = try await entryPoint(nil, recordHandler)
-            } catch {
-                android_log_print_error("SwiftTest", "Entry point threw error: \\(error)")
-            }
-        }
-        semaphore.wait()
-
-        return testSuccess ? 0 : 1
     }
-    """
+
+    // Bridge sync context to async Swift via DispatchSemaphore
+    let semaphore = DispatchSemaphore(value: 0)
+    nonisolated(unsafe) var testSuccess = false
+    Task {
+        defer { semaphore.signal() }
+        do {
+            testSuccess = try await entryPoint(nil, recordHandler)
+        } catch {
+            android_log_print_error("SwiftTest", "Entry point threw error: \\(error)")
+        }
+    }
+    semaphore.wait()
+
+    return testSuccess ? 0 : 1
+}
+"""
 

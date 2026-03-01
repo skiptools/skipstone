@@ -61,20 +61,24 @@ jobs:
           # set the PATH to include the newly-built `skip` command
           echo "${PWD}/.build/artifactbundle-${OSNAME}/skip.artifactbundle/bin" >> $GITHUB_PATH
 
-      - name: Run which skip
-        shell: bash
-        run: which skip
+      - run: which skip
 
-      - name: Run skip version
-        shell: bash
-        run: skip version
+      - run: skip version
 
-      - name: Run skip android sdk install
-        shell: bash
-        run: skip android sdk install --version 'nightly-6.3'
+      - uses: Homebrew/actions/setup-homebrew@main
 
-      - name: Run checkup
-        shell: bash
-        run: skip checkup --native
+      # skip android sdk install needs swiftly
+      - run: brew install swiftly
+
+      - run: skip android sdk install --version 'nightly-6.3'
+
+      - run: skip checkup --native
+
+      - run: skip android emulator create
+
+      - run: skip android emulator list
+
+      - run: skip android emulator launch --background
+        if: false # TODO
 
 
