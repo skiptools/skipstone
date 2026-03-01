@@ -31,10 +31,12 @@ jobs:
 
       - uses: Homebrew/actions/setup-homebrew@main
 
-      - run: brew install swiftly
-
-      - run: sudo apt-get -y install libcurl4-openssl-dev || (sudo apt-get update && sudo apt-get -y install libcurl4-openssl-dev)
+      - name: "Install Host Toolchain prerequisites"
         if: runner.os == 'Linux'
+        run: |
+          sudo apt-get -y install libcurl4-openssl-dev || (sudo apt-get update && sudo apt-get -y install libcurl4-openssl-dev)
+
+      - run: brew install swiftly
 
       - run: swiftly init --skip-install --assume-yes --quiet-shell-followup
 
@@ -44,13 +46,16 @@ jobs:
 
       - run: swift --version
 
-      - run: swift test -v -c debug --parallel
+      - run: swift test --parallel
 
       # Linux plugin requires the Static Linux SDK
-      - run: curl -fsSL -o 'swift-static-linux-sdk.tar.gz' 'https://download.swift.org/swift-${{ matrix.swift }}-release/static-sdk/swift-${{ matrix.swift }}-RELEASE/swift-${{ matrix.swift }}-RELEASE_static-linux-0.0.1.artifactbundle.tar.gz' && swift sdk install 'swift-static-linux-sdk.tar.gz'
+      - name: "Install SDK prerequisites"
         if: runner.os == 'Linux'
+        run: |
+          curl -fsSL -o 'swift-static-linux-sdk.tar.gz' 'https://download.swift.org/swift-${{ matrix.swift }}-release/static-sdk/swift-${{ matrix.swift }}-RELEASE/swift-${{ matrix.swift }}-RELEASE_static-linux-0.0.1.artifactbundle.tar.gz'
+          swift sdk install 'swift-static-linux-sdk.tar.gz'
 
-      - name: Build plugin
+      - name: "Build plugin"
         shell: bash
         run: |
           # Build plugins using the current installed version of Swift
@@ -91,9 +96,11 @@ jobs:
         if: false # TODO
 
       - run: skip android emulator launch --background
+        #if: runner.arch != 'ARM64'
         if: false # TODO
 
       - name: "Build and run test package"
+        #if: runner.arch != 'ARM64'
         if: false # TODO
         run: |
           cd ${TMPDIR}
