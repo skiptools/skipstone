@@ -364,4 +364,171 @@ final class AndroidEmulatorSetupTests: XCTestCase {
         let androidHomeMessages = messages.filter { $0.contains("ANDROID_HOME") || $0.contains("Created") }
         XCTAssertGreaterThan(androidHomeMessages.count, 0, "ANDROID_HOME setup should run")
     }
+
+    // MARK: - AVD Existence Check Tests
+
+    /// AVD doesn't exist - should allow creation
+    func testCheckAVDExistsReturnsFalseWhenNoAVD() async throws {
+        // Create mock emulator script that returns empty AVD list
+        try mockEnv.createMockScript(at: mockEnv.emulatorPath, echoing: "")
+
+        ProcessInfo.mockEnvironment = mockEnv.environment()
+
+        let command = try TestMessageCommand.parse([])
+
+        let (result, messages) = try await runValidator { queue in
+            try await checkAVDExists(
+                command: command,
+                avdName: "TestAVD",
+                out: queue
+            )
+        }
+
+        XCTAssertFalse(result)
+        // StreamingCommand.run() generates a message block with timing info
+        XCTAssertEqual(messages.count, 1)
+    }
+
+    /// AVD exists - should skip creation
+    func testCheckAVDExistsReturnsTrueWhenPresent() async throws {
+        // Create mock emulator script that returns list including TestAVD
+        try mockEnv.createMockScript(at: mockEnv.emulatorPath, echoing: """
+            OtherAVD
+            TestAVD
+            AnotherAVD
+            """)
+
+        ProcessInfo.mockEnvironment = mockEnv.environment()
+
+        let command = try TestMessageCommand.parse([])
+
+        let (result, _) = try await runValidator { queue in
+            try await checkAVDExists(
+                command: command,
+                avdName: "TestAVD",
+                out: queue
+            )
+        }
+
+        XCTAssertTrue(result)
+    }
+
+    /// AVD with similar name exists - should not match partial names
+    func testCheckAVDExistsReturnsFalseForDifferentName() async throws {
+        // Create mock emulator script that returns other AVDs but not TestAVD
+        try mockEnv.createMockScript(at: mockEnv.emulatorPath, echoing: """
+            OtherAVD
+            AnotherAVD
+            """)
+
+        ProcessInfo.mockEnvironment = mockEnv.environment()
+
+        let command = try TestMessageCommand.parse([])
+
+        let (result, _) = try await runValidator { queue in
+            try await checkAVDExists(
+                command: command,
+                avdName: "TestAVD",
+                out: queue
+            )
+        }
+
+        XCTAssertFalse(result)
+    }
+
+    /// emulator command fails - should throw error, not assume no AVDs
+    func testCheckAVDExistsThrowsWhenCommandFails() async throws {
+        // Create mock emulator script that fails with an error
+        try mockEnv.createMockScript(at: mockEnv.emulatorPath, content: "exit 1")
+
+        ProcessInfo.mockEnvironment = mockEnv.environment()
+
+        let command = try TestMessageCommand.parse([])
+
+        await XCTAssertThrowsErrorAsync(
+            { _ = try await runValidator { queue in
+                try await checkAVDExists(
+                    command: command,
+                    avdName: "TestAVD",
+                    out: queue
+                )
+            }}
+        ) { error in
+            XCTAssertTrue(error is EmulatorListAVDsError, "Expected EmulatorListAVDsError but got \(type(of: error))")
+            XCTAssertTrue(error.localizedDescription.contains("emulator -list-avds"))
+        }
+    }
+    
+    // MARK: - Integration Tests
+
+    /// Test AndroidEmulatorCreateCommand.performCommand validates environment
+    /// Now requires pre-configured Android SDK (no bootstrapping)
+    func testAndroidEmulatorCreateCommandPerformCommand() async throws {
+        let androidHome = mockEnv.androidHome
+
+        // Create a fully configured Android SDK (not just a bootstrap one)
+        // This includes: cmdline-tools, sdkmanager, avdmanager, and emulator
+        try FileManager.default.createDirectory(atPath: androidHome, withIntermediateDirectories: true)
+
+        let cmdlineToolsPath = "\(androidHome)/cmdline-tools/latest/bin"
+        let sdkmanagerPath = "\(cmdlineToolsPath)/sdkmanager"
+        let avdmanagerPath = "\(cmdlineToolsPath)/avdmanager"
+        let emulatorPath = "\(androidHome)/emulator/emulator"
+
+        // Create sdkmanager that responds to --version
+        try mockEnv.createMockScript(at: sdkmanagerPath, content: """
+            if [ "$1" = "--version" ]; then
+                echo "20.0"
+            fi
+            exit 0
+            """)
+
+        // Create avdmanager that responds to create command
+        try mockEnv.createMockScript(at: avdmanagerPath, echoing: "Android Virtual Device created successfully")
+
+        // Create emulator that lists AVDs
+        try mockEnv.createMockScript(at: emulatorPath, echoing: "")
+
+        ProcessInfo.mockEnvironment = mockEnv.environment()
+
+        let command = try AndroidEmulatorCreateCommand.parse([])
+
+        let stream = MessageStream { continuation in
+            Task {
+                let messageQueue = MessageQueue(retain: true, continuation: continuation)
+                do {
+                    try await command.performCommand(with: messageQueue)
+                    await messageQueue.finish()
+                } catch {
+                    await messageQueue.finish(throwing: error)
+                }
+            }
+        }
+
+        var messages: [String] = []
+        for try await message in stream {
+            if let msg = message.message(term: .plain) {
+                messages.append(msg)
+            }
+        }
+
+        XCTAssertGreaterThan(messages.count, 0, "performCommand should generate messages")
+        let androidHomeMessages = messages.filter { $0.contains("ANDROID_HOME") }
+        XCTAssertGreaterThan(androidHomeMessages.count, 0, "ANDROID_HOME validation should run")
+    }
+
+    /// Test AndroidEmulatorCreateCommand fails when cmdline-tools not installed
+    func testAndroidEmulatorCreateCommandFailsWhenCmdlineToolsMissing() async throws {
+        ProcessInfo.mockEnvironment = mockEnv.environment()
+
+        let command = try AndroidEmulatorCreateCommand.parse([])
+
+        await XCTAssertThrowsErrorAsync(
+            { _ = try await runValidator { queue in
+                try await command.performCommand(with: queue)
+            }}
+        ) { error in
+            XCTAssertTrue(error is CmdlineToolsNotFoundError, "Expected CmdlineToolsNotFoundError but got \(type(of: error))")
+        }
+    }
 }

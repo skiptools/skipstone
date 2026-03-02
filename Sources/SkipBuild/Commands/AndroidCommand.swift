@@ -1277,7 +1277,7 @@ struct AndroidEmulatorCommand: AsyncParsableCommand {
 }
 
 @available(macOS 13, iOS 16, tvOS 16, watchOS 8, *)
-struct AndroidEmulatorCreateCommand: MessageCommand {
+struct AndroidEmulatorCreateCommand: MessageCommand, ToolOptionsCommand {
     static var configuration = CommandConfiguration(
         commandName: "create",
         abstract: "Install and create an Android emulator image",
@@ -1300,6 +1300,9 @@ struct AndroidEmulatorCreateCommand: MessageCommand {
 
     @OptionGroup(title: "Output Options")
     var outputOptions: OutputOptions
+
+    @OptionGroup(title: "Tool Options")
+    var toolOptions: ToolOptions
 
     @Option(help: ArgumentHelp("Android API emulator level", valueName: "level"))
     var androidAPILevel: Int = 34
@@ -1334,39 +1337,40 @@ struct AndroidEmulatorCreateCommand: MessageCommand {
     }()
 
     func performCommand(with out: MessageQueue) async throws {
-        func sdkmanagerInstall(_ package: String) async throws {
-            try await run(with: out, "Install \(package)", ["sdkmanager", "--verbose", "--install", package])
-        }
+        
+        let actualAPILevel = self.androidAPILevel
 
+        var defaultName = "emulator-\(actualAPILevel)"
+        defaultName += "-\(deviceProfile.lowercased().replacing(" ", with: "-"))"
+        let emulatorName = name ?? defaultName
+
+        let emulatorSpec = self.package ?? "system-images;android-\(androidAPILevel);\(systemImage);\(arch)"
+        let emulatorSpecParts = emulatorSpec.split(separator: ";")
+        let androidPlatform = emulatorSpecParts.dropFirst().first ?? "android-\(androidAPILevel)"
+
+        let _ = try await ensureCmdlineTools(
+            command: self,
+            additionalComponents: ["platforms;\(androidPlatform)", emulatorSpec],
+            out: out
+        )
+        
         await withLogStream(title: "Create Android emulator", with: out) {
-            try await run(with: out, "Configure Android SDK Manager", ["sh", "-c", "yes | sdkmanager --licenses"])
+            let avdResult = try await checkAVDExists(
+                command: self,
+                avdName: emulatorName,
+                out: out
+            )
 
-            try await sdkmanagerInstall("platform-tools")
-            try await sdkmanagerInstall("emulator")
+            if avdResult {
+                await out.write(status: .skip, "AVD '\(emulatorName)' already exists - skipping creation")
+                UserDefaults.standard.set(emulatorName, forKey: lastEmulatorNameDefault)
+                return
+            }
 
-            let emulatorSpec = self.package ?? "system-images;android-\(androidAPILevel);\(systemImage);\(arch)"
-
-            let emulatorSpecParts = emulatorSpec.split(separator: ";")
-            let androidPlatform = emulatorSpecParts.dropFirst().first ?? "android-\(androidAPILevel)"
-            let actualAPILevel = androidPlatform.split(separator: "-").last.flatMap({ Int($0) }) ?? self.androidAPILevel
-
-            try await sdkmanagerInstall("platforms;\(androidPlatform)")
-
-            try await sdkmanagerInstall(emulatorSpec)
-
-            var defaultName = "emulator-\(actualAPILevel)"
-            //if let deviceProfile {
-                defaultName += "-\(deviceProfile.lowercased().replacing(" ", with: "-"))"
-            //}
-            let emulatorName = name ?? defaultName
-
-            var createCommand = ["avdmanager", "create", "avd", "--force", "-n", emulatorName, "--package", emulatorSpec]
-            //if let deviceProfile {
-                createCommand += ["--device", deviceProfile]
-            //}
+            let createArgs = ["create", "avd", "--force", "-n", emulatorName, "--package", emulatorSpec, "--device", deviceProfile]
 
             // need to pipe through "no" to decline "Do you wish to create a custom hardware profile? [no]"
-            try await run(with: out, "Create emulator: \(emulatorName)", createCommand)
+            _ = try await self.runTool("avdmanager", with: out, "Create emulator: \(emulatorName)", arguments: createArgs)
 
             // save the emulatorName as the default for `skip android emulator launch`
             UserDefaults.standard.set(emulatorName, forKey: lastEmulatorNameDefault)
@@ -2001,4 +2005,47 @@ extension Collection where Element: Hashable {
         }
         return result
     }
+}
+
+
+// MARK: - AVD Existence Check
+
+/// Error thrown when emulator command cannot be executed
+struct EmulatorListAVDsError: LocalizedError {
+    let underlyingError: Error
+
+    var errorDescription: String? {
+        "Failed to run emulator -list-avds: \(underlyingError.localizedDescription)"
+    }
+}
+
+/// Checks if an AVD with the given name already exists using `emulator -list-avds`
+/// - Parameters:
+///   - command: The message command to use
+///   - avdName: The name of the AVD to check for
+///   - out: MessageQueue to yield validation messages
+/// - Returns: `true` if the AVD exists, `false` otherwise
+/// - Throws: EmulatorListAVDsError if emulator command fails
+@available(macOS 13, iOS 16, tvOS 16, watchOS 8, *)
+func checkAVDExists(
+    command: some MessageCommand,
+    avdName: String,
+    out: MessageQueue
+) async throws -> Bool {
+    let output: ProcessOutput
+    do {
+        let result = try await command.run(
+            with: out,
+            "Check if AVD '\(avdName)' exists",
+            ["emulator", "-list-avds"],
+        )
+        output = try result.get()
+    } catch {
+        throw EmulatorListAVDsError(underlyingError: error)
+    }
+
+    // Parse the output to find the AVD (just names, one per line)
+    let stdout = output.stdout
+    let avdNames = stdout.split(separator: "\n").map { $0.trimmingCharacters(in: CharacterSet.whitespaces) }.filter { !$0.isEmpty }
+    return avdNames.contains(avdName)
 }
