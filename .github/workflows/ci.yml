@@ -78,8 +78,8 @@ jobs:
       - name: "Test Swift Package on Android"
         if: runner.arch != 'ARM64'
         uses: reactivecircus/android-emulator-runner@v2
-        working-directory: ${{ runner.temp }}/package-demo
         with:
+          working-directory: ${{ runner.temp }}/package-demo
           api-level: 28
           script: |
             swift package init --name "PackageDemo"
