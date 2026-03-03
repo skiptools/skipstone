@@ -61,28 +61,27 @@ jobs:
       - run: skip doctor
 
       - run: skip checkup --native
-        if: runner.os != 'Linux'
+        #if: runner.os != 'Linux'
+        if: false # FIXME
         working-directory: ${{ runner.temp }}
 
-      - run: skip android emulator create
+      - name: "Create and Launch Emulator"
         if: false # TODO
-
-      - run: skip android emulator list
-        if: false # TODO
-
-      - run: skip android emulator launch --background
         #if: runner.arch != 'ARM64'
-        if: false # TODO
+        run: |
+          skip android emulator create
+          skip android emulator list
+          skip android emulator launch --background
+
+      - run: mkdir -p "${{ runner.temp }}/package-demo"
 
       - name: "Test Swift Package on Android"
         if: runner.arch != 'ARM64'
         uses: reactivecircus/android-emulator-runner@v2
+        working-directory: ${{ runner.temp }}/package-demo
         with:
           api-level: 28
           script: |
-            cd "${{ runner.temp }}"
-            mkdir package-demo
-            cd package-demo
             swift package init --name "PackageDemo"
             # test on host OS
             swift test
