@@ -46,7 +46,55 @@ jobs:
 
       - run: swift --version
 
+      - run: swift build
+
       - run: swift test --parallel
+
+      - run: echo "${PWD}/scripts" >> $GITHUB_PATH
+
+      - run: which skip
+
+      - run: skip version
+
+      - run: skip android sdk install --version 'nightly-6.3'
+
+      - run: skip doctor
+
+      - run: skip checkup --native
+        if: runner.os != 'Linux'
+        working-directory: ${{ runner.temp }}
+
+      - run: skip android emulator create
+        if: false # TODO
+
+      - run: skip android emulator list
+        if: false # TODO
+
+      - run: skip android emulator launch --background
+        #if: runner.arch != 'ARM64'
+        if: false # TODO
+
+      - name: "Test Swift Package on Android"
+        if: runner.arch != 'ARM64'
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 28
+          script: |
+            cd "${{ runner.temp }}"
+            mkdir package-demo
+            cd package-demo
+            swift package init --name "PackageDemo"
+            # test on host OS
+            swift test
+            # test using xcrunner binary
+            skip android test
+            # test using shared object file loaded from .apk
+            skip android test --apk
+            # now add a failing test to make sure it fails
+            echo '@Test func shouldFail() { #expect(1+1 == 3, "Test should fail") }' >> Tests/PackageDemoTests/PackageDemoTests.swift
+            swift build --build-tests
+            ! swift test
+            ! skip android test --apk
 
       # Linux plugin requires the Static Linux SDK
       - name: "Install SDK prerequisites"
@@ -76,41 +124,4 @@ jobs:
           # workaround fail when ANDROID_NDK_ROOT is set
           # see https://github.com/finagolfin/swift-android-sdk/issues/207
           echo "ANDROID_NDK_ROOT=" >> $GITHUB_ENV
-
-      - run: which skip
-
-      - run: skip version
-
-      - run: skip android sdk install --version 'nightly-6.3'
-
-      - run: skip doctor
-
-      - run: skip checkup --native
-        if: runner.os != 'Linux'
-        working-directory: ${{ runner.temp }}
-
-      - run: skip android emulator create
-        if: false # TODO
-
-      - run: skip android emulator list
-        if: false # TODO
-
-      - run: skip android emulator launch --background
-        #if: runner.arch != 'ARM64'
-        if: false # TODO
-
-      - name: "Build and run test package"
-        #if: runner.arch != 'ARM64'
-        if: false # TODO
-        run: |
-          cd ${TMPDIR}
-          mkdir package-demo
-          cd package-demo
-          swift init --name "PackageDemo"
-          # test on host OS
-          swift test
-          # test using xcrunner binary
-          skip android test
-          # test using shared object file loaded from .apk
-          skip android test --apk
 
