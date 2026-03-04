@@ -66,11 +66,11 @@ jobs:
 
       - run: skip checkup --native
         #if: runner.os != 'Linux'
-        if: false # FIXME
+        if: false # do we want this? It is testing a lot of other things...
         working-directory: ${{ runner.temp }}
 
       - name: "Create and Launch Emulator"
-        if: false # TODO
+        if: false # TODO: fix `skip android emulator` commands
         #if: runner.arch != 'ARM64'
         run: |
           skip android emulator create
@@ -96,10 +96,11 @@ jobs:
           key: avd-${{ matrix.os }}-api-${{ matrix.android-api }}
 
       - name: "Create AVD and generate snapshot for caching"
-        if: steps.avd-cache.outputs.cache-hit != 'true'
+        if: runner.arch != 'ARM64' && steps.avd-cache.outputs.cache-hit != 'true'
         uses: reactivecircus/android-emulator-runner@v2
         with:
           api-level: ${{ matrix.android-api }}
+          arch: x86_64
           force-avd-creation: false
           emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
           disable-animations: true
@@ -110,6 +111,7 @@ jobs:
         uses: reactivecircus/android-emulator-runner@v2
         with:
           api-level: ${{ matrix.android-api }}
+          arch: x86_64
           force-avd-creation: false
           emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -no-snapshot-save
           disable-animations: true
@@ -131,8 +133,8 @@ jobs:
             ! swift test
             ! skip android test --apk
 
-      # Linux plugin requires the Static Linux SDK
-      - name: "Install SDK prerequisites"
+      # Building the Linux plugin requires the Static Linux SDK
+      - name: "Install Static Linux SDK"
         if: runner.os == 'Linux'
         run: |
           curl -fsSL -o 'swift-static-linux-sdk.tar.gz' 'https://download.swift.org/swift-${{ matrix.swift }}-release/static-sdk/swift-${{ matrix.swift }}-RELEASE/swift-${{ matrix.swift }}-RELEASE_static-linux-0.0.1.artifactbundle.tar.gz'

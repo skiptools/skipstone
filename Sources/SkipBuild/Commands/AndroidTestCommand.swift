@@ -156,7 +156,7 @@ fileprivate extension AndroidOperationCommand {
             ], env: env, with: out)
         }
 
-        let signedAPK = sourceAPK.deletingLastPathComponent().appendingPathComponent(sourceAPK.deletingPathExtension().lastPathComponent + "-signed." + sourceAPK.lastPathComponent)
+        let signedAPK = sourceAPK.appendingToLastPathComponent("-signed") // app.apk -> app-signed.apk
 
         // apksigner sign
         try await runCommand(command: [
@@ -234,7 +234,11 @@ fileprivate extension AndroidOperationCommand {
 
         // --- Create temp staging directory ---
         let stagingDir = try createTempDir()
-        defer { try? FileManager.default.removeItem(at: stagingDir) }
+        defer {
+            if cleanup {
+                try? FileManager.default.removeItem(at: stagingDir)
+            }
+        }
 
         let apkContentDir = stagingDir.appendingPathComponent("apk-content", isDirectory: true)
         let libDir = apkContentDir.appendingPathComponent("lib/\(arch.abi)", isDirectory: true)
@@ -323,8 +327,7 @@ fileprivate extension AndroidOperationCommand {
         try manifestXML.write(to: manifestFile, atomically: true, encoding: .utf8)
 
         // --- Assemble APK ---
-        let unsignedAPK = stagingDir.appendingPathComponent("test-unsigned.apk", isDirectory: false)
-        let alignedAPK = stagingDir.appendingPathComponent("test-aligned.apk", isDirectory: false)
+        let unsignedAPK = stagingDir.appendingPathComponent("test.apk", isDirectory: false)
 
         // Step 1: aapt2 link
         try await runCommand(command: [
@@ -343,11 +346,14 @@ fileprivate extension AndroidOperationCommand {
         ])
 
         // Step 3: zipalign
+        let alignedAPK = unsignedAPK.appendingToLastPathComponent("-aligned")
+
         try await runCommand(command: [
             buildTools.zipalign, "-f", "-p", "4",
             unsignedAPK.path, alignedAPK.path,
         ], env: env, with: out)
 
+        // Step 4: sign
         let signedAPK = try await signAPK(env, out, buildTools, alignedAPK)
 
         // --- Install & Execute ---

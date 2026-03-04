@@ -1719,9 +1719,14 @@ struct SwiftSDKOpenAPI {
     }
 }
 
-fileprivate extension URL {
+extension URL {
     var homeDir: URL {
         FileManager.default.homeDirectoryForCurrentUser
+    }
+
+    /// Adds the given string to the end of the path, but before the extension. E.g., `foo.apk` -> `foo-suffix.apk`
+    func appendingToLastPathComponent(_ suffix: String) -> URL {
+        self.deletingLastPathComponent().appendingPathComponent(self.deletingPathExtension().lastPathComponent + suffix + "." + self.pathExtension)
     }
 }
 
