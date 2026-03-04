@@ -25,6 +25,9 @@ jobs:
           - '28'
           #- '29'
           #- '30'
+        android-arch:
+          - 'x86'
+          - 'x86_64'
 
     steps:
       - name: Checkout skipstone.git
@@ -93,14 +96,14 @@ jobs:
           path: |
             ~/.android/avd/*
             ~/.android/adb*
-          key: avd-${{ matrix.os }}-api-${{ matrix.android-api }}
+          key: avd-${{ matrix.os }}-api-${{ matrix.android-api }}-${{ matrix.android-arch }}
 
       - name: "Create AVD and generate snapshot for caching"
         if: runner.arch != 'ARM64' && steps.avd-cache.outputs.cache-hit != 'true'
         uses: reactivecircus/android-emulator-runner@v2
         with:
           api-level: ${{ matrix.android-api }}
-          arch: x86_64
+          arch: ${{ matrix.android-arch }}
           force-avd-creation: false
           emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
           disable-animations: true
@@ -111,7 +114,7 @@ jobs:
         uses: reactivecircus/android-emulator-runner@v2
         with:
           api-level: ${{ matrix.android-api }}
-          arch: x86_64
+          arch: ${{ matrix.android-arch }}
           force-avd-creation: false
           emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -no-snapshot-save
           disable-animations: true
@@ -122,16 +125,16 @@ jobs:
             # test on host OS
             swift test
             # test using xcrunner binary
-            #skip android test --verbose
+            #skip android test --verbose --arch ${{ matrix.android-arch }}
             # test using shared object file loaded from .apk
-            skip android test --apk --verbose
+            skip android test --apk --verbose --arch ${{ matrix.android-arch }}
 
             # now add a failing test to make sure it fails
             echo '@Test func shouldFail() { #expect(1+1 == 3, "Test should fail") }' >> Tests/PackageDemoTests/PackageDemoTests.swift
 
             swift build --build-tests
             ! swift test
-            ! skip android test --apk
+            ! skip android test --apk --arch ${{ matrix.android-arch }}
 
       # Building the Linux plugin requires the Static Linux SDK
       - name: "Install Static Linux SDK"
