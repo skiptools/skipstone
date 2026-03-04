@@ -457,10 +457,17 @@ extension AndroidOperationCommand {
             //xlinker += ["-T"]
         }
 
-        // produce a shared object instead of an executable when we are linking dybamic tests
+        // produce a shared object instead of an executable when we are linking dynamic tests
+        // this is diabled because we don't actually need it (the executable is loadable as a shared library anyway),
+        // and when building with macros we get an error
+        // (likely because the flags are being passed to the host compiler as well as the cross-compiler):
+        //
+        // `ld: unknown options: -shared -no-pie`
+        /*
         if testMode == .sharedObject {
             xlinker += ["-shared", "-no-pie"]
         }
+        */
 
         // always set the TARGET_OS_ANDROID environment and build constant, regardless of bridging
         env["TARGET_OS_ANDROID"] = "1"
@@ -1326,6 +1333,7 @@ public struct AndroidError : LocalizedError {
 /// Paths to Android SDK build tools needed for APK construction
 struct AndroidBuildTools {
     let aapt2: String
+    let d8: String
     let zipalign: String
     let apksigner: String
     let androidJar: String
