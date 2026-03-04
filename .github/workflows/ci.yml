@@ -7,27 +7,83 @@ on:
   pull_request:
 
 jobs:
-  ci:
-    timeout-minutes: 90
+  build-plugin:
+    timeout-minutes: 30
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
         os:
           - 'ubuntu-latest'
-          - 'macos-26'
+          - 'macos-latest'
+    steps:
+      - name: Checkout skipstone.git
+        uses: actions/checkout@v6
+        with:
+          # skip.git submodule needed for SkipDriveExternal
+          submodules: true
+
+      - run: swift build
+
+      - run: swift test --parallel
+
+      # Building the Linux plugin requires the Static Linux SDK
+      - name: "Install Static Linux SDK"
+        if: runner.os == 'Linux'
+        run: |
+          curl -fsSL -o 'swift-static-linux-sdk.tar.gz' 'https://download.swift.org/swift-${{ matrix.swift }}-release/static-sdk/swift-${{ matrix.swift }}-RELEASE/swift-${{ matrix.swift }}-RELEASE_static-linux-0.0.1.artifactbundle.tar.gz'
+          swift sdk install 'swift-static-linux-sdk.tar.gz'
+
+      - name: "Build ${{ runner.os }} plugin"
+        shell: bash
+        run: |
+          # Build plugins using the current installed version of Swift
+          export USE_SWIFTLY=0
+          # "macos" or "linux"
+          OSNAME=$(echo $RUNNER_OS | tr '[A-Z]' '[a-z]')
+
+          ./scripts/build_${OSNAME}_plugin.sh
+
+          SKIP_BIN="${PWD}/.build/artifactbundle-${OSNAME}/skip.artifactbundle/bin"
+
+          # set the PATH to include the newly-built `skip` command
+          echo "${SKIP_BIN}" >> $GITHUB_PATH
+
+          # override skip plugin to use the locally built binary
+          echo "SKIP_COMMAND_OVERRIDE=${SKIP_BIN}/skip" >> $GITHUB_ENV
+
+          mkdir artifacts/
+          cp -a "${PWD}/.build/artifactbundle-*/*.zip" artifacts/
+
+      - name: "Upload Build Artifacts"
+        uses: actions/upload-artifact@v6
+        with:
+          path: artifacts/
+
+  android-ci:
+    timeout-minutes: 90
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - 'ubuntu-24.04'
           - 'macos-15-intel'
-          #- 'macos-latest'
-          #- 'windows-latest'
         swift:
           - '6.2.3'
         android-api:
           - '28'
-          #- '29'
-          #- '30'
+          - '29'
+          - '30'
+          - '33'
+          - '35'
+          - '36'
         android-arch:
           - 'x86'
           - 'x86_64'
+        android-sdk:
+          - 'nightly-6.3'
+          - 'nightly-main'
 
     steps:
       - name: Checkout skipstone.git
@@ -53,17 +109,13 @@ jobs:
 
       - run: swift --version
 
-      - run: swift build
-
-      - run: swift test --parallel
-
       - run: echo "${PWD}/scripts" >> $GITHUB_PATH
 
       - run: which skip
 
       - run: skip version
 
-      - run: skip android sdk install --version 'nightly-6.3'
+      - run: skip android sdk install --version '${{ matrix.android-sdk }}'
 
       - run: skip doctor
 
@@ -82,14 +134,17 @@ jobs:
 
       - run: mkdir -p "${{ runner.temp }}/package-demo"
 
-      - name: "Enable KVM group perms"
+      - name: "Prepare Android emulator environment"
         if: runner.os == 'Linux'
         run: |
           echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
           sudo udevadm control --reload-rules
           sudo udevadm trigger --name-match=kvm
 
-      - name: "AVD cache"
+          # need to free disk space or the emulator fails to launch sometimes
+          sudo rm -rf /Applications/Xcode_1[45]*.app /Applications/Xcode_16.[0123].app /opt/microsoft /opt/google /opt/az /usr/share/miniconda /usr/share/az* /usr/share/glade* /usr/local/share/chromium /usr/local/share/powershell /usr/share/dotnet /opt/ghc /usr/local/.ghcup /usr/local/julia* /opt/hostedtoolcache/CodeQL /usr/local/share/boost
+
+      - name: "Android AVD cache"
         uses: actions/cache@v5
         id: avd-cache
         with:
@@ -135,33 +190,3 @@ jobs:
             swift build --build-tests
             ! swift test
             ! skip android test --apk --arch ${{ matrix.android-arch }}
-
-      # Building the Linux plugin requires the Static Linux SDK
-      - name: "Install Static Linux SDK"
-        if: runner.os == 'Linux'
-        run: |
-          curl -fsSL -o 'swift-static-linux-sdk.tar.gz' 'https://download.swift.org/swift-${{ matrix.swift }}-release/static-sdk/swift-${{ matrix.swift }}-RELEASE/swift-${{ matrix.swift }}-RELEASE_static-linux-0.0.1.artifactbundle.tar.gz'
-          swift sdk install 'swift-static-linux-sdk.tar.gz'
-
-      - name: "Build plugin"
-        shell: bash
-        run: |
-          # Build plugins using the current installed version of Swift
-          export USE_SWIFTLY=0
-          # "macos" or "linux"
-          OSNAME=$(echo $RUNNER_OS | tr '[A-Z]' '[a-z]')
-
-          ./scripts/build_${OSNAME}_plugin.sh
-
-          SKIP_BIN="${PWD}/.build/artifactbundle-${OSNAME}/skip.artifactbundle/bin"
-
-          # set the PATH to include the newly-built `skip` command
-          echo "${SKIP_BIN}" >> $GITHUB_PATH
-
-          # override skip plugin to use the locally built binary
-          echo "SKIP_COMMAND_OVERRIDE=${SKIP_BIN}/skip" >> $GITHUB_ENV
-
-          # workaround fail when ANDROID_NDK_ROOT is set
-          # see https://github.com/finagolfin/swift-android-sdk/issues/207
-          echo "ANDROID_NDK_ROOT=" >> $GITHUB_ENV
-
