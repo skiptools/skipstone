@@ -132,9 +132,7 @@ jobs:
       - run: skip doctor
 
       - run: skip checkup --native
-        #if: runner.os != 'Linux'
-        if: false # do we want this? It is testing a lot of other things...
-        working-directory: ${{ runner.temp }}
+        if: runner.os != 'Linux'
 
       - name: "Prepare emulator test script"
         run: |
@@ -148,11 +146,12 @@ jobs:
           swift package init --name "PackageDemo"
           # test on host OS
           swift test
+
           # test using shared object file loaded from .apk
           skip android test --apk --arch ${{ matrix.android-arch }}
 
           # test using xcrunner binary
-          #skip android test --arch ${{ matrix.android-arch }}
+          skip android test --arch ${{ matrix.android-arch }}
 
           # now add a failing test to make sure it actually fails
           echo '@Test func shouldFail() { #expect(1+1 == 3, "Test should fail") }' >> Tests/PackageDemoTests/PackageDemoTests.swift
@@ -163,19 +162,24 @@ jobs:
 
           cd -
 
-          # now build and test a traditional Skip Fuse package
-
-          skip init --no-build --native-model --bridged --module-tests demo-fuse-framework DemoFramework
-          cd demo-fuse-framework
-          ANDROID_SERIAL=emulator-5554 swift test
-          cd -
-
-          # now build and test a traditional Skip Lite package
+          # Build and test a traditional Skip Lite package
 
           skip init --no-build --transpiled-model --module-tests demo-lite-framework DemoFramework
           cd demo-lite-framework
           ANDROID_SERIAL=emulator-5554 swift test
           cd -
+
+          # Build and test a traditional Skip Fuse package
+
+          # Disabled due to build error on Linux:
+          # /home/runner/work/_temp/demo-fuse-framework/.build/checkouts/skip-android-bridge/Sources/SkipAndroidBridge/AndroidBundle.swift:6:12: error: cannot inherit from class 'Bundle' (compiled with Swift 6.2.4) because it has overridable members that could not be loaded in Swift 5.10
+
+          if [[ "${{ runner.os }}" != "Linux" ]]; then
+            skip init --no-build --native-model --bridged --module-tests demo-fuse-framework DemoFramework
+            cd demo-fuse-framework
+            ANDROID_SERIAL=emulator-5554 swift test
+            cd -
+          fi
 
           EOF
 
@@ -202,6 +206,9 @@ jobs:
       - name: "Android AVD cache"
         uses: actions/cache@v5
         id: avd-cache
+        # Emulator hangs when stopping, correlated to when the image is fetched from the cache
+        # https://github.com/ReactiveCircus/android-emulator-runner/issues/385#issuecomment-2423660038
+        if: false
         with:
           key: avd-${{ matrix.os }}-api-${{ matrix.android-api }}-${{ matrix.android-arch }}
           path: |
@@ -209,12 +216,13 @@ jobs:
             ~/.android/adb*
 
       - name: "Create AVD and generate snapshot for caching"
-        if: runner.arch != 'ARM64' && steps.avd-cache.outputs.cache-hit != 'true'
+        if: false
+        #if: runner.arch != 'ARM64' && steps.avd-cache.outputs.cache-hit != 'true'
         uses: reactivecircus/android-emulator-runner@v2
         with:
+          force-avd-creation: false
           api-level: ${{ matrix.android-api }}
           arch: ${{ matrix.android-arch }}
-          force-avd-creation: false
           emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
           disable-animations: true
           script: echo "Generated AVD snapshot for caching."
@@ -223,9 +231,10 @@ jobs:
         if: runner.arch != 'ARM64'
         uses: reactivecircus/android-emulator-runner@v2
         with:
+          force-avd-creation: false
+          emulator-boot-timeout: 300
           api-level: ${{ matrix.android-api }}
           arch: ${{ matrix.android-arch }}
-          force-avd-creation: false
           emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -no-snapshot-save
           disable-animations: true
           script: ./emulator-test-script.sh
