@@ -33,7 +33,7 @@ jobs:
       - name: "Install Static Linux SDK"
         if: runner.os == 'Linux'
         run: |
-          curl -fsSL -o 'swift-static-linux-sdk.tar.gz' 'https://download.swift.org/swift-${{ matrix.swift }}-release/static-sdk/swift-${{ matrix.swift }}-RELEASE/swift-${{ matrix.swift }}-RELEASE_static-linux-0.0.1.artifactbundle.tar.gz'
+          curl -fsSL --retry 5 -o 'swift-static-linux-sdk.tar.gz' 'https://download.swift.org/swift-${{ matrix.swift }}-release/static-sdk/swift-${{ matrix.swift }}-RELEASE/swift-${{ matrix.swift }}-RELEASE_static-linux-0.0.1.artifactbundle.tar.gz'
           swift sdk install 'swift-static-linux-sdk.tar.gz'
 
       - name: "Build ${{ runner.os }} plugin"
@@ -136,6 +136,51 @@ jobs:
         if: false # do we want this? It is testing a lot of other things...
         working-directory: ${{ runner.temp }}
 
+      - name: "Prepare emulator test script"
+        run: |
+          cat > emulator-test-script.sh << EOF
+          #!/bin/sh -ex
+          cd "${{ runner.temp }}"
+
+          mkdir package-demo
+          cd package-demo
+
+          swift package init --name "PackageDemo"
+          # test on host OS
+          swift test
+          # test using shared object file loaded from .apk
+          skip android test --apk --arch ${{ matrix.android-arch }}
+
+          # test using xcrunner binary
+          #skip android test --arch ${{ matrix.android-arch }}
+
+          # now add a failing test to make sure it actually fails
+          echo '@Test func shouldFail() { #expect(1+1 == 3, "Test should fail") }' >> Tests/PackageDemoTests/PackageDemoTests.swift
+
+          swift build --build-tests
+          ! swift test
+          ! skip android test --apk --arch ${{ matrix.android-arch }}
+
+          cd -
+
+          # now build and test a traditional Skip Fuse package
+
+          skip init --no-build --native-model --bridged --module-tests demo-fuse-framework DemoFramework
+          cd demo-fuse-framework
+          ANDROID_SERIAL=emulator-5554 swift test
+          cd -
+
+          # now build and test a traditional Skip Lite package
+
+          skip init --no-build --transpiled-model --module-tests demo-lite-framework DemoFramework
+          cd demo-lite-framework
+          ANDROID_SERIAL=emulator-5554 swift test
+          cd -
+
+          EOF
+
+          chmod +x emulator-test-script.sh
+
       - name: "Create and Launch Emulator"
         if: false # TODO: fix `skip android emulator` commands
         #if: runner.arch != 'ARM64'
@@ -143,8 +188,6 @@ jobs:
           skip android emulator create
           skip android emulator list
           skip android emulator launch --background
-
-      - run: mkdir -p "${{ runner.temp }}/package-demo"
 
       - name: "Prepare Android emulator environment"
         if: runner.os == 'Linux'
@@ -187,20 +230,5 @@ jobs:
           disable-animations: true
 
           working-directory: ${{ runner.temp }}/package-demo
-          script: |
-            swift package init --name "PackageDemo"
-            # test on host OS
-            swift test
-            # test using shared object file loaded from .apk
-            skip android test --apk --arch ${{ matrix.android-arch }}
-
-            # test using xcrunner binary
-            skip android test --arch ${{ matrix.android-arch }}
-
-            # now add a failing test to make sure it actually fails
-            echo '@Test func shouldFail() { #expect(1+1 == 3, "Test should fail") }' >> Tests/PackageDemoTests/PackageDemoTests.swift
-
-            swift build --build-tests
-            ! swift test
-            ! skip android test --apk --arch ${{ matrix.android-arch }}
+          script: ./emulator-test-script.sh
 
