@@ -7,7 +7,7 @@ on:
   pull_request:
 
 jobs:
-  test-and-build-plugin:
+  build-plugin:
     timeout-minutes: 30
     runs-on: ${{ matrix.os }}
     strategy:
@@ -64,9 +64,11 @@ jobs:
       - name: "Upload Build Artifacts"
         uses: actions/upload-artifact@v6
         with:
+          name: skip-plugin-${{ runner.os }}
           path: artifacts/
 
   android-ci:
+    needs: build-plugin
     timeout-minutes: 90
     runs-on: ${{ matrix.os }}
     strategy:
@@ -87,12 +89,6 @@ jobs:
           - 'nightly-main'
 
     steps:
-      - name: Checkout skipstone.git
-        uses: actions/checkout@v6
-        with:
-          # skip.git submodule needed for SkipDriveExternal
-          submodules: true
-
       - uses: Homebrew/actions/setup-homebrew@main
 
       - name: "Install Host Toolchain prerequisites"
@@ -110,7 +106,22 @@ jobs:
 
       - run: swift --version
 
-      - run: echo "${PWD}/scripts" >> $GITHUB_PATH
+      - name: "Download skip plugin"
+        uses: actions/download-artifact@v6
+        with:
+          name: skip-plugin-${{ runner.os }}
+          path: skip-artifact
+
+      - name: "Install skip from artifact"
+        shell: bash
+        run: |
+          OSNAME=$(echo $RUNNER_OS | tr '[A-Z]' '[a-z]')
+          cd skip-artifact
+          unzip skip-${OSNAME}.zip
+          SKIP_BIN="${PWD}/skip.artifactbundle/bin"
+          find skip.artifactbundle -type f -name skip -exec chmod +x {} +
+          echo "${SKIP_BIN}" >> $GITHUB_PATH
+          echo "SKIP_COMMAND_OVERRIDE=${SKIP_BIN}/skip" >> $GITHUB_ENV
 
       - run: which skip
 
