@@ -338,9 +338,13 @@ fileprivate extension AndroidOperationCommand {
         ], env: env, with: out)
 
         // Step 2: Add native libraries and DEX to the APK
-        try await run(with: out, "Adding native libraries to APK", [
-            "zip", "-r", "-0", unsignedAPK.path, "lib/",
-        ], in: apkContentDir)
+        // Linux/Musl doesn't support the `in workingDirectory` argument, and zip has no flag to set the root folder, so we need to do this shell operation like in:
+        // https://github.com/swiftlang/swift-package-manager/blob/e1183984b08c76480406e134a6ec116888cf2e67/Sources/Basics/Archiver/ZipArchiver.swift#L138
+        try await run(with: out, "Adding native libraries to APK", ["/bin/sh", "-c", "cd '\(apkContentDir.path)' && zip -r -0 '\(unsignedAPK.path)' lib/"])
+        //try await run(with: out, "Adding native libraries to APK", [
+        //    "zip", "-r", "-0", unsignedAPK.path, "lib/",
+        //], in: apkContentDir)
+
         try await run(with: out, "Adding classes.dex to APK", [
             "zip", "-j", "-0", unsignedAPK.path, dexDir.appendingPathComponent("classes.dex", isDirectory: false).path,
         ])
