@@ -228,7 +228,5 @@ jobs:
           force-avd-creation: false
           emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -no-snapshot-save
           disable-animations: true
-
-          working-directory: ${{ runner.temp }}/package-demo
           script: ./emulator-test-script.sh
 
