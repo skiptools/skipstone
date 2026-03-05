@@ -341,7 +341,7 @@ extension AndroidOperationCommand {
         #endif
     }
 
-    func runToolchainCommand(_ tc: ToolchainPaths, executable: String?, testMode: TestingMode?, with out: MessageQueue) async throws -> (xxx: String?, env: [String: String]) {
+    func runToolchainCommand(_ tc: ToolchainPaths, executable: String?, testMode: TestingMode?, with out: MessageQueue) async throws -> (cmd: [String], env: [String: String]) {
         var env: [String: String] = ProcessInfo.processInfo.environmentWithDefaultToolPaths
         let toolchainLib = tc.toolchainPath.appendingPathComponent("usr/lib", isDirectory: true)
         let toolchainBin = tc.toolchainPath.appendingPathComponent("usr/bin", isDirectory: true)
@@ -493,7 +493,7 @@ extension AndroidOperationCommand {
 
         try await runCommand(command: cmd, env: env, with: out)
 
-        return (xxx: nil, env: env)
+        return (cmd: cmd, env: env)
     }
 
     // filter out some of the native Android libraries that are located in the same folder as the Swift libraries
