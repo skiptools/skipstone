@@ -132,7 +132,9 @@ jobs:
       - run: skip doctor
 
       - run: skip checkup --native
-        if: runner.os != 'Linux'
+        #if: runner.os != 'Linux'
+        # FIXME: fails on macOS due to: error: Dependencies could not be resolved because root depends on 'skip' 1.7.4..<2.0.0.
+        if: false
 
       - name: "Prepare emulator test script"
         run: |
@@ -164,10 +166,14 @@ jobs:
 
           # Build and test a traditional Skip Lite package
 
-          skip init --no-build --transpiled-model --module-tests demo-lite-framework DemoFramework
-          cd demo-lite-framework
-          ANDROID_SERIAL=emulator-5554 swift test
-          cd -
+          # Disabled on Linux:
+          # /home/runner/work/_temp/demo-lite-framework/Tests/DemoFrameworkTests/DemoFrameworkTests.swift:2:8: error: no such module 'OSLog'
+          if [[ "${{ runner.os }}" != "Linux" ]]; then
+            skip init --no-build --transpiled-model --module-tests demo-lite-framework DemoFramework
+            cd demo-lite-framework
+            ANDROID_SERIAL=emulator-5554 swift test
+            cd -
+          fi
 
           # Build and test a traditional Skip Fuse package
 
