@@ -81,7 +81,7 @@ jobs:
           - '6.2.3'
         android-api:
           - '28'
-          - '36'
+          - '34'
         android-arch:
           - 'x86_64'
         android-sdk:
