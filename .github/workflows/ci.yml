@@ -192,8 +192,7 @@ jobs:
           chmod +x emulator-test-script.sh
 
       - name: "Create and Launch Emulator"
-        if: false # TODO: fix `skip android emulator` commands
-        #if: runner.arch != 'ARM64'
+        if: runner.arch != 'ARM64'
         run: |
           skip android emulator create
           skip android emulator list
