@@ -1305,10 +1305,10 @@ struct AndroidEmulatorCreateCommand: MessageCommand, ToolOptionsCommand {
     var toolOptions: ToolOptions
 
     @Option(help: ArgumentHelp("Android API emulator level", valueName: "level"))
-    var androidAPILevel: Int = 34
+    var androidAPILevel: Int = defaultEmulatorAPILevel
 
     @Option(help: ArgumentHelp("Android emulator device profile", valueName: "profile"))
-    var deviceProfile: String = "medium_phone" // "pixel_7"
+    var deviceProfile: String = defaultEmulatorDeviceProfile
 
     @Option(name: [.customShort("n"), .long], help: ArgumentHelp("Android emulator name", valueName: "name"))
     var name: String? = nil
@@ -1355,15 +1355,9 @@ struct AndroidEmulatorCreateCommand: MessageCommand, ToolOptionsCommand {
         )
         
         await withLogStream(title: "Create Android emulator", with: out) {
-            let avdResult = try await checkAVDExists(
-                command: self,
-                avdName: emulatorName,
-                out: out
-            )
-
-            if avdResult {
+            let avdNames = try await listAVDNames(command: self, out: out)
+            if avdNames.contains(emulatorName) {
                 await out.write(status: .skip, "AVD '\(emulatorName)' already exists - skipping creation")
-                UserDefaults.standard.set(emulatorName, forKey: lastEmulatorNameDefault)
                 return
             }
 
@@ -1371,15 +1365,9 @@ struct AndroidEmulatorCreateCommand: MessageCommand, ToolOptionsCommand {
 
             // need to pipe through "no" to decline "Do you wish to create a custom hardware profile? [no]"
             _ = try await self.runTool("avdmanager", with: out, "Create emulator: \(emulatorName)", arguments: createArgs)
-
-            // save the emulatorName as the default for `skip android emulator launch`
-            UserDefaults.standard.set(emulatorName, forKey: lastEmulatorNameDefault)
         }
     }
 }
-
-/// The UserDefaults key that remembers the last name of the emulator thay was created
-private let lastEmulatorNameDefault = "skipAndroidEmulatorLaunch"
 
 
 @available(macOS 13, iOS 16, tvOS 16, watchOS 8, *)
@@ -1388,7 +1376,7 @@ struct AndroidEmulatorLaunchCommand: MessageCommand, ToolOptionsCommand {
         commandName: "launch",
         abstract: "Launch an Android emulator",
         usage: """
-        # Launches the most recently created or used emulator
+        # Launches the single available emulator, or the default if multiple exist
         skip android emulator launch
 
         # Launches an emulator with a certain name
@@ -1435,8 +1423,24 @@ struct AndroidEmulatorLaunchCommand: MessageCommand, ToolOptionsCommand {
         var exitCode: SkipDriveExternal.ProcessResult.ExitStatus? = nil
         //~/Library/Android/sdk/emulator/emulator -avd emulator-34-pixel_7
 
-        let emulatorName = name ?? UserDefaults.standard.string(forKey: lastEmulatorNameDefault) ?? "unknown"
-        UserDefaults.standard.set(emulatorName, forKey: lastEmulatorNameDefault)
+        let emulatorName: String
+        if let name {
+            emulatorName = name
+        } else {
+            let avdNames = try await listAVDNames(command: self, out: out)
+            switch avdNames.count {
+            case 0:
+                throw EmulatorLaunchSelectionError(avdNames: [])
+            case 1:
+                emulatorName = avdNames[0]
+            default:
+                if avdNames.contains(defaultEmulatorCreateName) {
+                    emulatorName = defaultEmulatorCreateName
+                } else {
+                    throw EmulatorLaunchSelectionError(avdNames: avdNames)
+                }
+            }
+        }
 
         var emulatorArgs = ["@\(emulatorName)", "-no-metrics"]
         if self.headless {
@@ -2010,6 +2014,13 @@ extension Collection where Element: Hashable {
 
 // MARK: - AVD Existence Check
 
+/// Default API level and device profile for `skip android emulator create` when called with no arguments
+private let defaultEmulatorAPILevel = 34
+private let defaultEmulatorDeviceProfile = "medium_phone" // "pixel_7"
+
+/// Default AVD name created by `skip android emulator create` when called with no arguments
+private let defaultEmulatorCreateName = "emulator-\(defaultEmulatorAPILevel)-\(defaultEmulatorDeviceProfile)"
+
 /// Error thrown when emulator command cannot be executed
 struct EmulatorListAVDsError: LocalizedError {
     let underlyingError: Error
@@ -2019,33 +2030,35 @@ struct EmulatorListAVDsError: LocalizedError {
     }
 }
 
-/// Checks if an AVD with the given name already exists using `emulator -list-avds`
-/// - Parameters:
-///   - command: The message command to use
-///   - avdName: The name of the AVD to check for
-///   - out: MessageQueue to yield validation messages
-/// - Returns: `true` if the AVD exists, `false` otherwise
+/// Error when no emulator name can be selected (no AVDs or multiple AVDs with no default match)
+struct EmulatorLaunchSelectionError: LocalizedError {
+    let avdNames: [String]
+
+    var errorDescription: String? {
+        if avdNames.isEmpty {
+            return "No Android emulators (AVDs) were found. Create one with: skip android emulator create"
+        } else {
+            let list = avdNames.sorted().joined(separator: ", ")
+            return "Multiple Android emulators were found (\(list)). When no --name is specified, we launch the default emulator '\(defaultEmulatorCreateName)' created by `skip android emulator create`. None of the installed AVDs match that name. Either run `skip android emulator create` to create it, or specify one with --name (e.g. skip android emulator launch --name \(avdNames.first ?? "name"))"
+        }
+    }
+}
+
+/// Returns the list of AVD names from `emulator -list-avds`
 /// - Throws: EmulatorListAVDsError if emulator command fails
 @available(macOS 13, iOS 16, tvOS 16, watchOS 8, *)
-func checkAVDExists(
-    command: some MessageCommand,
-    avdName: String,
-    out: MessageQueue
-) async throws -> Bool {
+func listAVDNames(command: some MessageCommand, out: MessageQueue) async throws -> [String] {
     let output: ProcessOutput
     do {
         let result = try await command.run(
             with: out,
-            "Check if AVD '\(avdName)' exists",
+            "List available AVDs",
             ["emulator", "-list-avds"],
         )
         output = try result.get()
     } catch {
         throw EmulatorListAVDsError(underlyingError: error)
     }
-
-    // Parse the output to find the AVD (just names, one per line)
     let stdout = output.stdout
-    let avdNames = stdout.split(separator: "\n").map { $0.trimmingCharacters(in: CharacterSet.whitespaces) }.filter { !$0.isEmpty }
-    return avdNames.contains(avdName)
+    return stdout.split(separator: "\n").map { $0.trimmingCharacters(in: CharacterSet.whitespaces) }.filter { !$0.isEmpty }
 }
