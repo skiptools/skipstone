@@ -191,13 +191,6 @@ jobs:
 
           chmod +x emulator-test-script.sh
 
-      - name: "Create and Launch Emulator"
-        if: runner.arch != 'ARM64'
-        run: |
-          skip android emulator create
-          skip android emulator list
-          skip android emulator launch --background
-
       - name: "Prepare Android emulator environment"
         if: runner.os == 'Linux'
         run: |
@@ -207,6 +200,13 @@ jobs:
 
           # need to free disk space or the emulator fails to launch sometimes
           sudo rm -rf /Applications/Xcode_1[45]*.app /Applications/Xcode_16.[0123].app /opt/microsoft /opt/google /opt/az /usr/share/miniconda /usr/share/az* /usr/share/glade* /usr/local/share/chromium /usr/local/share/powershell /usr/share/dotnet /opt/ghc /usr/local/.ghcup /usr/local/julia* /opt/hostedtoolcache/CodeQL /usr/local/share/boost
+
+      - name: "Create and Launch Emulator"
+        if: runner.arch != 'ARM64'
+        run: |
+          skip android emulator create
+          skip android emulator list
+          skip android emulator launch --background
 
       - name: "Test Swift Package on Android"
         if: runner.arch != 'ARM64'
