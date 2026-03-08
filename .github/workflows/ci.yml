@@ -196,6 +196,12 @@ jobs:
         run: |
           skip android emulator create --verbose
           skip android emulator list --verbose
+          echo ANDROID_HOME=${ANDROID_HOME}
+          ls -l ${ANDROID_HOME}
+          echo ANDROID_SDK_HOME=${ANDROID_SDK_HOME}
+          ls -l ${ANDROID_SDK_HOME}
+          echo ANDROID_AVD_HOME=${ANDROID_AVD_HOME}
+          ls -l ${ANDROID_AVD_HOME}
           skip android emulator launch --background --verbose
 
       - name: "Prepare Android emulator environment"
