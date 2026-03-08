@@ -194,9 +194,9 @@ jobs:
       - name: "Create and Launch Emulator"
         if: runner.arch != 'ARM64'
         run: |
-          skip android emulator create
-          skip android emulator list
-          skip android emulator launch --background
+          skip android emulator create --verbose
+          skip android emulator list --verbose
+          skip android emulator launch --background --verbose
 
       - name: "Prepare Android emulator environment"
         if: runner.os == 'Linux'
