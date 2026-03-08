@@ -1362,6 +1362,7 @@ struct AndroidEmulatorCreateCommand: MessageCommand, ToolOptionsCommand {
 
             // need to pipe through "no" to decline "Do you wish to create a custom hardware profile? [no]"
             _ = try await self.runTool("avdmanager", with: out, "Create emulator: \(emulatorName)", arguments: createArgs)
+            _ = try await self.runTool("avdmanager", with: out, "List AVDs", arguments: ["list", "avd"])
         }
     }
 }
