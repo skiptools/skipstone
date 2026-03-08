@@ -123,38 +123,6 @@ struct OutdatedSdkmanagerError: LocalizedError {
     }
 }
 
-/// Checks sdkmanager version and validates it meets the minimum requirement
-/// - Parameters:
-///   - command: The message command to use for executing sdkmanager
-///   - sdkmanagerPath: Path to the sdkmanager binary
-///   - minimumVersion: Minimum required version string
-///   - out: MessageQueue to yield validation messages
-/// - Returns: The version string if it meets the minimum requirement
-/// - Throws: OutdatedSdkmanagerError if version is too old, or other errors if command fails
-private func checkSdkmanagerVersion(
-    command: some MessageCommand,
-    sdkmanagerPath: String,
-    minimumVersion: String,
-    out: MessageQueue
-) async throws -> String {
-    let result = try await command.run(
-        with: out,
-        "Check sdkmanager version",
-        [sdkmanagerPath, "--version"]
-    )
-    let output = try result.get()
-    let version = output.stdout.trimmingCharacters(in: CharacterSet.whitespacesAndNewlines)
-
-    // Check if version meets minimum requirement using semantic version comparison
-    if version.localizedStandardCompare(minimumVersion) == .orderedAscending {
-        await out.write(status: .fail, "Android command-line tools version \(version) is too old (minimum: \(minimumVersion))")
-        throw OutdatedSdkmanagerError(version: version, minimumVersion: minimumVersion)
-    }
-
-    await out.write(status: .pass, "Android command-line tools version \(version) (> \(minimumVersion))")
-    return version
-}
-
 /// Error thrown when emulator binary cannot be found
 struct EmulatorNotFoundError: LocalizedError {
     let androidHome: String
@@ -186,8 +154,17 @@ func ensureCmdlineTools(
     additionalComponents: [String] = [],
     out: MessageQueue
 ) async throws -> CmdlineToolsResult {
+    func getSdkmanagerVersion(sdkmanagerPath: String) async throws -> String {
+        let result = try await command.run(
+            with: out,
+            "Check sdkmanager version",
+            [sdkmanagerPath, "--version"]
+        )
+        let output = try result.get()
+        return output.stdout.trimmingCharacters(in: CharacterSet.whitespacesAndNewlines)
+    }
+
     let fm = FileManager.default
-    let minimumVersion = "12.0"
 
     // Step 1: Validate JAVA_HOME
     guard let javaHome = ProcessInfo.javaHome else {
@@ -211,6 +188,7 @@ func ensureCmdlineTools(
         await out.write(status: .pass, "Created ANDROID_HOME at \(androidHome)")
     }
 
+    let minimumVersion = "15.0"
     let cmdlineToolsPath = "\(androidHome)/cmdline-tools/latest/bin/sdkmanager"
     let isBootstrapping = !fm.isExecutableFile(atPath: cmdlineToolsPath)
     if isBootstrapping {
@@ -239,12 +217,31 @@ func ensureCmdlineTools(
         }
     }
 
-    let version = try await checkSdkmanagerVersion(
-        command: command,
-        sdkmanagerPath: cmdlineToolsPath,
-        minimumVersion: minimumVersion,
-        out: out
-    )
+    var version = try await getSdkmanagerVersion(sdkmanagerPath: cmdlineToolsPath)
+
+    if version.localizedStandardCompare(minimumVersion) == .orderedAscending {
+        // sdkmanager is too old — use it as bootstrap to update cmdline-tools;latest
+        await out.write(status: .warn, "Upgrading Android command-line tools from \(version) to latest (minimum: \(minimumVersion))")
+        try await installSDKComponents(
+            command: command,
+            components: ["cmdline-tools;latest"],
+            out: out
+        )
+        if fm.isExecutableFile(atPath: "\(androidHome)/cmdline-tools/latest-2/bin/sdkmanager") {
+            // delete the latest folder and move the latest-2 folder to latest
+            try fm.removeItem(atPath: "\(androidHome)/cmdline-tools/latest")
+            try fm.moveItem(atPath: "\(androidHome)/cmdline-tools/latest-2", toPath: "\(androidHome)/cmdline-tools/latest")
+        }
+        guard fm.isExecutableFile(atPath: cmdlineToolsPath) else {
+            throw CmdlineToolsBootstrapFailedError()
+        }
+        version = try await getSdkmanagerVersion(sdkmanagerPath: cmdlineToolsPath)
+    }
+
+    if version.localizedStandardCompare(minimumVersion) == .orderedAscending {
+        throw OutdatedSdkmanagerError(version: version, minimumVersion: minimumVersion)
+    }
+    await out.write(status: .pass, "Android command-line tools version \(version) (> \(minimumVersion))")
 
     try await installSDKComponents(
         command: command,
