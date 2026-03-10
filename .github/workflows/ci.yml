@@ -134,10 +134,7 @@ jobs:
       - run: skip doctor
 
       - run: skip checkup --native
-        # there's a bug runing checkup with a local skipstone comand build:
-        # [✗] error: Dependencies could not be resolved because root depends on 'skip' 1.7.5..<2.0.0.
-        if: false
-        #if: runner.os != 'Linux'
+        if: runner.os != 'Linux'
 
       - name: "Prepare Android emulator environment"
         if: runner.os == 'Linux'

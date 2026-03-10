@@ -4,13 +4,7 @@ import PackageDescription
 let package = Package(
     name: "skipstone",
     defaultLocalization: "en",
-    platforms: [
-        .iOS(.v16),
-        .macOS(.v14),
-        .tvOS(.v16),
-        .watchOS(.v9),
-        .macCatalyst(.v16),
-    ],
+    platforms: [.macOS(.v13)],
     products: [
         .library(name: "SkipSyntax", targets: ["SkipSyntax"]),
         .library(name: "SkipBuild", targets: ["SkipBuild"]),
