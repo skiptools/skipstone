@@ -90,6 +90,9 @@ Build and export the Skip modules defined in the Package.swift, with libraries e
     @Option(help: ArgumentHelp("Destination architectures for native libraries", valueName: "arch"))
     var arch: [AndroidArchArgument] = []
 
+    @OptionGroup(title: "Autoskip Options")
+    var autoskipOptions: AutoskipOptions
+
     func performCommand(with out: MessageQueue) async {
         await withLogStream(with: out) {
             try await runExport(with: out)
@@ -105,8 +108,25 @@ Build and export the Skip modules defined in the Package.swift, with libraries e
             throw error("must specify at least one of --release or --debug")
         }
 
+        // Set up autoskip if requested
+        var autoskipContext: AutoskipContext? = nil
+        var autoskipEnv: [String: String] = [:]
+        if let autoskipMode = autoskipOptions.autoskip {
+            let prePackageJSON = try await parseSwiftPackage(with: out, at: project)
+            var ctx = AutoskipContext(mode: autoskipMode, projectPath: project, packageName: autoskipOptions.autoskipPackage, revert: autoskipOptions.autoskipRevert)
+            autoskipEnv = try ctx.apply(packageJSON: prePackageJSON)
+            autoskipContext = ctx
+        }
+
+        defer {
+            if autoskipOptions.autoskipRevert, let ctx = autoskipContext {
+                try? ctx.revertChanges()
+            }
+        }
+
+        // Re-parse package after autoskip modifications (if any) so targets have plugins
         let packageJSON = try await parseSwiftPackage(with: out, at: project)
-        let packageName: String = self.package ?? packageJSON.name
+        let packageName: String = self.autoskipOptions.autoskipPackage ?? self.package ?? packageJSON.name
 
         if build == true {
 
@@ -155,6 +175,7 @@ Build and export the Skip modules defined in the Package.swift, with libraries e
         let outputFolderAbsolute = try AbsolutePath(validating: outputFolder, relativeTo: fs.currentWorkingDirectory!)
 
         var env = ProcessInfo.processInfo.environmentWithDefaultToolPaths // environment that includes a default ANDROID_HOME
+        env.merge(autoskipEnv, uniquingKeysWith: { _, new in new })
 
         if !arch.isEmpty {
             // take the arch flag(s) and set them in the `SKIP_EXPORT_ARCHS` environment, which will be processed by the AndroidCommand when it sees the SkipBridge `--arch automatic` setting

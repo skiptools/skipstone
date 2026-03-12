@@ -56,6 +56,9 @@ struct TestCommand: SkipCommand, StreamingCommand, ToolOptionsCommand {
     @Option(name: [.long], help: ArgumentHelp("Output summary table", valueName: "path"))
     var summaryFile: String?
 
+    @OptionGroup(title: "Autoskip Options")
+    var autoskipOptions: AutoskipOptions
+
     func performCommand(with out: MessageQueue) async {
         await withLogStream(with: out) {
             try await runTestCommand(with: out)
@@ -100,13 +103,32 @@ extension TestCommand {
             return
         }
 
+        // Set up autoskip if requested
+        var autoskipContext: AutoskipContext? = nil
+        var additionalEnv: [String: String] = [:]
+        if let autoskipMode = autoskipOptions.autoskip {
+            let packageJSON = try await parseSwiftPackage(with: out, at: project)
+            var ctx = AutoskipContext(mode: autoskipMode, projectPath: project, packageName: autoskipOptions.autoskipPackage, revert: autoskipOptions.autoskipRevert)
+            additionalEnv = try ctx.apply(packageJSON: packageJSON)
+            autoskipContext = ctx
+        }
+
+        defer {
+            if autoskipOptions.autoskipRevert, let ctx = autoskipContext {
+                try? ctx.revertChanges()
+            }
+        }
+
         let xunit = xunit ?? ".build/xcunit-\(UUID().uuidString).xml"
 
-        try await run(with: out, "Build Project", ["swift", "build", "--build-tests", "--verbose", "--configuration", configuration, "--package-path", project])
+        var env = ProcessInfo.processInfo.environmentWithDefaultToolPaths
+        env.merge(additionalEnv, uniquingKeysWith: { _, new in new })
+
+        try await run(with: out, "Build Project", ["swift", "build", "--build-tests", "--verbose", "--configuration", configuration, "--package-path", project], environment: env)
 
         var testResult: Result<ProcessOutput, Error>? = nil
         if test == true {
-            testResult = try await run(with: out, "Test project", ["swift", "test", "--parallel", "-c", configuration, "--enable-code-coverage", "--xunit-output", xunit, "--package-path", project])
+            testResult = try await run(with: out, "Test project", ["swift", "test", "--parallel", "-c", configuration, "--enable-code-coverage", "--xunit-output", xunit, "--package-path", project], environment: env)
         } else if self.xunit == nil {
             // we can only use the generated xunit if we are running the tests
             throw SkipDriveError(errorDescription: "Must either specify --xunit path or run tests with --test")
