@@ -1150,6 +1150,8 @@ struct SkipstoneCommand: BuildPluginOptionsCommand, StreamingCommand {
                         trace("skipping resource linking for CMake project")
                     } else if sourcePath.extension == "strings" {
                         try convertStrings(resourceSourceURL: resourceSourceURL, sourcePath: sourcePath)
+                    } else if sourcePath.extension == "stringsdict" {
+                        try convertStringsDict(resourceSourceURL: resourceSourceURL, sourcePath: sourcePath)
                     } else if sourcePath.extension == "xcstrings" {
                         try convertXCStrings(resourceSourceURL: resourceSourceURL, sourcePath: sourcePath)
                     //} else if sourcePath.extension == "xcassets" {
@@ -1183,6 +1185,22 @@ struct SkipstoneCommand: BuildPluginOptionsCommand, StreamingCommand {
                 let localizableStringsPath = lprojFolder.appending(localizableStrings)
                 info("create \(localizableStrings.pathString) from \(sourcePath.pathString)", sourceFile: localizableStringsPath.sourceFile)
                 try writeChanges(tag: localizableStrings.pathString, to: localizableStringsPath, contents: stringsContent, readOnly: false)
+            }
+
+            func convertStringsDict(resourceSourceURL: URL, sourcePath: AbsolutePath) throws {
+                // process the .stringsdict in the same way that Xcode does: read the PLIST and use the content to synthesize a LANG.lproj/TABLENAME.stringsdict file
+                let stringsDictContent = try Data(contentsOf: resourceSourceURL)
+
+                let localeId = sourcePath.parentDirectory.basenameWithoutExt
+                let lprojFolder = resourcesBasePath.appending(component: localeId + ".lproj")
+                let locBase = sourcePath.basenameWithoutExt
+
+                try fs.createDirectory(lprojFolder, recursive: true)
+
+                let localizableStringsDict = try RelativePath(validating: locBase + ".stringsdict")
+                let localizableStringsDictPath = lprojFolder.appending(localizableStringsDict)
+                info("create \(localizableStringsDict.pathString) from \(sourcePath.pathString)", sourceFile: localizableStringsDictPath.sourceFile)
+                try writeChanges(tag: localizableStringsDict.pathString, to: localizableStringsDictPath, contents: stringsDictContent, readOnly: false)
             }
 
             func convertXCStrings(resourceSourceURL: URL, sourcePath: AbsolutePath) throws {
