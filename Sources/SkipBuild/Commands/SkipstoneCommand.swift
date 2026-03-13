@@ -1122,7 +1122,7 @@ struct SkipstoneCommand: BuildPluginOptionsCommand, StreamingCommand {
                 }
             }
 
-            /// Links resources in "process" mode, flattening the hierarchy and performing special processing for .xcstrings and other files
+            /// Links resources in "process" mode, flattening the hierarchy and performing special processing for .strings, .xcstrings and other files
             func linkProcessResources(entry: ResourceEntry, resourcesBasePath: AbsolutePath) throws {
                 for resourceFile in entry.urls.map(\.path).sorted() {
                     let resourceFileCanonical = (resourceFile as NSString).standardizingPath
@@ -1148,8 +1148,10 @@ struct SkipstoneCommand: BuildPluginOptionsCommand, StreamingCommand {
                         trace("skipping resource linking for buildSrc/")
                     } else if isCMakeProject {
                         trace("skipping resource linking for CMake project")
-                    } else if sourcePath.extension == "xcstrings" {
+                    } else if sourcePath.extension == "strings" {
                         try convertStrings(resourceSourceURL: resourceSourceURL, sourcePath: sourcePath)
+                    } else if sourcePath.extension == "xcstrings" {
+                        try convertXCStrings(resourceSourceURL: resourceSourceURL, sourcePath: sourcePath)
                     //} else if sourcePath.extension == "xcassets" {
                         // TODO: convert various assets into Android res/ folder
                     } else { // non-processed resources are just linked directly from the package
@@ -1168,6 +1170,22 @@ struct SkipstoneCommand: BuildPluginOptionsCommand, StreamingCommand {
             }
 
             func convertStrings(resourceSourceURL: URL, sourcePath: AbsolutePath) throws {
+                // process the .strings in the same way that Xcode does: read the TXT and use the content to synthesize a LANG.lproj/TABLENAME.strings file
+                let stringsContent = try Data(contentsOf: resourceSourceURL)
+
+                let localeId = sourcePath.parentDirectory.basenameWithoutExt 
+                let lprojFolder = resourcesBasePath.appending(component: localeId + ".lproj")
+                let locBase = sourcePath.basenameWithoutExt
+
+                try fs.createDirectory(lprojFolder, recursive: true)
+
+                let localizableStrings = try RelativePath(validating: locBase + ".strings")
+                let localizableStringsPath = lprojFolder.appending(localizableStrings)
+                info("create \(localizableStrings.pathString) from \(sourcePath.pathString)", sourceFile: localizableStringsPath.sourceFile)
+                try writeChanges(tag: localizableStrings.pathString, to: localizableStringsPath, contents: stringsContent, readOnly: false)
+            }
+
+            func convertXCStrings(resourceSourceURL: URL, sourcePath: AbsolutePath) throws {
                 // process the .xcstrings in the same way that Xcode does: parse the JSON and use the localizations keys to synthesize a LANG.lproj/TABLENAME.strings file
                 let xcstrings = try JSONDecoder().decode(LocalizableStringsDictionary.self, from: Data(contentsOf: resourceSourceURL))
                 let defaultLanguage = xcstrings.sourceLanguage
