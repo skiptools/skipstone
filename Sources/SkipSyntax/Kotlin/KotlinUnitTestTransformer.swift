@@ -19,7 +19,14 @@ final class KotlinUnitTestTransformer: KotlinTransformer {
     /// Types annotated with `@Suite` in Swift source.
     private var swiftTestingSuites: [Source.FilePath: Set<String>] = [:]
 
-    static let testRunnerAnnotation: String? = nil // was: "@org.junit.runner.RunWith(androidx.test.ext.junit.runners.AndroidJUnit4::class)"
+    /// A default annotation to add to generated test cases, which is required by Robolectric to correcly mock various Android API
+    ///
+    /// Failure to include this will result in errors like:
+    /// ```
+    /// java.lang.RuntimeException: Method parse in android.net.Uri not mocked.
+    /// ```
+    /// See also: https://developer.android.com/training/testing/local-tests#mocking-dependencies
+    static let testRunnerAnnotation: String? = "@org.junit.runner.RunWith(androidx.test.ext.junit.runners.AndroidJUnit4::class)"
 
     func gather(from syntaxTree: SyntaxTree) {
         var testFunctions: Set<String> = []
