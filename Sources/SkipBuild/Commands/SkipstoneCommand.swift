@@ -1170,7 +1170,7 @@ struct SkipstoneCommand: BuildPluginOptionsCommand, StreamingCommand {
             }
 
             func copyStrings(resourceSourceURL: URL, sourcePath: AbsolutePath) throws {
-                // process the .strings / .stringsdict in the same way that Xcode does: parse the FILE and use the content to synthesize a LANG.lproj/TABLENAME.EXTENSION file
+                // process the .strings / .stringsdict in the same way that Xcode does: read the FILE and use the content to synthesize a LANG.lproj/TABLENAME.EXTENSION file
                 let content = try Data(contentsOf: resourceSourceURL)
 
                 let localeId = sourcePath.parentDirectory.basenameWithoutExt
