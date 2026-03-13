@@ -1122,7 +1122,7 @@ struct SkipstoneCommand: BuildPluginOptionsCommand, StreamingCommand {
                 }
             }
 
-            /// Links resources in "process" mode, flattening the hierarchy and performing special processing for .strings, .xcstrings and other files
+            /// Links resources in "process" mode, flattening the hierarchy and performing special processing for .strings, .stringsdict, .xcstrings and other files
             func linkProcessResources(entry: ResourceEntry, resourcesBasePath: AbsolutePath) throws {
                 for resourceFile in entry.urls.map(\.path).sorted() {
                     let resourceFileCanonical = (resourceFile as NSString).standardizingPath
