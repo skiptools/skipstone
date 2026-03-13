@@ -143,6 +143,8 @@ jobs:
         if: false
         #if: runner.os != 'Linux'
 
+      - run: skip android build --build-tests
+
       - name: "Prepare Android emulator environment"
         if: runner.os == 'Linux'
         run: |
