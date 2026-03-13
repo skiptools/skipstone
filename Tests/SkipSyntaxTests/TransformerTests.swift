@@ -5,7 +5,7 @@
 import XCTest
 @testable import SkipSyntax
 
-let testRunnerAnnotation: String = KotlinUnitTestTransformer.testRunnerAnnotation?.appending("\n") ?? ""
+let testRunnerAnnotation: String = KotlinClassDeclaration.testRunnerAnnotation?.appending("\n") ?? ""
 
 final class TransformerTests: XCTestCase {
     func testUnitTestTransformer() async throws {
