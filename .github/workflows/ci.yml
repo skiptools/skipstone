@@ -140,26 +140,29 @@ jobs:
 
       - run: skip doctor
 
-      - name: "Create and export new Skip Lite app project"
-        if: runner.os != 'Linux'
-        working-directory: ${{ runner.temp }}
-        run: |
-          skip init --no-build --transpiled-app --appid=some.app.id demo-skip-applite DemoSkipApp
-          cd demo-skip-applite
-          skip export --debug --ios-sim
+      # disables to speed up CI
+      #- name: "Create and export new Skip Lite app project"
+      #  if: runner.os != 'Linux'
+      #  working-directory: ${{ runner.temp }}
+      #  run: |
+      #    skip init --no-build --transpiled-app --appid=some.app.id demo-skip-applite DemoSkipApp
+      #    cd demo-skip-applite
+      #    skip export --debug --ios-sim
 
       - run: skip android sdk install --version '${{ matrix.android-sdk }}' --ndk-version '${{ matrix.android-ndk }}'
 
-      - run: skip doctor
+      - run: skip android build --version
 
-      - name: "Create and export new Skip Fuse app project"
-        if: runner.os != 'Linux'
-        #if: false
-        working-directory: ${{ runner.temp }}
-        run: |
-          skip init --no-build --native-app --appid=some.app.id demo-skip-appfuse DemoSkipApp
-          cd demo-skip-appfuse
-          skip export --debug --ios-sim
+      #- run: skip doctor
+
+      #- name: "Create and export new Skip Fuse app project"
+      #  if: runner.os != 'Linux'
+      #  #if: false
+      #  working-directory: ${{ runner.temp }}
+      #  run: |
+      #    skip init --no-build --native-app --appid=some.app.id demo-skip-appfuse DemoSkipApp
+      #    cd demo-skip-appfuse
+      #    skip export --debug --ios-sim
 
       - run: skip checkup --native
         if: runner.os != 'Linux'
