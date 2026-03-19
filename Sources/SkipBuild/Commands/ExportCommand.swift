@@ -178,6 +178,9 @@ Build and export the Skip modules defined in the Package.swift, with libraries e
 
             let projectLayout = try AppProjectLayout(moduleName: appModuleName, root: projectURL, check: validateLayoutURL)
 
+            // Resolve the scheme name once for all iOS builds
+            let appSchemeName = (self.ios || self.iosSim) ? try await resolveAppSchemeName(schemeName: self.schemeName, xcodeProjectURL: projectLayout.darwinProjectFolder, out: out) : nil
+
             if self.ios { // create iOS .ipa
                 for variant in variants {
                     let outputFolder = !nested ? outputFolderAbsolute : outputFolderAbsolute.appending(components: [variant.rawValue, "ipa"])
@@ -187,7 +190,7 @@ Build and export the Skip modules defined in the Package.swift, with libraries e
                     let ipaOutputPath = outputFolder.appending(component: outputName + ".ipa")
                     let xcarchiveOutputPath = outputFolder.appending(component: outputName + ".xcarchive.zip")
 
-                    _ = try await createIPA(configuration: variant, schemeName: self.schemeName, primaryModuleName: appModuleName, cfgSuffix: "-" + variant.rawValue, projectURL: projectURL, out: out, prefix: "", xcodeProjectURL: projectLayout.darwinProjectFolder, ipaURL: ipaOutputPath.asURL, xcarchiveURL: xcarchiveOutputPath.asURL, verifyFile: false, returnHashes: false)
+                    _ = try await createIPA(configuration: variant, appSchemeName: appSchemeName!, primaryModuleName: appModuleName, cfgSuffix: "-" + variant.rawValue, projectURL: projectURL, out: out, prefix: "", xcodeProjectURL: projectLayout.darwinProjectFolder, ipaURL: ipaOutputPath.asURL, xcarchiveURL: xcarchiveOutputPath.asURL, verifyFile: false, returnHashes: false)
 
                     createdURLs.append(ipaOutputPath.asURL)
                     createdURLs.append(xcarchiveOutputPath.asURL)
@@ -200,46 +203,12 @@ Build and export the Skip modules defined in the Package.swift, with libraries e
                     try fs.createDirectory(outputFolder, recursive: true)
 
                     let cfg = variant.rawValue.capitalized
-
-                    // Get the scheme name from the Xcode project
-                    let projectSchemes = try await run(with: out, "Check project schemes", ["xcodebuild", "-list", "-json", "-project", projectLayout.darwinProjectFolder.path]).get()
-                    let schemeList = try JSONDecoder().decode(XcodeProjectSchemes.self, from: projectSchemes.stdout.data(using: .utf8) ?? Data())
-                    guard let appSchemeName = self.schemeName ?? schemeList.project.targets?.first else {
-                        throw MissingProjectFileError(errorDescription: "No schemes found in project: \(projectLayout.darwinProjectFolder.path): \(projectSchemes.stdout)")
-                    }
-
-                    let fullDerivedDataPath = projectURL.path + "/" + darwinBuildFolder + "/DerivedData"
-
-                    try await run(with: out, "Build iOS simulator app", [
-                        "xcodebuild",
-                        "build",
-                        "-project", projectLayout.darwinProjectFolder.path,
-                        "-derivedDataPath", fullDerivedDataPath,
-                        "-skipPackagePluginValidation",
-                        "-skipMacroValidation",
-                        "-configuration", cfg,
-                        "-scheme", appSchemeName,
-                        "-sdk", "iphonesimulator",
-                        "-destination", "generic/platform=iOS Simulator",
-                        "CODE_SIGNING_ALLOWED=NO",
-                    ], additionalEnvironment: ["SKIP_ZERO": "1", "SKIP_PLUGIN_DISABLED": "1"])
-
-                    // Find the built .app in the DerivedData Build/Products directory
-                    let productsPath = fullDerivedDataPath + "/Build/Products/\(cfg)-iphonesimulator"
-                    let appBundleName = appModuleName + ".app"
-                    let appBundlePath = productsPath + "/" + appBundleName
-                    let appBundleURL = URL(fileURLWithPath: appBundlePath, isDirectory: true)
-
-                    if !FileManager.default.fileExists(atPath: appBundlePath) {
-                        throw MissingProjectFileError(errorDescription: "Expected simulator app does not exist at: \(appBundlePath)")
-                    }
-
                     let variantSuffix = "-Simulator-\(cfg)"
                     let zipName = "\(appModuleName)\(variantSuffix).app.zip"
                     let zipOutputPath = outputFolder.appending(component: zipName)
-
                     try? fs.removeFileTree(zipOutputPath) // zip will fail if it already exists
-                    try await zipFolder(with: out, message: "Archive \(zipName)", zipFile: zipOutputPath.asURL, folder: appBundleURL)
+
+                    try await createSimApp(configuration: variant, appSchemeName: appSchemeName!, primaryModuleName: appModuleName, projectURL: projectURL, out: out, xcodeProjectURL: projectLayout.darwinProjectFolder, simAppURL: zipOutputPath.asURL)
                     createdURLs.append(zipOutputPath.asURL)
                 }
             }

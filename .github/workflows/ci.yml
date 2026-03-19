@@ -46,7 +46,12 @@ jobs:
           # "macos" or "linux"
           OSNAME=$(echo $RUNNER_OS | tr '[A-Z]' '[a-z]')
 
-          ./scripts/build_${OSNAME}_plugin.sh
+          if [[ "${OSNAME}" == "linux" ]]; then
+            # only build x86 for Linux to improve build time
+            ./scripts/build_${OSNAME}_plugin.sh --arch x86_64
+          else
+            ./scripts/build_${OSNAME}_plugin.sh
+          fi
 
           BUILD_DIR="${PWD}/.build/artifactbundle-${OSNAME}"
           SKIP_BIN="${BUILD_DIR}/skip.artifactbundle/bin"
@@ -141,7 +146,7 @@ jobs:
         run: |
           skip init --no-build --transpiled-app --appid=some.app.id demo-skip-applite DemoSkipApp
           cd demo-skip-applite
-          skip export --ios-sim
+          skip export --debug --ios-sim
 
       - run: skip android sdk install --version '${{ matrix.android-sdk }}' --ndk-version '${{ matrix.android-ndk }}'
 
@@ -149,11 +154,12 @@ jobs:
 
       - name: "Create and export new Skip Fuse app project"
         if: runner.os != 'Linux'
+        #if: false
         working-directory: ${{ runner.temp }}
         run: |
           skip init --no-build --compiled-app --appid=some.app.id demo-skip-appfuse DemoSkipApp
           cd demo-skip-appfuse
-          skip export --ios-sim
+          skip export --debug --ios-sim
 
       - run: skip checkup --native
         if: runner.os != 'Linux'
