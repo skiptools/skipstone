@@ -157,7 +157,7 @@ jobs:
         #if: false
         working-directory: ${{ runner.temp }}
         run: |
-          skip init --no-build --compiled-app --appid=some.app.id demo-skip-appfuse DemoSkipApp
+          skip init --no-build --native-app --appid=some.app.id demo-skip-appfuse DemoSkipApp
           cd demo-skip-appfuse
           skip export --debug --ios-sim
 
