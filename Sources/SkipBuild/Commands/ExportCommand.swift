@@ -75,6 +75,9 @@ Build and export the Skip modules defined in the Package.swift, with libraries e
     @Flag(inversion: .prefixedNo, help: ArgumentHelp("Export iOS .ipa"))
     var ios: Bool = true
 
+    @Flag(inversion: .prefixedNo, help: ArgumentHelp("Export iOS simulator .app.zip"))
+    var iosSim: Bool = false
+
     @Flag(inversion: .prefixedNo, help: ArgumentHelp("Export Android .apk"))
     var android: Bool = true
 
@@ -188,6 +191,56 @@ Build and export the Skip modules defined in the Package.swift, with libraries e
 
                     createdURLs.append(ipaOutputPath.asURL)
                     createdURLs.append(xcarchiveOutputPath.asURL)
+                }
+            }
+
+            if self.iosSim { // create iOS simulator .app.zip
+                for variant in variants {
+                    let outputFolder = !nested ? outputFolderAbsolute : outputFolderAbsolute.appending(components: [variant.rawValue, "simulator"])
+                    try fs.createDirectory(outputFolder, recursive: true)
+
+                    let cfg = variant.rawValue.capitalized
+
+                    // Get the scheme name from the Xcode project
+                    let projectSchemes = try await run(with: out, "Check project schemes", ["xcodebuild", "-list", "-json", "-project", projectLayout.darwinProjectFolder.path]).get()
+                    let schemeList = try JSONDecoder().decode(XcodeProjectSchemes.self, from: projectSchemes.stdout.data(using: .utf8) ?? Data())
+                    guard let appSchemeName = self.schemeName ?? schemeList.project.targets?.first else {
+                        throw MissingProjectFileError(errorDescription: "No schemes found in project: \(projectLayout.darwinProjectFolder.path): \(projectSchemes.stdout)")
+                    }
+
+                    let fullDerivedDataPath = projectURL.path + "/" + darwinBuildFolder + "/DerivedData"
+
+                    try await run(with: out, "Build iOS simulator app", [
+                        "xcodebuild",
+                        "build",
+                        "-project", projectLayout.darwinProjectFolder.path,
+                        "-derivedDataPath", fullDerivedDataPath,
+                        "-skipPackagePluginValidation",
+                        "-skipMacroValidation",
+                        "-configuration", cfg,
+                        "-scheme", appSchemeName,
+                        "-sdk", "iphonesimulator",
+                        "-destination", "generic/platform=iOS Simulator",
+                        "CODE_SIGNING_ALLOWED=NO",
+                    ], additionalEnvironment: ["SKIP_ZERO": "1", "SKIP_PLUGIN_DISABLED": "1"])
+
+                    // Find the built .app in the DerivedData Build/Products directory
+                    let productsPath = fullDerivedDataPath + "/Build/Products/\(cfg)-iphonesimulator"
+                    let appBundleName = appModuleName + ".app"
+                    let appBundlePath = productsPath + "/" + appBundleName
+                    let appBundleURL = URL(fileURLWithPath: appBundlePath, isDirectory: true)
+
+                    if !FileManager.default.fileExists(atPath: appBundlePath) {
+                        throw MissingProjectFileError(errorDescription: "Expected simulator app does not exist at: \(appBundlePath)")
+                    }
+
+                    let variantSuffix = "-Simulator-\(cfg)"
+                    let zipName = "\(appModuleName)\(variantSuffix).app.zip"
+                    let zipOutputPath = outputFolder.appending(component: zipName)
+
+                    try? fs.removeFileTree(zipOutputPath) // zip will fail if it already exists
+                    try await zipFolder(with: out, message: "Archive \(zipName)", zipFile: zipOutputPath.asURL, folder: appBundleURL)
+                    createdURLs.append(zipOutputPath.asURL)
                 }
             }
 
