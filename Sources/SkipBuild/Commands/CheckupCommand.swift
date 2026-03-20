@@ -52,6 +52,9 @@ This command performs a full system checkup to ensure that Skip can create and b
     @Flag(inversion: .prefixedNo, help: ArgumentHelp("Fail immediately when an error occurs"))
     var failFast: Bool = true
 
+    @Flag(inversion: .prefixedNo, help: ArgumentHelp("Check for connected Android devices/emulators", valueName: "check-devices"))
+    var checkDevices: Bool = true
+
     @Option(name: [.long], help: ArgumentHelp("Name of checkup project", valueName: "name"))
     var projectName: String = "hello-skip"
 
@@ -99,7 +102,7 @@ This command performs a full system checkup to ensure that Skip can create and b
     }
 
     func runCheckup(with out: MessageQueue) async throws {
-        let hasAndroidDevices = try await runDoctor(checkNative: isNative, with: out)
+        let hasAndroidDevices = try await runDoctor(checkNative: isNative, checkDevices: checkDevices, with: out)
 
         @Sendable func buildSampleProject(packageResolvedURL: URL? = nil, launchAndroid: Bool) async throws -> (projectURL: URL, project: AppProjectLayout, artifacts: [URL: String?]) {
             let primary = packageResolvedURL == nil
