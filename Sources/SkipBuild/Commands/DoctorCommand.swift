@@ -144,29 +144,22 @@ extension ToolOptionsCommand where Self : StreamingCommand {
         try await checkVersion(title: "Java version", cmd: ["java", "-version"], min: Version("17.0.0"), pattern: "version \"([0-9._]+)\"", hint: ProcessInfo.processInfo.environment["JAVA_HOME"] == nil ? nil : " (check JAVA_HOME environment: \(ProcessInfo.processInfo.environment["JAVA_HOME"] ?? "unset"))") // we don't necessarily need java in the path (which it doesn't seem to be by default with Homebrew)
         try await checkVersion(title: "Android Debug Bridge version", cmd: ["adb", "version"], min: Version("1.0.40"), pattern: "version ([0-9.]+)")
 
-        /// Check for connected Android devices/emulators; warn if none are running
-        func checkAdbDevices() async throws -> Bool {
-            var hasDevices = false
-            func checkResult(_ result: Result<ProcessOutput, Error>?) -> (result: Result<ProcessOutput, Error>?, message: MessageBlock?) {
-                guard let res = try? result?.get() else {
-                    return (result: result, message: MessageBlock(status: .warn, "Android devices: error running adb devices"))
-                }
-                let output = res.stdout
-                // When no devices: "List of devices attached" followed by blank line(s) only
-                // When devices exist: "List of devices attached\nemulator-5554\tdevice\n"
-                let lines = output.split(separator: "\n", omittingEmptySubsequences: false)
-                let deviceLines = lines.dropFirst().filter { !$0.trimmingCharacters(in: .whitespaces).isEmpty }
-                hasDevices = !deviceLines.isEmpty
-                if deviceLines.isEmpty {
-                    return (result: result, message: MessageBlock(status: .warn, "No Android devices running. Xcode builds will fail until you attach a device, launch an emulator in Android Studio, or run: skip android emulator launch"))
+        var hasAndroidDevices = false
+        _ = await outputOptions.monitor(with: out, "Android devices", watch: false, resultHandler: { result in
+            do {
+                let devices = try result?.get() ?? []
+                hasAndroidDevices = !devices.isEmpty
+                if devices.isEmpty {
+                    return (result, MessageBlock(status: .warn, "No Android devices running. Xcode builds will fail until you attach a device, launch an emulator in Android Studio, or run: skip android emulator launch"))
                 } else {
-                    return (result: result, message: MessageBlock(status: .pass, "Android devices: \(deviceLines.count) connected"))
+                    return (result, MessageBlock(status: .pass, "Android devices: \(devices.count) connected"))
                 }
+            } catch {
+                return (result, MessageBlock(status: .fail, "Android devices: error running adb devices"))
             }
-            try await run(with: out, "Android devices", ["adb", "devices"], watch: false, resultHandler: checkResult)
-            return hasDevices
-        }
-        let hasAndroidDevices = try await checkAdbDevices()
+        }, monitorAction: { _ in
+            try await getAndroidDevices()
+        })
 
         if let androidHome = ProcessInfo.androidHome {
             let exists = FileManager.default.fileExists(atPath: androidHome)

@@ -53,6 +53,39 @@ extension ToolOptionsCommand where Self: StreamingCommand {
 
         return try await run(with: messenger, message, cmdArgs, environment: penv, permitFailure: permitFailure, resultHandler: finalResultHandler)
     }
+
+    /// Returns parsed Android devices from `adb devices -l`. Throws if adb fails to run.
+    func getAndroidDevices() async throws -> [AndroidDeviceInfo] {
+        let adbDevicesPattern = try NSRegularExpression(pattern: #"^(\S+)\s+(\S+)(.*)$"#)
+        var devices: [AndroidDeviceInfo] = []
+        var seenDevicesHeader = false
+
+        for try await pout in try await launchTool("adb", arguments: ["devices", "-l"]) {
+            let line = pout.line
+            if line.hasPrefix("List of devices") {
+                seenDevicesHeader = true
+            } else if seenDevicesHeader, let parts = adbDevicesPattern.extract(from: line),
+                      let deviceID = parts.first,
+                      let deviceState = parts.dropFirst(1).first,
+                      let deviceInfo = parts.dropFirst(2).first {
+                var deviceInfoMap: [String: String] = [:]
+                for keyValue in deviceInfo.split(separator: " ").map({ $0.split(separator: ":") }) {
+                    if keyValue.count == 2 {
+                        deviceInfoMap[String(keyValue[0])] = String(keyValue[1])
+                    }
+                }
+                devices.append(AndroidDeviceInfo(id: deviceID, state: deviceState, info: deviceInfoMap))
+            }
+        }
+        return devices
+    }
+}
+
+/// Parsed Android device info from `adb devices -l`.
+struct AndroidDeviceInfo {
+    let id: String
+    let state: String
+    let info: [String: String]
 }
 
 extension AsyncLineOutput {
