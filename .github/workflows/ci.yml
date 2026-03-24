@@ -27,17 +27,33 @@ jobs:
           # skip.git submodule needed for SkipDriveExternal
           submodules: true
 
+      - uses: Homebrew/actions/setup-homebrew@main
+
+      # we only use Swiftly on Linux to install the specific Swift
+      # because it needs to exactly match the Swift SDK for Android version
+      #
+      # on macOS we *cannot* use the OSS toolchain because we need to
+      # compile using the Xcode toolchain (which handles building
+      # the universal binary)
+      - name: "Install Swift Host Toolchain and Static Linux SDK"
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get -y install libcurl4-openssl-dev || (sudo apt-get update && sudo apt-get -y install libcurl4-openssl-dev)
+          brew install swiftly
+          swiftly init --skip-install --assume-yes --quiet-shell-followup
+          swiftly install --assume-yes --use ${{ matrix.swift }}
+          swiftly run swift --version
+
+          # https://download.swift.org/swift-6.3-release/static-sdk/swift-6.3-RELEASE/swift-6.3-RELEASE_static-linux-0.1.0.artifactbundle.tar.gz
+          curl -fsSL --retry 5 -o 'swift-static-linux-sdk.tar.gz' 'https://download.swift.org/swift-${{ matrix.swift }}-release/static-sdk/swift-${{ matrix.swift }}-RELEASE/swift-${{ matrix.swift }}-RELEASE_static-linux-0.1.0.artifactbundle.tar.gz'
+
+          swiftly run swift sdk install 'swift-static-linux-sdk.tar.gz'
+
+      - run: swift --version
+
       - run: swift build
 
       - run: swift test --parallel
-
-      # Building the Linux plugin requires the Static Linux SDK
-      - name: "Install Static Linux SDK"
-        if: runner.os == 'Linux'
-        run: |
-          # https://download.swift.org/swift-6.3-release/static-sdk/swift-6.3-RELEASE/swift-6.3-RELEASE_static-linux-0.1.0.artifactbundle.tar.gz
-          curl -fsSL --retry 5 -o 'swift-static-linux-sdk.tar.gz' 'https://download.swift.org/swift-${{ matrix.swift }}-release/static-sdk/swift-${{ matrix.swift }}-RELEASE/swift-${{ matrix.swift }}-RELEASE_static-linux-0.1.0.artifactbundle.tar.gz'
-          swift sdk install 'swift-static-linux-sdk.tar.gz'
 
       - name: "Build ${{ runner.os }} plugin"
         shell: bash

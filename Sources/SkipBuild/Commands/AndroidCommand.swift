@@ -407,19 +407,21 @@ struct AndroidSDKInstallCommand: MessageCommand, ToolchainOptionsCommand {
         commandName: "install",
         abstract: "Install the native Swift Android SDK",
         usage: """
-        # Installs the default version of the Android SDK
+        # Installs the latest released version of the Android SDK
         skip android sdk install
+
+        # Installs a specific version
+        skip android sdk install --version 6.3
 
         # Installs the latest nightly build
         skip android sdk install --version nightly-main
         """,
         shouldDisplay: true)
 
-    static let defaultAndroidSDKVersion = "6.3"
     static let defaultAndroidNDKVersion = "r27d"
 
-    @Option(help: ArgumentHelp("Version of the Swift Android SDK to install", valueName: "version"))
-    var version: String = Self.defaultAndroidSDKVersion
+    @Option(help: ArgumentHelp("Version of the Swift Android SDK to install (defaults to latest release)", valueName: "version"))
+    var version: String?
 
     @Option(help: ArgumentHelp("Version of the Android NDK to link to the toolchain", valueName: "ndk"))
     var ndkVersion: String = Self.defaultAndroidNDKVersion
@@ -440,8 +442,19 @@ struct AndroidSDKInstallCommand: MessageCommand, ToolchainOptionsCommand {
     var verify: Bool = true
 
     func performCommand(with out: MessageQueue) async throws {
-        await withLogStream(title: "Install Swift Android SDK \(version)", with: out) {
-            try await installAndroidSDK(version: version, ndkVersion: ndkVersion, reinstall: reinstall, selfTest: verify, with: out)
+        let resolvedVersion: String
+        if let version = version {
+            resolvedVersion = version
+        } else {
+            // Look up the latest released Android SDK version
+            let sdks = try await SwiftSDKOpenAPI.fetchSDKs(sdkName: "android")
+            guard let latest = sdks.first else {
+                throw AndroidError(errorDescription: "No released Android SDK versions found")
+            }
+            resolvedVersion = latest.version
+        }
+        await withLogStream(title: "Install Swift Android SDK \(resolvedVersion)", with: out) {
+            try await installAndroidSDK(version: resolvedVersion, ndkVersion: ndkVersion, reinstall: reinstall, selfTest: verify, with: out)
         }
     }
 }
