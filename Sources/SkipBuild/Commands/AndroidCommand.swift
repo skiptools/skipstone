@@ -338,7 +338,8 @@ extension ToolchainOptionsCommand where Self : StreamingCommand {
             try await run(with: out, "Install Host Toolchain", ["swiftly", "install", "--assume-yes", matchingSDK.version])
 
             // Remove any pre-existing toolchain matching the version (permitting failure, in case it does not exist)
-            let androidSDKName = matchingSDK.version + "_android"
+            let swiftSDKName = matchingSDK.version.hasPrefix("swift-") ? matchingSDK.version : "swift-\(matchingSDK.version)-RELEASE"
+            let androidSDKName = swiftSDKName + "_android"
             try await run(with: out, "Check Android SDK", ["swiftly", "run", "swift", "sdk", "remove", androidSDKName, "+\(matchingSDK.version)"], permitFailure: true)
 
             // Install the Android SDK
@@ -346,6 +347,9 @@ extension ToolchainOptionsCommand where Self : StreamingCommand {
 
             // Install path will be like swift-6.3-DEVELOPMENT-SNAPSHOT-2025-12-18-a_android.artifactbundle
             let artifactInstallPath = self.localSDKsRootPath.appending(component: androidSDKName).appendingPathExtension("artifactbundle")
+            if artifactInstallPath.isDirectoryFile != true {
+                throw AndroidError(errorDescription: "Android SDK install path not found at \(artifactInstallPath.path)")
+            }
 
             let swiftAndroidRoot = artifactInstallPath.appending(component: "swift-android")
 
@@ -412,7 +416,7 @@ struct AndroidSDKInstallCommand: MessageCommand, ToolchainOptionsCommand {
         shouldDisplay: true)
 
     static let defaultAndroidSDKVersion = "6.3"
-    static let defaultAndroidNDKVersion = "r28c"
+    static let defaultAndroidNDKVersion = "r27d"
 
     @Option(help: ArgumentHelp("Version of the Swift Android SDK to install", valueName: "version"))
     var version: String = Self.defaultAndroidSDKVersion
