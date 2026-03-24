@@ -49,6 +49,9 @@ jobs:
 
           swiftly run swift sdk install 'swift-static-linux-sdk.tar.gz'
 
+          # default to using the Swiftly version of swift
+          echo "$HOME/.local/share/swiftly/bin" >> $GITHUB_PATH
+
       - run: swift --version
 
       - run: swift build
@@ -58,8 +61,6 @@ jobs:
       - name: "Build ${{ runner.os }} plugin"
         shell: bash
         run: |
-          # Build plugins using the current installed version of Swift
-          export USE_SWIFTLY=0
           # "macos" or "linux"
           OSNAME=$(echo $RUNNER_OS | tr '[A-Z]' '[a-z]')
 
