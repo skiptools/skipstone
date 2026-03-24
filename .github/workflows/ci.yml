@@ -173,17 +173,17 @@ jobs:
       #    skip export --debug --ios-sim
 
       - run: |
-        sdk_arg=""
-        if [[ "${matrix.android-sdk}" != "" ]]; then
-          sdk_arg="--version ${{ matrix.android-sdk }}"
-        fi
+          sdk_arg=""
+          if [[ "${matrix.android-sdk}" != "" ]]; then
+            sdk_arg="--version ${{ matrix.android-sdk }}"
+          fi
 
-        ndk_arg=""
-        if [[ "${matrix.android-ndk}" != "" ]]; then
-          ndk_arg="--ndk-version ${{ matrix.android-ndk }}"
-        fi
+          ndk_arg=""
+          if [[ "${matrix.android-ndk}" != "" ]]; then
+            ndk_arg="--ndk-version ${{ matrix.android-ndk }}"
+          fi
 
-        skip android sdk install ${sdk_arg} ${ndk_arg}
+          skip android sdk install ${sdk_arg} ${ndk_arg}
 
       - run: skip android build --version
 
