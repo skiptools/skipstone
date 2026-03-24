@@ -16,7 +16,7 @@ jobs:
       fail-fast: false
       matrix:
         swift:
-          - '6.2.3'
+          - '6.3'
         os:
           - 'ubuntu-latest'
           - 'macos-latest'
@@ -85,15 +85,16 @@ jobs:
           - 'ubuntu-24.04'
           - 'macos-15-intel'
         swift:
-          - '6.2.3'
+          - '6.3'
         android-api:
           - '28'
           #- '34'
         android-arch:
           - 'x86_64'
         android-sdk:
+          - '6.3'
           - 'nightly-6.3'
-          #- 'nightly-main'
+          - 'nightly-main'
         android-ndk:
           - 'r27d'
           #- 'r28c'

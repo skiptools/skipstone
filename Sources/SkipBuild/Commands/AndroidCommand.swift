@@ -406,13 +406,13 @@ struct AndroidSDKInstallCommand: MessageCommand, ToolchainOptionsCommand {
         # Installs the default version of the Android SDK
         skip android sdk install
 
-        # Installs the latest nightly for 6.3
-        skip android sdk install --version nightly-6.3
+        # Installs the latest nightly build
+        skip android sdk install --version nightly-main
         """,
         shouldDisplay: true)
 
-    static let defaultAndroidSDKVersion = "6.2" // TODO: 6.3
-    static let defaultAndroidNDKVersion = "r27d"
+    static let defaultAndroidSDKVersion = "6.3"
+    static let defaultAndroidNDKVersion = "r28c"
 
     @Option(help: ArgumentHelp("Version of the Swift Android SDK to install", valueName: "version"))
     var version: String = Self.defaultAndroidSDKVersion
