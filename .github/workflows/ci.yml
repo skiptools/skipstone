@@ -110,11 +110,15 @@ jobs:
         android-arch:
           - 'x86_64'
         android-sdk:
+          # blank will use the default
+          - ''
           - '6.3'
           - 'nightly-6.3'
           - 'nightly-main'
         android-ndk:
-          - 'r27d'
+          # blank will use the default
+          - ''
+          #- 'r27d'
           #- 'r28c'
           #- 'r29'
 
@@ -168,7 +172,18 @@ jobs:
       #    cd demo-skip-applite
       #    skip export --debug --ios-sim
 
-      - run: skip android sdk install --version '${{ matrix.android-sdk }}' --ndk-version '${{ matrix.android-ndk }}'
+      - run: |
+        sdk_arg=""
+        if [[ "${matrix.android-sdk}" != "" ]]; then
+          sdk_arg="--version ${{ matrix.android-sdk }}"
+        fi
+
+        ndk_arg=""
+        if [[ "${matrix.android-ndk}" != "" ]]; then
+          ndk_arg="--ndk-version ${{ matrix.android-ndk }}"
+        fi
+
+        skip android sdk install ${sdk_arg} ${ndk_arg}
 
       - run: skip android build --version
 
