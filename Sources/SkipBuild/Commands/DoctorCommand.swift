@@ -34,11 +34,14 @@ This command will check for system configuration and prerequisites. It is a subs
     @Flag(inversion: .prefixedNo, help: ArgumentHelp("Fail immediately when an error occurs"))
     var failFast: Bool = false
 
+    @Flag(inversion: .prefixedNo, help: ArgumentHelp("Check for connected Android devices/emulators", valueName: "check-devices"))
+    var checkDevices: Bool = true
+
     func performCommand(with out: MessageQueue) async {
         await withLogStream(with: out) {
             await out.yield(MessageBlock(status: nil, "Skip Doctor"))
 
-            try await runDoctor(checkNative: self.native, with: out)
+            _ = try await runDoctor(checkNative: self.native, checkDevices: self.checkDevices, with: out)
             let latestVersion = await checkSkipUpdates(with: out)
             if let latestVersion = latestVersion, latestVersion != skipVersion {
                 await out.yield(MessageBlock(status: .warn, "A new version is Skip (\(latestVersion)) is available to update with: skip upgrade"))
@@ -50,8 +53,9 @@ This command will check for system configuration and prerequisites. It is a subs
 extension ToolOptionsCommand where Self : StreamingCommand {
     // TODO: check license validity: https://github.com/skiptools/skip/issues/388
 
-    /// Runs the `skip doctor` command and stream the results to the messenger
-    func runDoctor(checkNative: Bool, with out: MessageQueue) async throws {
+    /// Runs the `skip doctor` command and stream the results to the messenger.
+    /// Returns true if Android devices/emulators are attached, false otherwise (or if checkDevices is false).
+    func runDoctor(checkNative: Bool, checkDevices: Bool = true, with out: MessageQueue) async throws -> Bool {
         /// Invokes the given command and attempts to parse the output against the given regular expression pattern to validate that it is a semantic version string
         func checkVersion(title: String, cmd: [String], min: Version? = nil, pattern: String, watch: Bool = false, hint: String? = nil) async throws {
 
@@ -142,6 +146,26 @@ extension ToolOptionsCommand where Self : StreamingCommand {
         try await checkVersion(title: "Gradle version", cmd: ["gradle", "-version"], min: Version("8.6.0"), pattern: "Gradle ([0-9.]+)", hint: " (install with: brew install gradle)")
         try await checkVersion(title: "Java version", cmd: ["java", "-version"], min: Version("17.0.0"), pattern: "version \"([0-9._]+)\"", hint: ProcessInfo.processInfo.environment["JAVA_HOME"] == nil ? nil : " (check JAVA_HOME environment: \(ProcessInfo.processInfo.environment["JAVA_HOME"] ?? "unset"))") // we don't necessarily need java in the path (which it doesn't seem to be by default with Homebrew)
         try await checkVersion(title: "Android Debug Bridge version", cmd: ["adb", "version"], min: Version("1.0.40"), pattern: "version ([0-9.]+)")
+
+        var hasAndroidDevices = false
+        if checkDevices {
+            _ = await outputOptions.monitor(with: out, "Android devices", watch: false, resultHandler: { result in
+                do {
+                    let devices = try result?.get() ?? []
+                    hasAndroidDevices = !devices.isEmpty
+                    if devices.isEmpty {
+                        return (result, MessageBlock(status: .warn, "No Android devices running. Xcode builds will fail until you attach a device, launch an emulator in Android Studio, or run: skip android emulator launch"))
+                    } else {
+                        return (result, MessageBlock(status: .pass, "Android devices: \(devices.count) connected"))
+                    }
+                } catch {
+                    return (result, MessageBlock(status: .fail, "Android devices: error running adb devices"))
+                }
+            }, monitorAction: { _ in
+                try await getAndroidDevices()
+            })
+        }
+
         if let androidHome = ProcessInfo.androidHome {
             let exists = FileManager.default.fileExists(atPath: androidHome)
             if !exists {
@@ -161,6 +185,8 @@ extension ToolOptionsCommand where Self : StreamingCommand {
         // we no longer require that Android Studio be installed with the advent of `skip android emulator create`
         //await checkAndroidStudioVersion(with: out)
         #endif
+
+        return hasAndroidDevices
     }
 
     func checkXcodeCommandLineTools(with out: MessageQueue) async {

@@ -86,6 +86,9 @@ This command will create a conventional Skip app or library project.
     @Flag(inversion: .prefixedNo, help: ArgumentHelp("Build the iOS .ipa file"))
     var ipa: Bool = false
 
+    @Flag(inversion: .prefixedNo, help: ArgumentHelp("Launch the Android app on an attached device or emulator"))
+    var launchAndroid: Bool = false
+
     @Flag(help: ArgumentHelp("Open the resulting Xcode project"))
     var openXcode: Bool = false
 
@@ -178,6 +181,7 @@ This command will create a conventional Skip app or library project.
             validatePackage: self.createOptions.validatePackage,
             apk: apk,
             ipa: ipa,
+            launchAndroid: launchAndroid,
             with: out
         )
 
@@ -251,6 +255,14 @@ extension ToolOptionsCommand where Self : StreamingCommand {
             }
         }
         return hashes
+    }
+
+    /// Launch the Android app on an attached device or emulator (runs gradle launchDebug/launchRelease).
+    func launchAndroidApp(projectURL: URL, appModuleName: String, configuration: BuildConfiguration, out: MessageQueue, prefix re: String) async throws {
+        let env = ProcessInfo.processInfo.environmentWithDefaultToolPaths
+        let gradleProjectDir = projectURL.path + "/Android"
+        let action = "launch" + configuration.rawValue.capitalized // "launchDebug" or "launchRelease"
+        try await run(with: out, "\(re)Launching Android app \(action)", ["gradle", action, "--console=plain", "--project-dir", gradleProjectDir], environment: env)
     }
 
     /// Zip up the given folder.
@@ -406,7 +418,7 @@ extension ToolOptionsCommand where Self : StreamingCommand {
         try await zipFolder(with: out, message: "Archive \(simAppURL.lastPathComponent)", zipFile: simAppURL, folder: appBundleURL)
     }
 
-    func initSkipProject(options: ProjectOptionValues, modules: [PackageModule], resourceFolder: String?, dir outputFolder: URL, verify: Bool, configuration: BuildConfiguration, build: Bool, test: Bool, returnHashes: Bool, messagePrefix: String? = nil, showTree: Bool, app isApp: Bool, appid: String?, appModuleName: String = "app", icon: IconParameters?, version: String?, nativeMode: NativeMode, moduleMode: ModuleMode, moduleTests: Bool, validatePackage: Bool, packageResolved packageResolvedURL: URL? = nil, apk: Bool, ipa: Bool, with out: MessageQueue) async throws -> (projectURL: URL, project: AppProjectLayout, artifacts: [URL: String?]) {
+    func initSkipProject(options: ProjectOptionValues, modules: [PackageModule], resourceFolder: String?, dir outputFolder: URL, verify: Bool, configuration: BuildConfiguration, build: Bool, test: Bool, returnHashes: Bool, messagePrefix: String? = nil, showTree: Bool, app isApp: Bool, appid: String?, appModuleName: String = "app", icon: IconParameters?, version: String?, nativeMode: NativeMode, moduleMode: ModuleMode, moduleTests: Bool, validatePackage: Bool, packageResolved packageResolvedURL: URL? = nil, apk: Bool, ipa: Bool, launchAndroid: Bool = false, with out: MessageQueue) async throws -> (projectURL: URL, project: AppProjectLayout, artifacts: [URL: String?]) {
         var options = options
         let baseName = options.projectName
 
@@ -436,10 +448,10 @@ extension ToolOptionsCommand where Self : StreamingCommand {
         let (projectURL, project) = try await AppProjectLayout.createSkipAppProject(options: options, productName: primaryModuleFrameworkName, modules: modules, resourceFolder: resourceFolder, dir: outputFolder, configuration: configuration, build: build, test: test, app: isApp, appid: appid, icon: icon, version: version, nativeMode: nativeMode, moduleMode: moduleMode, moduleTests: moduleTests, packageResolved: packageResolvedURL)
         let projectPath = try projectURL.absolutePath
 
-        if build == true || apk == true {
+        if build == true || apk == true || launchAndroid == true {
             try await run(with: out, "\(re)Resolve dependencies", ["swift", "package", "resolve", "-v", "--package-path", projectURL.path])
 
-            // we need to build regardless of preference in order to build the apk
+            // we need to build regardless of preference in order to build the apk or launch
             try await run(with: out, "\(re)Build \(projectName)", ["swift", "build", "-v", "-c", debugConfiguration, "--package-path", projectURL.path])
         }
 
@@ -465,6 +477,10 @@ extension ToolOptionsCommand where Self : StreamingCommand {
         if apk == true {
             let apkFiles = try await createAPK(projectURL: projectURL, appModuleName: appModuleName, configuration: configuration, out: out, primaryModuleName: primaryModuleName, cfgSuffix: cfgSuffix, returnHashes: returnHashes, prefix: re)
             artifactHashes.merge(apkFiles, uniquingKeysWith: { $1 })
+        }
+
+        if launchAndroid == true {
+            try await launchAndroidApp(projectURL: projectURL, appModuleName: appModuleName, configuration: configuration, out: out, prefix: re)
         }
 
         if options.gitRepo == true {
