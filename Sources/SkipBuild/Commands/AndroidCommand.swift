@@ -638,6 +638,9 @@ protocol ToolchainOptionsCommand : ToolOptionsCommand {
 struct AndroidRuntimeOptions: ParsableArguments {
     @Option(help: ArgumentHelp("Android emulator identifier", valueName: "ANDROID_SERIAL"))
     var androidEmulator: String = "auto"
+
+    @Option(help: ArgumentHelp("Seconds to wait for emulator boot before installing", valueName: "seconds"))
+    var androidEmulatorTimeout: Int = 5
 }
 
 @available(macOS 13, iOS 16, tvOS 16, watchOS 8, *)
@@ -689,6 +692,23 @@ extension AndroidOperationCommand {
             ? "No connected Android devices or emulators were found."
             : "Connected devices:\n" + devices.map { "  \($0.id)\($0.info["model"].map { " (\($0))" } ?? "")" }.joined(separator: "\n")
         throw AndroidError(errorDescription: "Android device '\(flag)' not found. \(listing)")
+    }
+
+    /// Wait for the Android device to finish booting by polling `sys.boot_completed`.
+    /// This avoids "Can't find service: package" errors when `adb install` runs before
+    /// PackageManagerService is ready. Common on macOS CI where emulator cold-boot is slow.
+    func waitForDeviceBoot(adb: String, additionalEnvironment: [String: String], with out: MessageQueue) async throws {
+        let timeout = androidRuntimeOptions.androidEmulatorTimeout
+        guard timeout > 0 else { return } // skip waiting if timeout is 0
+        let deadline = Date().addingTimeInterval(TimeInterval(timeout))
+        while Date() < deadline {
+            let result = try? await run(with: out, "Waiting for device boot", [adb, "shell", "getprop", "sys.boot_completed"], additionalEnvironment: additionalEnvironment, watch: false, permitFailure: true)
+            if case .success(let output) = result, output.stdout.trimmingCharacters(in: .whitespacesAndNewlines) == "1" {
+                return
+            }
+            try await Task.sleep(nanoseconds: 2_000_000_000) // 2 seconds
+        }
+        throw AndroidError(errorDescription: "Timed out after \(timeout)s waiting for Android device to finish booting. Use --android-emulator-timeout to increase the wait time, or check that the emulator is running.")
     }
 
     func runCommand(command: [String], env: [String: String], with out: MessageQueue) async throws {

@@ -372,6 +372,11 @@ fileprivate extension AndroidOperationCommand {
         let adb = try toolOptions.toolPath(for: "adb")
         let adbEnv = env.filter { $0.key == "ANDROID_SERIAL" }
 
+        // Wait for the device to finish booting before installing — avoids
+        // "Can't find service: package" errors on CI where the emulator may
+        // still be starting up when we reach this point
+        try await waitForDeviceBoot(adb: adb, additionalEnvironment: adbEnv, with: out)
+
         // Uninstall previous version (permit failure)
         let _ = try? await run(with: out, "Uninstalling previous APK", [adb, "uninstall", apkPackageName], additionalEnvironment: adbEnv, permitFailure: true)
 
