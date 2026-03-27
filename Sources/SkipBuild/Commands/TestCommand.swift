@@ -20,6 +20,24 @@ struct TestCommand: SkipCommand, StreamingCommand, ToolOptionsCommand {
     static var configuration = CommandConfiguration(
         commandName: "test",
         abstract: "Run parity tests and generate reports",
+        usage: """
+        # Run Swift and Kotlin parity tests
+        skip test
+
+        # Run tests for a specific project folder
+        skip test --project path/to/project
+
+        # Run tests on a connected Android device instead of Robolectric
+        skip test --android-serial auto
+
+        # Run tests targeting a specific emulator
+        skip test --android-serial emulator-5554
+        """,
+        discussion: """
+        Builds and runs Swift (XCTest) and transpiled Kotlin (JUnit) tests, then \
+        produces a side-by-side parity report. By default, Kotlin tests run locally \
+        via Robolectric. Use --android-serial to run instrumented tests on a device or emulator.
+        """,
         shouldDisplay: testCommandEnabled)
 
     @OptionGroup(title: "Output Options")

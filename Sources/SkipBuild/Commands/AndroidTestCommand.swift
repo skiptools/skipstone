@@ -15,6 +15,25 @@ struct AndroidTestCommand: AndroidOperationCommand {
     static var configuration = CommandConfiguration(
         commandName: "test",
         abstract: "Test the native project on an Android device or emulator",
+        usage: """
+        # Run tests on a connected device/emulator
+        skip android test
+
+        # Run tests packaged as an APK (instrumented tests)
+        skip android test --apk
+
+        # Target a specific emulator
+        skip android test --android-serial emulator-5554
+
+        # Run only Swift Testing tests
+        skip android test --testing-library testing
+        """,
+        discussion: """
+        Builds Swift tests for Android, pushes them to a device or emulator, and executes them. \
+        By default, tests run as a native executable via adb shell. With --apk, tests are \
+        packaged as an Android APK and run via instrumentation, which is required for tests \
+        that need an Android application context.
+        """,
         shouldDisplay: true)
 
     @OptionGroup(title: "Output Options")
