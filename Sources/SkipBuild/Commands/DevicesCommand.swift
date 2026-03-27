@@ -238,6 +238,46 @@ extension ToolOptionsCommand where Self: StreamingCommand {
         }
         return devices
     }
+
+    /// Resolve an Android emulator/device identifier to a concrete `ANDROID_SERIAL` value.
+    ///
+    /// - Parameter androidSerial: The value to resolve:
+    ///   - `"auto"`: honour existing `ANDROID_SERIAL` env var, otherwise auto-detect (preferring emulators).
+    ///   - Any other string: treat as an explicit device serial and verify it exists.
+    /// - Returns: The serial to set as `ANDROID_SERIAL`, or `nil` when adb can figure it out on its own (single device).
+    func resolveAndroidSerial(androidSerial: String, with out: MessageQueue) async throws -> String? {
+        if androidSerial == "auto" {
+            // If the user already set ANDROID_SERIAL in the environment, honour it
+            if let existing = ProcessInfo.processInfo.environment["ANDROID_SERIAL"], !existing.isEmpty {
+                return existing
+            }
+            // Otherwise query connected devices, preferring emulators
+            let devices = try await getAndroidDevices()
+            if devices.isEmpty {
+                throw DevicesCommand.DevicesCommandError(errorDescription: "No connected Android devices or emulators were found. Launch an emulator from Android Studio's Virtual Device Manager, or connect a device via USB.")
+            }
+            if devices.count == 1 {
+                return nil // adb will target the only device automatically
+            }
+            // Multiple devices: prefer an emulator over a physical device
+            let emulators = devices.filter { $0.isEmulator }
+            let target = emulators.first ?? devices[0]
+            let listing = devices.map { "  \($0.id)\($0.info["model"].map { " (\($0))" } ?? "")" }.joined(separator: "\n")
+            await out.yield(MessageBlock(status: .warn, "Multiple Android devices found — targeting \(target.id). Use --android-serial to select a different device:\n\(listing)"))
+            return target.id
+        }
+
+        // Explicit device specified — verify it exists
+        let devices = try await getAndroidDevices()
+        if devices.contains(where: { $0.id == androidSerial }) {
+            return androidSerial
+        }
+        // No matching device
+        let listing = devices.isEmpty
+            ? "No connected Android devices or emulators were found."
+            : "Connected devices:\n" + devices.map { "  \($0.id)\($0.info["model"].map { " (\($0))" } ?? "")" }.joined(separator: "\n")
+        throw DevicesCommand.DevicesCommandError(errorDescription: "Android device '\(androidSerial)' not found. \(listing)")
+    }
 }
 
 /**

@@ -56,6 +56,9 @@ struct TestCommand: SkipCommand, StreamingCommand, ToolOptionsCommand {
     @Option(name: [.long], help: ArgumentHelp("Output summary table", valueName: "path"))
     var summaryFile: String?
 
+    @Option(help: ArgumentHelp("Android device or emulator serial for instrumented tests (omit for local Robolectric testing)", valueName: "ANDROID_SERIAL"))
+    var androidSerial: String?
+
     func performCommand(with out: MessageQueue) async {
         await withLogStream(with: out) {
             try await runTestCommand(with: out)
@@ -100,13 +103,21 @@ extension TestCommand {
             return
         }
 
+        // Resolve ANDROID_SERIAL when --android-serial is explicitly set
+        var additionalEnv: [String: String] = [:]
+        if let androidSerial = androidSerial {
+            if let serial = try await resolveAndroidSerial(androidSerial: androidSerial, with: out) {
+                additionalEnv["ANDROID_SERIAL"] = serial
+            }
+        }
+
         let xunit = xunit ?? ".build/xcunit-\(UUID().uuidString).xml"
 
-        try await run(with: out, "Build Project", ["swift", "build", "--build-tests", "--verbose", "--configuration", configuration, "--package-path", project])
+        try await run(with: out, "Build Project", ["swift", "build", "--build-tests", "--verbose", "--configuration", configuration, "--package-path", project], additionalEnvironment: additionalEnv)
 
         var testResult: Result<ProcessOutput, Error>? = nil
         if test == true {
-            testResult = try await run(with: out, "Test project", ["swift", "test", "--parallel", "-c", configuration, "--enable-code-coverage", "--xunit-output", xunit, "--package-path", project])
+            testResult = try await run(with: out, "Test project", ["swift", "test", "--parallel", "-c", configuration, "--enable-code-coverage", "--xunit-output", xunit, "--package-path", project], additionalEnvironment: additionalEnv)
         } else if self.xunit == nil {
             // we can only use the generated xunit if we are running the tests
             throw SkipDriveError(errorDescription: "Must either specify --xunit path or run tests with --test")

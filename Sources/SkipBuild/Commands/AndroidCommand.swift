@@ -636,11 +636,11 @@ protocol ToolchainOptionsCommand : ToolOptionsCommand {
 }
 
 struct AndroidRuntimeOptions: ParsableArguments {
-    @Option(help: ArgumentHelp("Android emulator identifier", valueName: "ANDROID_SERIAL"))
-    var androidEmulator: String = "auto"
+    @Option(help: ArgumentHelp("Android device or emulator serial", valueName: "ANDROID_SERIAL"))
+    var androidSerial: String = "auto"
 
-    @Option(help: ArgumentHelp("Seconds to wait for emulator boot before installing", valueName: "seconds"))
-    var androidEmulatorTimeout: Int = 5
+    @Option(help: ArgumentHelp("Seconds to wait for device boot before installing", valueName: "seconds"))
+    var androidConnectTimeout: Int = 5
 }
 
 @available(macOS 13, iOS 16, tvOS 16, watchOS 8, *)
@@ -656,49 +656,17 @@ extension AndroidOperationCommand {
     /// Default runtime options for commands that don't expose the flag (e.g. build, toolchain version)
     var androidRuntimeOptions: AndroidRuntimeOptions { AndroidRuntimeOptions() }
 
-    /// Resolve the `--android-emulator` flag to a concrete `ANDROID_SERIAL` value.
+    /// Resolve the `--android-serial` flag to a concrete `ANDROID_SERIAL` value.
     /// Returns `nil` when no serial needs to be set (e.g. only one device connected and auto mode).
     func resolveAndroidSerial(with out: MessageQueue) async throws -> String? {
-        let flag = androidRuntimeOptions.androidEmulator
-
-        if flag == "auto" {
-            // If the user already set ANDROID_SERIAL in the environment, honour it
-            if let existing = ProcessInfo.processInfo.environment["ANDROID_SERIAL"], !existing.isEmpty {
-                return existing
-            }
-            // Otherwise query connected devices, preferring emulators
-            let devices = try await getAndroidDevices()
-            if devices.isEmpty {
-                throw AndroidError(errorDescription: "No connected Android devices or emulators were found. Launch an emulator from Android Studio's Virtual Device Manager, or connect a device via USB.")
-            }
-            if devices.count == 1 {
-                return nil // adb will target the only device automatically
-            }
-            // Multiple devices: prefer an emulator over a physical device
-            let emulators = devices.filter { $0.isEmulator }
-            let target = emulators.first ?? devices[0]
-            let listing = devices.map { "  \($0.id)\($0.info["model"].map { " (\($0))" } ?? "")" }.joined(separator: "\n")
-            await out.yield(MessageBlock(status: .warn, "Multiple Android devices found — targeting \(target.id). Use --android-emulator to select a different device:\n\(listing)"))
-            return target.id
-        }
-
-        // Explicit device specified — verify it exists
-        let devices = try await getAndroidDevices()
-        if devices.contains(where: { $0.id == flag }) {
-            return flag
-        }
-        // No matching device
-        let listing = devices.isEmpty
-            ? "No connected Android devices or emulators were found."
-            : "Connected devices:\n" + devices.map { "  \($0.id)\($0.info["model"].map { " (\($0))" } ?? "")" }.joined(separator: "\n")
-        throw AndroidError(errorDescription: "Android device '\(flag)' not found. \(listing)")
+        try await resolveAndroidSerial(androidSerial: androidRuntimeOptions.androidSerial, with: out)
     }
 
     /// Wait for the Android device to finish booting by polling `sys.boot_completed`.
     /// This avoids "Can't find service: package" errors when `adb install` runs before
     /// PackageManagerService is ready. Common on macOS CI where emulator cold-boot is slow.
     func waitForDeviceBoot(adb: String, additionalEnvironment: [String: String], with out: MessageQueue) async throws {
-        let timeout = androidRuntimeOptions.androidEmulatorTimeout
+        let timeout = androidRuntimeOptions.androidConnectTimeout
         guard timeout > 0 else { return } // skip waiting if timeout is 0
         let deadline = Date().addingTimeInterval(TimeInterval(timeout))
         while Date() < deadline {
@@ -708,7 +676,7 @@ extension AndroidOperationCommand {
             }
             try await Task.sleep(nanoseconds: 2_000_000_000) // 2 seconds
         }
-        throw AndroidError(errorDescription: "Timed out after \(timeout)s waiting for Android device to finish booting. Use --android-emulator-timeout to increase the wait time, or check that the emulator is running.")
+        throw AndroidError(errorDescription: "Timed out after \(timeout)s waiting for Android device to finish booting. Use --android-connect-timeout to increase the wait time, or check that the emulator is running.")
     }
 
     func runCommand(command: [String], env: [String: String], with out: MessageQueue) async throws {
