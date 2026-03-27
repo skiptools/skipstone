@@ -55,42 +55,9 @@ This command will list all the connected Android emulators and devices and iOS s
     }
 
     func listAndroidDevices(with out: MessageQueue) async throws {
-        let adbDevicesPattern = try NSRegularExpression(pattern: #"^(\S+)\s+(\S+)(.*)$"#)
-
-        var seenDevicesHeader = false
-        for try await pout in try await launchTool("adb", arguments: ["devices", "-l"]) {
-            let line = pout.line
-            // ignore everything output before the "List of devices" header
-            if line.hasPrefix("List of devices") {
-                seenDevicesHeader = true
-            } else if seenDevicesHeader {
-                guard let parts = adbDevicesPattern.extract(from: line) else {
-                    continue // unable to parse
-                }
-                guard let deviceID = parts.first,
-                      let deviceState = parts.dropFirst(1).first,
-                      let deviceInfo = parts.dropFirst(2).first else {
-                    continue
-                }
-
-                let _ = deviceState
-
-                func trim(_ string: String) -> String {
-                    string.trimmingCharacters(in: CharacterSet.whitespacesAndNewlines)
-                }
-
-                // create a dictionary from the device info string: "product:sdk_gphone64_arm64 model:sdk_gphone64_arm64 device:emu64a transport_id:1"
-                var deviceInfoMap = Dictionary<String, String>()
-
-                for keyValue in deviceInfo.split(separator: " ").map({ $0.split(separator: ":") }) {
-                    if keyValue.count == 2 {
-                        deviceInfoMap[keyValue[0].description] = keyValue[1].description
-                    }
-                }
-
-                let info = DevicesOutput(id: deviceID, type: .device, platform: .android, info: .init(deviceInfoMap))
-                await out.yield(info)
-            }
+        for device in try await getAndroidDevices() {
+            let info = DevicesOutput(id: device.id, type: .device, platform: .android, info: .init(device.info))
+            await out.yield(info)
         }
     }
 
@@ -223,6 +190,53 @@ This command will list all the connected Android emulators and devices and iOS s
             var subType: Int?
             var cpuType: Int?
         }
+    }
+}
+
+/// A connected Android device or emulator as reported by `adb devices -l`.
+struct AndroidDevice {
+    /// The device serial (e.g. "emulator-5554" or a USB serial)
+    let id: String
+    /// Key-value pairs from the device info string (product, model, device, transport_id, etc.)
+    let info: [String: String]
+
+    /// Whether this device appears to be an emulator rather than a physical device.
+    /// Detected by the serial starting with "emulator-" or the "device" info field starting with "emu".
+    var isEmulator: Bool {
+        id.hasPrefix("emulator-") || info["device"]?.hasPrefix("emu") == true
+    }
+}
+
+@available(macOS 13, iOS 16, tvOS 16, watchOS 8, *)
+extension ToolOptionsCommand where Self: StreamingCommand {
+    /// Query `adb devices -l` and return the list of connected Android devices/emulators.
+    func getAndroidDevices() async throws -> [AndroidDevice] {
+        let adbDevicesPattern = try NSRegularExpression(pattern: #"^(\S+)\s+(\S+)(.*)$"#)
+        var devices: [AndroidDevice] = []
+        var seenDevicesHeader = false
+        for try await pout in try await launchTool("adb", arguments: ["devices", "-l"]) {
+            let line = pout.line
+            if line.hasPrefix("List of devices") {
+                seenDevicesHeader = true
+            } else if seenDevicesHeader {
+                guard let parts = adbDevicesPattern.extract(from: line) else {
+                    continue
+                }
+                guard let deviceID = parts.first,
+                      let _ = parts.dropFirst(1).first,
+                      let deviceInfo = parts.dropFirst(2).first else {
+                    continue
+                }
+                var deviceInfoMap = [String: String]()
+                for keyValue in deviceInfo.split(separator: " ").map({ $0.split(separator: ":") }) {
+                    if keyValue.count == 2 {
+                        deviceInfoMap[keyValue[0].description] = keyValue[1].description
+                    }
+                }
+                devices.append(AndroidDevice(id: deviceID, info: deviceInfoMap))
+            }
+        }
+        return devices
     }
 }
 

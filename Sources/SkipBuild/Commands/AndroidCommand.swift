@@ -635,14 +635,62 @@ protocol ToolchainOptionsCommand : ToolOptionsCommand {
     var toolchainOptions: ToolchainOptions { get }
 }
 
+struct AndroidRuntimeOptions: ParsableArguments {
+    @Option(help: ArgumentHelp("Android emulator identifier", valueName: "ANDROID_SERIAL"))
+    var androidEmulator: String = "auto"
+}
+
 @available(macOS 13, iOS 16, tvOS 16, watchOS 8, *)
 protocol AndroidOperationCommand : MessageCommand, ToolchainOptionsCommand {
+    /// This command's toolchain options
+    var androidRuntimeOptions: AndroidRuntimeOptions { get }
 
     /// The arguments to the command to be executed
     var args: [String] { get }
 }
 
 extension AndroidOperationCommand {
+    /// Default runtime options for commands that don't expose the flag (e.g. build, toolchain version)
+    var androidRuntimeOptions: AndroidRuntimeOptions { AndroidRuntimeOptions() }
+
+    /// Resolve the `--android-emulator` flag to a concrete `ANDROID_SERIAL` value.
+    /// Returns `nil` when no serial needs to be set (e.g. only one device connected and auto mode).
+    func resolveAndroidSerial(with out: MessageQueue) async throws -> String? {
+        let flag = androidRuntimeOptions.androidEmulator
+
+        if flag == "auto" {
+            // If the user already set ANDROID_SERIAL in the environment, honour it
+            if let existing = ProcessInfo.processInfo.environment["ANDROID_SERIAL"], !existing.isEmpty {
+                return existing
+            }
+            // Otherwise query connected devices, preferring emulators
+            let devices = try await getAndroidDevices()
+            if devices.isEmpty {
+                throw AndroidError(errorDescription: "No connected Android devices or emulators were found. Launch an emulator from Android Studio's Virtual Device Manager, or connect a device via USB.")
+            }
+            if devices.count == 1 {
+                return nil // adb will target the only device automatically
+            }
+            // Multiple devices: prefer an emulator over a physical device
+            let emulators = devices.filter { $0.isEmulator }
+            let target = emulators.first ?? devices[0]
+            let listing = devices.map { "  \($0.id)\($0.info["model"].map { " (\($0))" } ?? "")" }.joined(separator: "\n")
+            await out.yield(MessageBlock(status: .warn, "Multiple Android devices found — targeting \(target.id). Use --android-emulator to select a different device:\n\(listing)"))
+            return target.id
+        }
+
+        // Explicit device specified — verify it exists
+        let devices = try await getAndroidDevices()
+        if devices.contains(where: { $0.id == flag }) {
+            return flag
+        }
+        // No matching device
+        let listing = devices.isEmpty
+            ? "No connected Android devices or emulators were found."
+            : "Connected devices:\n" + devices.map { "  \($0.id)\($0.info["model"].map { " (\($0))" } ?? "")" }.joined(separator: "\n")
+        throw AndroidError(errorDescription: "Android device '\(flag)' not found. \(listing)")
+    }
+
     func runCommand(command: [String], env: [String: String], with out: MessageQueue) async throws {
         #if !canImport(SkipDriveExternal)
         throw ToolLaunchError(errorDescription: "Cannot launch android command without SkipDriveExternal")
@@ -883,7 +931,7 @@ extension AndroidOperationCommand {
 
             let runTests = cleanup != nil && executable == nil
 
-            let (_, env) = try await runToolchainCommand(tc, executable: executable, testMode: runTests ? .executable : nil, with: out)
+            var (_, env) = try await runToolchainCommand(tc, executable: executable, testMode: runTests ? .executable : nil, with: out)
 
             let buildOutputFolder = [
                 // the output folder is either the scratch path we have specified, or is the default package/.build output directory
@@ -949,6 +997,11 @@ extension AndroidOperationCommand {
 
             if executable == nil && runTests == false {
                 continue // nothing to do but build, so move on to the next list arch…
+            }
+
+            // Resolve the target Android device/emulator for adb commands
+            if let serial = try await resolveAndroidSerial(with: out) {
+                env["ANDROID_SERIAL"] = serial
             }
 
             // to figure out the generated test executable name, we need to parse the Package.swift
@@ -1329,6 +1382,9 @@ struct AndroidRunCommand: AndroidOperationCommand {
 
     @OptionGroup(title: "Tool Options")
     var toolOptions: ToolOptions
+
+    @OptionGroup(title: "Android Runtime Options")
+    var androidRuntimeOptions: AndroidRuntimeOptions
 
     @Flag(inversion: .prefixedNo, help: ArgumentHelp("Cleanup temporary folders after running"))
     var cleanup: Bool = true
