@@ -278,6 +278,24 @@ extension ToolOptionsCommand where Self: StreamingCommand {
             : "Connected devices:\n" + devices.map { "  \($0.id)\($0.info["model"].map { " (\($0))" } ?? "")" }.joined(separator: "\n")
         throw DevicesCommand.DevicesCommandError(errorDescription: "Android device '\(androidSerial)' not found. \(listing)")
     }
+
+    /// Wait for an Android device to finish booting by polling `sys.boot_completed`.
+    /// - Parameters:
+    ///   - adb: Path to the `adb` binary.
+    ///   - additionalEnvironment: Environment variables (should include `ANDROID_SERIAL` when targeting a specific device).
+    ///   - timeout: Maximum seconds to wait. Pass `0` to skip waiting entirely.
+    func waitForDeviceBoot(adb: String, additionalEnvironment: [String: String], timeout: Int, with out: MessageQueue) async throws {
+        guard timeout > 0 else { return }
+        let deadline = Date().addingTimeInterval(TimeInterval(timeout))
+        while Date() < deadline {
+            let result = try? await run(with: out, "Waiting for device boot", [adb, "shell", "getprop", "sys.boot_completed"], additionalEnvironment: additionalEnvironment, watch: false, permitFailure: true)
+            if case .success(let output) = result, output.stdout.trimmingCharacters(in: .whitespacesAndNewlines) == "1" {
+                return
+            }
+            try await Task.sleep(nanoseconds: 2_000_000_000) // 2 seconds
+        }
+        throw DevicesCommand.DevicesCommandError(errorDescription: "Timed out after \(timeout)s waiting for Android device to finish booting. Use --android-connect-timeout to increase the wait time, or check that the emulator is running.")
+    }
 }
 
 /**

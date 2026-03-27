@@ -662,21 +662,9 @@ extension AndroidOperationCommand {
         try await resolveAndroidSerial(androidSerial: androidRuntimeOptions.androidSerial, with: out)
     }
 
-    /// Wait for the Android device to finish booting by polling `sys.boot_completed`.
-    /// This avoids "Can't find service: package" errors when `adb install` runs before
-    /// PackageManagerService is ready. Common on macOS CI where emulator cold-boot is slow.
+    /// Wait for the Android device to finish booting, using the timeout from `androidRuntimeOptions`.
     func waitForDeviceBoot(adb: String, additionalEnvironment: [String: String], with out: MessageQueue) async throws {
-        let timeout = androidRuntimeOptions.androidConnectTimeout
-        guard timeout > 0 else { return } // skip waiting if timeout is 0
-        let deadline = Date().addingTimeInterval(TimeInterval(timeout))
-        while Date() < deadline {
-            let result = try? await run(with: out, "Waiting for device boot", [adb, "shell", "getprop", "sys.boot_completed"], additionalEnvironment: additionalEnvironment, watch: false, permitFailure: true)
-            if case .success(let output) = result, output.stdout.trimmingCharacters(in: .whitespacesAndNewlines) == "1" {
-                return
-            }
-            try await Task.sleep(nanoseconds: 2_000_000_000) // 2 seconds
-        }
-        throw AndroidError(errorDescription: "Timed out after \(timeout)s waiting for Android device to finish booting. Use --android-connect-timeout to increase the wait time, or check that the emulator is running.")
+        try await waitForDeviceBoot(adb: adb, additionalEnvironment: additionalEnvironment, timeout: androidRuntimeOptions.androidConnectTimeout, with: out)
     }
 
     func runCommand(command: [String], env: [String: String], with out: MessageQueue) async throws {
@@ -1544,6 +1532,9 @@ struct AndroidEmulatorLaunchCommand: MessageCommand, ToolOptionsCommand {
     @Flag(inversion: .prefixedNo, help: ArgumentHelp("Run in headless mode"))
     var headless: Bool = ProcessInfo.processInfo.environment["CI"] ?? "0" != "0"
 
+    @Option(help: ArgumentHelp("Seconds to wait for emulator boot", valueName: "seconds"))
+    var androidConnectTimeout: Int = 90
+
     /// Any arguments that are not recognized are passed through to the underlying swift build command
     @Argument(parsing: .remaining, help: ArgumentHelp("Emulator arguments"))
     var args: [String] = []
@@ -1555,7 +1546,6 @@ struct AndroidEmulatorLaunchCommand: MessageCommand, ToolOptionsCommand {
         throw SkipDriveError(errorDescription: "SkipDrive not linked")
         #else
         var exitCode: SkipDriveExternal.ProcessResult.ExitStatus? = nil
-        //~/Library/Android/sdk/emulator/emulator -avd emulator-34-pixel_7
 
         let emulatorName: String
         if let name {
@@ -1588,23 +1578,47 @@ struct AndroidEmulatorLaunchCommand: MessageCommand, ToolOptionsCommand {
 
         emulatorArgs += args
 
+        // Snapshot existing device serials so we can detect the new emulator
+        let existingSerials = Set((try? await getAndroidDevices())?.map(\.id) ?? [])
+
         let output = try await launchTool("emulator", arguments: emulatorArgs) {
             exitCode = $0.exitStatus
         }
 
-        for try await line in output {
-            await out.write(status: nil, line.line)
+        if self.background {
+            let adb = try toolOptions.toolPath(for: "adb")
 
-            // scan for lines like:
-            // INFO         | Boot completed in 23779 ms
-            // INFO         | Successfully loaded snapshot 'default_boot' using 414 ms
-            // 01-10 20:15:28.684     0     0 I ueventd : Coldboot took 0.096 seconds
-            if self.background && (
-                (line.line.hasPrefix("INFO") && line.line.contains("| Boot completed in ")) // emulator command output
-                || (line.line.contains("I ueventd : Coldboot took ")) // logcat output
-                ) {
-                await out.write(status: .pass, "Launch complete - moving process to background (run `adb logcat` to view logs and `adb emu kill` to stop emulator)")
-                break
+            // Detect the newly launched emulator's serial by polling for a new
+            // entry in `adb devices` that wasn't present before launch
+            let serialDeadline = Date().addingTimeInterval(TimeInterval(androidConnectTimeout))
+            var launchedSerial: String?
+            while Date() < serialDeadline {
+                let devices = (try? await getAndroidDevices()) ?? []
+                if let newDevice = devices.first(where: { !existingSerials.contains($0.id) && $0.isEmulator }) {
+                    launchedSerial = newDevice.id
+                    break
+                }
+                try await Task.sleep(nanoseconds: 1_000_000_000) // 1 second
+            }
+
+            let adbEnv: [String: String]
+            if let serial = launchedSerial {
+                adbEnv = ["ANDROID_SERIAL": serial]
+            } else {
+                // Couldn't detect a new serial — fall through and try without
+                // targeting a specific device (will work if only one is running)
+                adbEnv = [:]
+            }
+
+            // Wait for the emulator to fully boot (sys.boot_completed == 1)
+            try await waitForDeviceBoot(adb: adb, additionalEnvironment: adbEnv, timeout: androidConnectTimeout, with: out)
+
+            let serialDesc = launchedSerial.map { " (\($0))" } ?? ""
+            await out.write(status: .pass, "Launch complete\(serialDesc) - moving process to background (run `adb logcat` to view logs and `adb emu kill` to stop emulator)")
+        } else {
+            // Foreground mode — stream emulator output until it exits
+            for try await line in output {
+                await out.write(status: nil, line.line)
             }
         }
 
