@@ -232,7 +232,7 @@ jobs:
           skip android emulator launch --background --android-connect-timeout=300 --verbose
 
           echo "Waiting for device"
-          timeout -v 60 ${ANDROID_HOME}/platform-tools/adb wait-for-device
+          ${ANDROID_HOME}/platform-tools/adb wait-for-device
 
       - name: "Test new Swift package on emulator"
         working-directory: ${{ runner.temp }}
