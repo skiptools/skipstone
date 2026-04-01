@@ -234,6 +234,12 @@ jobs:
           echo "Waiting for device"
           ${ANDROID_HOME}/platform-tools/adb wait-for-device
           sleep 60
+          date
+          echo "echoing PING"
+          ${ANDROID_HOME}/platform-tools/adb shell echo PING
+          echo "running shell getprop sys.boot_completed
+          ${ANDROID_HOME}/platform-tools/adb shell getprop sys.boot_completed
+          date
 
       - name: "Test new Swift package on emulator"
         working-directory: ${{ runner.temp }}
