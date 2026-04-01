@@ -290,7 +290,7 @@ func installSDKComponents(
     let sdkmanager = try command.toolOptions.toolPath(for: "sdkmanager")
 
     await command.withLogStream(title: "Install Android SDK components", with: out) {
-        try await command.run(with: out, "Configure Android SDK Manager", ["sh", "-c", "yes | \(sdkmanager) --sdk_root=\(androidHome) --licenses"])
+        try await command.run(with: out, "Configure Android SDK Manager", ["sh", "-c", "yes | \(sdkmanager) --sdk_root=\(androidHome) --licenses > /dev/null 2>&1"])
 
         for component in components {
             _ = try await command.runTool("sdkmanager", with: out, "Install \(component)", arguments: ["--verbose", "--install", "--sdk_root=\(androidHome)", component])

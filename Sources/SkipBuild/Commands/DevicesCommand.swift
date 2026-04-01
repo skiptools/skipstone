@@ -301,7 +301,7 @@ extension ToolOptionsCommand where Self: StreamingCommand {
                     let stdout = output.stdout.trimmingCharacters(in: .whitespacesAndNewlines)
                     let stderr = output.stderr.trimmingCharacters(in: .whitespacesAndNewlines)
                     await out.write(status: .warn, "success running adb shell: STDOUT=\(stdout) STDERR=\(stderr)")
-                    if stdout == "1" || stdout == "" {
+                    if output.exitCode == 0 && (stdout == "1" || stdout == "") {
                         // for some reason on the GitHub CI, this is blank when the emulator has booted successfully
                         return
                     }
