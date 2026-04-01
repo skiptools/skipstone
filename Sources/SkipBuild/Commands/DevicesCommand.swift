@@ -298,12 +298,15 @@ extension ToolOptionsCommand where Self: StreamingCommand {
                 let result = try await run(with: out, "Waiting for device boot", [adb, "shell", "getprop", "sys.boot_completed"], additionalEnvironment: additionalEnvironment, watch: false, permitFailure: true)
                 switch result {
                 case .success(let output):
-                    await out.write(status: .warn, "success running adb shell: STDOUT=\(output.stdout.trimmingCharacters(in: .whitespacesAndNewlines)) STDERR=\(output.stderr.trimmingCharacters(in: .whitespacesAndNewlines))")
+                    let stdout = output.stdout.trimmingCharacters(in: .whitespacesAndNewlines)
+                    let stderr = output.stderr.trimmingCharacters(in: .whitespacesAndNewlines)
+                    await out.write(status: .warn, "success running adb shell: STDOUT=\(stdout) STDERR=\(stderr)")
+                    if stdout == "1" || stdout == "" {
+                        // for some reason on the GitHub CI, this is blank when the emulator has booted successfully
+                        return
+                    }
                 case .failure(let error):
                     await out.write(status: .warn, "error running adb shell: \(error)")
-                }
-                if case .success(let output) = result, output.stdout.trimmingCharacters(in: .whitespacesAndNewlines) == "1" {
-                    return
                 }
             } catch {
                 await out.write(status: .warn, "process error running adb shell: \(error)")
