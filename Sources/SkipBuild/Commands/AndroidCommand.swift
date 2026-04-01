@@ -1645,14 +1645,6 @@ struct AndroidEmulatorLaunchCommand: MessageCommand, ToolOptionsCommand {
         }
 
         if self.background {
-            // Drain the emulator's stdout/stderr in the background to prevent
-            // the pipe buffer from filling up, which would cause the emulator
-            // process to block and never finish booting. This is critical on CI
-            // where the emulator runs with verbose logcat output.
-            let drainTask = Task {
-                for try await _ in output { }
-            }
-
             let adb = try toolOptions.toolPath(for: "adb")
 
             // Detect the newly launched emulator's serial by polling for a new

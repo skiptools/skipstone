@@ -294,9 +294,19 @@ extension ToolOptionsCommand where Self: StreamingCommand {
         guard timeout > 0 else { return }
         let deadline = Date().addingTimeInterval(TimeInterval(timeout))
         while Date() < deadline {
-            let result = try? await run(with: out, "Waiting for device boot", [adb, "shell", "getprop", "sys.boot_completed"], additionalEnvironment: additionalEnvironment, watch: false, permitFailure: true)
-            if case .success(let output) = result, output.stdout.trimmingCharacters(in: .whitespacesAndNewlines) == "1" {
-                return
+            do {
+                let result = try await run(with: out, "Waiting for device boot", [adb, "shell", "getprop", "sys.boot_completed"], additionalEnvironment: additionalEnvironment, watch: false, permitFailure: true)
+                switch result {
+                case .success(let output):
+                    await out.write(status: .warn, "success running adb shell: \(output.stdout.trimmingCharacters(in: .whitespacesAndNewlines))")
+                case .failure(let error):
+                    await out.write(status: .warn, "error running adb shell: \(error)")
+                }
+                if case .success(let output) = result, output.stdout.trimmingCharacters(in: .whitespacesAndNewlines) == "1" {
+                    return
+                }
+            } catch {
+                await out.write(status: .warn, "process error running adb shell: \(error)")
             }
             try await Task.sleep(nanoseconds: 2_000_000_000) // 2 seconds
         }
