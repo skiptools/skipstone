@@ -237,7 +237,7 @@ jobs:
           date
           echo "echoing PING"
           ${ANDROID_HOME}/platform-tools/adb shell echo PING
-          echo "running shell getprop sys.boot_completed
+          echo "running shell getprop sys.boot_completed"
           ${ANDROID_HOME}/platform-tools/adb shell getprop sys.boot_completed
           date
 
