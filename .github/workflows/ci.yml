@@ -233,6 +233,7 @@ jobs:
 
           echo "Waiting for device"
           ${ANDROID_HOME}/platform-tools/adb wait-for-device
+          sleep 60
 
       - name: "Test new Swift package on emulator"
         working-directory: ${{ runner.temp }}
