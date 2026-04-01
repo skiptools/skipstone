@@ -298,7 +298,7 @@ extension ToolOptionsCommand where Self: StreamingCommand {
                 let result = try await run(with: out, "Waiting for device boot", [adb, "shell", "getprop", "sys.boot_completed"], additionalEnvironment: additionalEnvironment, watch: false, permitFailure: true)
                 switch result {
                 case .success(let output):
-                    await out.write(status: .warn, "success running adb shell: \(output.stdout.trimmingCharacters(in: .whitespacesAndNewlines))")
+                    await out.write(status: .warn, "success running adb shell: STDOUT=\(output.stdout.trimmingCharacters(in: .whitespacesAndNewlines)) STDERR=\(output.stderr.trimmingCharacters(in: .whitespacesAndNewlines))")
                 case .failure(let error):
                     await out.write(status: .warn, "error running adb shell: \(error)")
                 }
