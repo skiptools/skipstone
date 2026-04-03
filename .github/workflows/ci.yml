@@ -223,17 +223,12 @@ jobs:
           skip android emulator list --verbose
           # watch the logs for errors
           (sleep 20; ${ANDROID_HOME}/platform-tools/adb logcat) &
-          (sleep 30; echo "RUNNING 30 adb shell getprop sys.boot_completed"; ${ANDROID_HOME}/platform-tools/adb shell getprop sys.boot_completed) &
-          (sleep 40; echo "RUNNING 40 adb shell getprop sys.boot_completed"; ${ANDROID_HOME}/platform-tools/adb shell getprop sys.boot_completed) &
-          (sleep 50; echo "RUNNING 50 adb shell getprop sys.boot_completed"; ${ANDROID_HOME}/platform-tools/adb shell getprop sys.boot_completed) &
-          (sleep 60; echo "RUNNING 60 adb shell getprop sys.boot_completed"; ${ANDROID_HOME}/platform-tools/adb shell getprop sys.boot_completed) &
-          (sleep 90; echo "RUNNING 90 adb shell getprop sys.boot_completed"; ${ANDROID_HOME}/platform-tools/adb shell getprop sys.boot_completed) &
-          (sleep 180; echo "RUNNING 180 adb shell getprop sys.boot_completed"; ${ANDROID_HOME}/platform-tools/adb shell getprop sys.boot_completed) &
+
           skip android emulator launch --background --android-connect-timeout=300 --verbose
 
           echo "Waiting for device"
           ${ANDROID_HOME}/platform-tools/adb wait-for-device
-          sleep 60
+          sleep 30
           date
           echo "echoing PING"
           ${ANDROID_HOME}/platform-tools/adb shell echo PING
