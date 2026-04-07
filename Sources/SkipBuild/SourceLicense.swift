@@ -184,6 +184,11 @@ enum LicenseIdentification {
             return DetectedLicense(spdxIdentifier: "LGPL-3.0-only", name: "GNU Lesser General Public License v3.0")
         }
 
+        // AGPL 3.0 (must be checked before GPL since AGPL text contains "GNU GENERAL PUBLIC LICENSE")
+        if upper.contains("GNU AFFERO GENERAL PUBLIC LICENSE") && upper.contains("VERSION 3") {
+            return DetectedLicense(spdxIdentifier: "AGPL-3.0-only", name: "GNU Affero General Public License v3.0")
+        }
+
         // GPL 3.0
         if upper.contains("GNU GENERAL PUBLIC LICENSE") && upper.contains("VERSION 3") {
             return DetectedLicense(spdxIdentifier: "GPL-3.0-only", name: "GNU General Public License v3.0")
@@ -192,11 +197,6 @@ enum LicenseIdentification {
         // GPL 2.0
         if upper.contains("GNU GENERAL PUBLIC LICENSE") && upper.contains("VERSION 2") {
             return DetectedLicense(spdxIdentifier: "GPL-2.0-only", name: "GNU General Public License v2.0")
-        }
-
-        // AGPL 3.0
-        if upper.contains("GNU AFFERO GENERAL PUBLIC LICENSE") && upper.contains("VERSION 3") {
-            return DetectedLicense(spdxIdentifier: "AGPL-3.0-only", name: "GNU Affero General Public License v3.0")
         }
 
         // Unlicense

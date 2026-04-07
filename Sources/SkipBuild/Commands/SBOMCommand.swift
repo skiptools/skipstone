@@ -12,6 +12,7 @@ import SkipDriveExternal
 extension SBOMCreateCommand : GradleHarness { }
 extension SBOMValidateCommand : GradleHarness { }
 extension SBOMVerifyCommand : GradleHarness { }
+extension VerifyCommand : GradleHarness { }
 fileprivate let sbomCommandEnabled = true
 #else
 fileprivate let sbomCommandEnabled = false
@@ -508,18 +509,8 @@ By default, the licenseDeclared field is checked; use --concluded to check licen
 
     // MARK: - Policy Construction
 
-    struct LicensePolicy {
-        let allowedLicenses: Set<String>?  // nil means no allowlist (all allowed unless denied)
-        let deniedLicenses: Set<String>
-        let licenseField: String           // "licenseDeclared" or "licenseConcluded"
-        let noassertionMode: NoassertionMode
-    }
-
-    enum NoassertionMode {
-        case allow                                 // NOASSERTION packages are permitted
-        case deny                                  // all NOASSERTION packages are denied
-        case allowListed(Set<String>)              // only listed SPDXIDs with NOASSERTION are permitted
-    }
+    typealias LicensePolicy = SBOMLicensePolicy
+    typealias NoassertionMode = SBOMNoassertionMode
 
     func buildPolicy() throws -> LicensePolicy {
         // Determine the license field to check
@@ -569,114 +560,7 @@ By default, the licenseDeclared field is checked; use --concluded to check licen
     // MARK: - Verification
 
     func verifyPlatform(file: AbsolutePath, platform: String, policy: LicensePolicy, out: MessageQueue) async throws -> (checked: Int, violations: Int) {
-        let data = try Data(contentsOf: file.asURL)
-        guard let doc = try JSONSerialization.jsonObject(with: data) as? [String: Any],
-              let packages = doc["packages"] as? [[String: Any]] else {
-            await out.write(status: .fail, "\(platform) SBOM: invalid SPDX document format")
-            return (0, 1)
-        }
-
-        // Build a lookup table for LicenseRef-* identifiers from the SPDX document's
-        // hasExtractedLicensingInfos section, resolving each to a standard SPDX identifier
-        // when possible based on the extracted license name and URLs.
-        let licenseRefLookup = LicenseIdentification.buildLicenseRefLookup(from: doc)
-        let licenseRefNames = LicenseIdentification.buildLicenseRefNames(from: doc)
-
-        /// Format a license string for display, annotating any remaining LicenseRef-* with
-        /// the human-readable name from the SPDX document's extracted licensing info.
-        func displayLicense(_ license: String) -> String {
-            guard license.contains("LicenseRef-") else { return license }
-            var result = license
-            for (ref, name) in licenseRefNames {
-                if result.contains(ref) {
-                    result = result.replacingOccurrences(of: ref, with: "\(name) (\(ref))")
-                }
-            }
-            return result
-        }
-
-        var checked = 0
-        var violations = 0
-
-        for pkg in packages {
-            guard let name = pkg["name"] as? String,
-                  let spdxID = pkg["SPDXID"] as? String else { continue }
-
-            // Skip root/app packages
-            let purpose = pkg["primaryPackagePurpose"] as? String
-            if purpose == "APPLICATION" { continue }
-            if spdxID == "SPDXRef-DOCUMENT" { continue }
-            if purpose == nil && !name.contains(":") { continue }
-
-            let version = pkg["versionInfo"] as? String ?? "?"
-            var license = pkg[policy.licenseField] as? String ?? "NOASSERTION"
-
-            // Resolve LicenseRef-* references to standard SPDX identifiers if possible.
-            // Handles both simple values (e.g. "LicenseRef-gnrtd0") and compound SPDX
-            // expressions (e.g. "(Apache-2.0 AND LicenseRef-gnrtd2)").
-            if license.contains("LicenseRef-") {
-                for (ref, resolved) in licenseRefLookup {
-                    license = license.replacingOccurrences(of: ref, with: resolved)
-                }
-            }
-
-            checked += 1
-
-            // Handle NOASSERTION
-            if license == "NOASSERTION" {
-                switch policy.noassertionMode {
-                case .allow:
-                    await out.write(status: .pass, "\(platform): \(name) \(version) — NOASSERTION (allowed)")
-                case .deny:
-                    await out.write(status: .fail, "\(platform): \(name) \(version) — NOASSERTION [\(spdxID)]")
-                    violations += 1
-                case .allowListed(let permitted):
-                    if permitted.contains(spdxID) {
-                        await out.write(status: .pass, "\(platform): \(name) \(version) — NOASSERTION (permitted [\(spdxID)])")
-                    } else {
-                        await out.write(status: .fail, "\(platform): \(name) \(version) — NOASSERTION (not in permitted list) [\(spdxID)]")
-                        violations += 1
-                    }
-                }
-                continue
-            }
-
-            // Parse the license into individual SPDX identifiers.
-            // Handles compound expressions like "(Apache-2.0 AND LGPL-2.1-or-later)"
-            // or "Apache-2.0 AND MIT" by splitting on AND/OR and checking each part.
-            let licenseComponents = LicenseIdentification.parseSPDXExpression(license)
-
-            // Check against deny list — any denied component fails the package
-            var denied = false
-            for component in licenseComponents {
-                if policy.deniedLicenses.contains(component) {
-                    let detail = licenseComponents.count > 1 ? " (in \(displayLicense(license)))" : ""
-                    await out.write(status: .fail, "\(platform): \(name) \(version) — \(displayLicense(component))\(detail) (denied)")
-                    violations += 1
-                    denied = true
-                    break
-                }
-            }
-            if denied { continue }
-
-            // Check against allow list (if specified) — all components must be allowed
-            if let allowed = policy.allowedLicenses {
-                let disallowed = licenseComponents.filter { !allowed.contains($0) }
-                if !disallowed.isEmpty {
-                    let label = disallowed.count == 1 ? displayLicense(disallowed[0]) : displayLicense(license)
-                    await out.write(status: .fail, "\(platform): \(name) \(version) — \(label) (not allowed)")
-                    violations += 1
-                    continue
-                }
-            }
-
-            await out.write(status: .pass, "\(platform): \(name) \(version) — \(displayLicense(license))")
-        }
-
-        let summary = violations == 0 ? "all pass" : "\(violations) \(violations == 1 ? "violation" : "violations")"
-        await out.write(status: violations == 0 ? .pass : .fail, "\(platform) SBOM: \(checked) packages verified (\(summary))")
-
-        return (checked, violations)
+        try await SBOMGenerator.verifySBOMPlatform(file: file, platform: platform, policy: policy, out: out)
     }
 }
 
@@ -704,25 +588,6 @@ enum SBOMGenerator {
                 resolvedData = data
                 resolvedFilePath = path
                 break
-            }
-        }
-
-        // Try swift package resolve to generate Package.resolved if not found
-        if resolvedData == nil {
-            let resolvedPath = projectPath + "/Package.resolved"
-            let process = Process()
-            process.executableURL = URL(fileURLWithPath: "/usr/bin/env")
-            process.arguments = ["swift", "package", "resolve", "--package-path", projectPath]
-            process.environment = ProcessInfo.processInfo.environment
-            let pipe = Pipe()
-            process.standardOutput = pipe
-            process.standardError = pipe
-            try? process.run()
-            process.waitUntilExit()
-
-            if let data = FileManager.default.contents(atPath: resolvedPath) {
-                resolvedData = data
-                resolvedFilePath = resolvedPath
             }
         }
 
@@ -895,6 +760,15 @@ enum SBOMGenerator {
         var generatedFiles: [URL] = []
 
         if generateIOS {
+            // Ensure SwiftPM dependencies are resolved so Package.resolved and .build/checkouts exist
+            let resolvedPaths = [
+                projectPath + "/Package.resolved",
+                projectPath + "/Project.xcworkspace/xcshareddata/swiftpm/Package.resolved",
+            ]
+            if !resolvedPaths.contains(where: { FileManager.default.fileExists(atPath: $0) }) {
+                try await command.run(with: out, "Resolve Swift package dependencies", ["swift", "package", "resolve", "--package-path", projectPath])
+            }
+
             let iosFile = outputDirAbsolute.appending(component: iosFilename)
             await command.outputOptions.monitor(with: out, "Generate iOS SBOM") { _ in
                 let sbom = try generateIOSSBOM(projectPath: projectPath, packageName: packageName, packageJSON: packageJSON)
@@ -912,6 +786,155 @@ enum SBOMGenerator {
         }
 
         return generatedFiles
+    }
+
+    // MARK: - SBOM License Verification
+
+    /// Verify SBOM licenses against a FLOSS policy, generating temporary SBOMs if needed.
+    /// Returns the number of violations found (0 = all pass).
+    @discardableResult
+    static func verifyFLOSSLicenses<C: StreamingCommand & OutputOptionsCommand>(projectPath: String, packageName: String, packageJSON: PackageManifest, command: C, out: MessageQueue) async throws -> Int {
+        let fs = localFileSystem
+
+        // Generate SBOMs to a temp directory
+        let tempDir = try AbsolutePath(validating: NSTemporaryDirectory()).appending(component: "skip-sbom-verify-\(UUID().uuidString.prefix(8))")
+        try fs.createDirectory(tempDir, recursive: true)
+        defer { try? fs.removeFileTree(tempDir) }
+
+        try await generateSBOMFiles(
+            generateIOS: true,
+            generateAndroid: true,
+            projectPath: projectPath,
+            packageName: packageName,
+            packageJSON: packageJSON,
+            outputDirAbsolute: tempDir,
+            command: command,
+            out: out
+        )
+
+        // Verify both platforms with FLOSS policy
+        var totalChecked = 0
+        var totalViolations = 0
+
+        let policy = SBOMLicensePolicy(
+            allowedLicenses: LicenseIdentification.flossLicenses,
+            deniedLicenses: [],
+            licenseField: "licenseDeclared",
+            noassertionMode: .allow
+        )
+
+        for (filename, platform) in [(iosFilename, "iOS"), (androidFilename, "Android")] {
+            let file = tempDir.appending(component: filename)
+            guard fs.isFile(file) else { continue }
+            let (checked, violations) = try await verifySBOMPlatform(file: file, platform: platform, policy: policy, out: out)
+            totalChecked += checked
+            totalViolations += violations
+        }
+
+        if totalViolations > 0 {
+            await out.write(status: .fail, "SBOM verify: \(totalViolations) license \(totalViolations == 1 ? "violation" : "violations") in \(totalChecked) packages")
+        } else if totalChecked > 0 {
+            await out.write(status: .pass, "SBOM verify: \(totalChecked) packages checked, all FLOSS-licensed")
+        }
+
+        return totalViolations
+    }
+
+    /// Verify the licenses in a single SPDX SBOM file against a policy.
+    static func verifySBOMPlatform(file: AbsolutePath, platform: String, policy: SBOMLicensePolicy, out: MessageQueue) async throws -> (checked: Int, violations: Int) {
+        let data = try Data(contentsOf: file.asURL)
+        guard let doc = try JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let packages = doc["packages"] as? [[String: Any]] else {
+            await out.write(status: .fail, "\(platform) SBOM: invalid SPDX document format")
+            return (0, 1)
+        }
+
+        let licenseRefLookup = LicenseIdentification.buildLicenseRefLookup(from: doc)
+        let licenseRefNames = LicenseIdentification.buildLicenseRefNames(from: doc)
+
+        func displayLicense(_ license: String) -> String {
+            guard license.contains("LicenseRef-") else { return license }
+            var result = license
+            for (ref, name) in licenseRefNames {
+                if result.contains(ref) {
+                    result = result.replacingOccurrences(of: ref, with: "\(name) (\(ref))")
+                }
+            }
+            return result
+        }
+
+        var checked = 0
+        var violations = 0
+
+        for pkg in packages {
+            guard let name = pkg["name"] as? String,
+                  let spdxID = pkg["SPDXID"] as? String else { continue }
+
+            let purpose = pkg["primaryPackagePurpose"] as? String
+            if purpose == "APPLICATION" { continue }
+            if spdxID == "SPDXRef-DOCUMENT" { continue }
+            if purpose == nil && !name.contains(":") { continue }
+
+            let version = pkg["versionInfo"] as? String ?? "?"
+            var license = pkg[policy.licenseField] as? String ?? "NOASSERTION"
+
+            if license.contains("LicenseRef-") {
+                for (ref, resolved) in licenseRefLookup {
+                    license = license.replacingOccurrences(of: ref, with: resolved)
+                }
+            }
+
+            checked += 1
+
+            if license == "NOASSERTION" {
+                switch policy.noassertionMode {
+                case .allow:
+                    await out.write(status: .pass, "\(platform): \(name) \(version) — NOASSERTION (allowed)")
+                case .deny:
+                    await out.write(status: .fail, "\(platform): \(name) \(version) — NOASSERTION [\(spdxID)]")
+                    violations += 1
+                case .allowListed(let permitted):
+                    if permitted.contains(spdxID) {
+                        await out.write(status: .pass, "\(platform): \(name) \(version) — NOASSERTION (permitted [\(spdxID)])")
+                    } else {
+                        await out.write(status: .fail, "\(platform): \(name) \(version) — NOASSERTION (not in permitted list) [\(spdxID)]")
+                        violations += 1
+                    }
+                }
+                continue
+            }
+
+            let licenseComponents = LicenseIdentification.parseSPDXExpression(license)
+
+            var denied = false
+            for component in licenseComponents {
+                if policy.deniedLicenses.contains(component) {
+                    let detail = licenseComponents.count > 1 ? " (in \(displayLicense(license)))" : ""
+                    await out.write(status: .fail, "\(platform): \(name) \(version) — \(displayLicense(component))\(detail) (denied)")
+                    violations += 1
+                    denied = true
+                    break
+                }
+            }
+            if denied { continue }
+
+            if let allowed = policy.allowedLicenses {
+                let disallowed = licenseComponents.filter { !allowed.contains($0) }
+                if !disallowed.isEmpty {
+                    let label = disallowed.count == 1 ? displayLicense(disallowed[0]) : displayLicense(license)
+                    await out.write(status: .fail, "\(platform): \(name) \(version) — \(label) (not allowed)")
+                    violations += 1
+                    continue
+                }
+            }
+
+            await out.write(status: .pass, "\(platform): \(name) \(version) — \(displayLicense(license))")
+        }
+
+        let summary = violations == 0 ? "all pass" : "\(violations) \(violations == 1 ? "violation" : "violations")"
+        await out.write(status: violations == 0 ? .pass : .fail, "\(platform) SBOM: \(checked) packages verified (\(summary))")
+
+        return (checked, violations)
     }
 
     // MARK: - Helpers
@@ -946,6 +969,20 @@ private func relativePath(from fromDir: String, to toPath: String) -> String {
     // Append the remaining path components from toPath
     parts.append(contentsOf: toComponents[commonLength...])
     return parts.joined(separator: "/")
+}
+
+/// Shared license policy for SBOM verification, used by both `skip sbom verify` and `skip verify --sbom`.
+struct SBOMLicensePolicy {
+    let allowedLicenses: Set<String>?  // nil means no allowlist (all allowed unless denied)
+    let deniedLicenses: Set<String>
+    let licenseField: String           // "licenseDeclared" or "licenseConcluded"
+    let noassertionMode: SBOMNoassertionMode
+}
+
+enum SBOMNoassertionMode {
+    case allow
+    case deny
+    case allowListed(Set<String>)
 }
 
 struct SBOMError: LocalizedError {
