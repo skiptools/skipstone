@@ -357,18 +357,18 @@ skip sbom verify --allow Apache-2.0 --allow MIT
 skip sbom verify --deny GPL-3.0-only --deny GPL-2.0-only
 
 # allow all FSF-compatible free/open-source licenses
-skip sbom verify --floss
+skip sbom verify --free
 
 # verify only Android licenses using the concluded field
-skip sbom verify --floss --android --concluded
+skip sbom verify --free --android --concluded
 
 # allow FLOSS but deny AGPL, and list specific NOASSERTION packages
-skip sbom verify --floss --deny AGPL-3.0-only --noassertion SPDXRef-gnrtd5 --noassertion SPDXRef-gnrtd12
+skip sbom verify --free --deny AGPL-3.0-only --noassertion SPDXRef-gnrtd5 --noassertion SPDXRef-gnrtd12
 """,
         discussion: """
 Verify that all dependency licenses in the SBOM files conform to a specified policy. \
 Use --allow to specify permitted SPDX license identifiers, or --deny to specify forbidden ones. \
-The --floss flag permits a curated set of licenses recognized as free/open-source by the FSF. \
+The --free flag permits a curated set of licenses recognized as free/open-source by the FSF. \
 By default, the licenseDeclared field is checked; use --concluded to check licenseConcluded instead.
 """,
         shouldDisplay: sbomCommandEnabled)
@@ -392,7 +392,7 @@ By default, the licenseDeclared field is checked; use --concluded to check licen
     var deny: [String] = []
 
     @Flag(help: ArgumentHelp("Allow all FSF-recognized free/open-source licenses"))
-    var floss: Bool = false
+    var free: Bool = false
 
     @Flag(help: ArgumentHelp("Verify iOS SBOM only"))
     var ios: Bool = false
@@ -532,9 +532,9 @@ By default, the licenseDeclared field is checked; use --concluded to check licen
 
         // Build the allowed set
         var allowedLicenses: Set<String>? = nil
-        if !allow.isEmpty || floss {
+        if !allow.isEmpty || free {
             var allowed = Set(allow)
-            if floss {
+            if free {
                 allowed.formUnion(LicenseIdentification.flossLicenses)
             }
             allowedLicenses = allowed
@@ -555,7 +555,7 @@ By default, the licenseDeclared field is checked; use --concluded to check licen
         }
 
         if allowedLicenses == nil && deniedLicenses.isEmpty {
-            throw error("Specify at least one of --allow, --deny, or --floss to define a license policy")
+            throw error("Specify at least one of --allow, --deny, or --free to define a license policy")
         }
 
         return LicensePolicy(
@@ -841,7 +841,7 @@ enum SBOMGenerator {
                 gradlePluginPortal()
             }
             dependencies {
-                classpath 'org.spdx:spdx-gradle-plugin:0.9.0'
+                classpath 'org.spdx:spdx-gradle-plugin:+'
             }
         }
 
@@ -864,7 +864,7 @@ enum SBOMGenerator {
         defer { try? fs.removeFileTree(initScript) }
 
         // Run spdxSbomForRelease on the real Android project with the init script
-        try await command.run(with: out, "Generate Android SBOM via Gradle SPDX plugin", ["gradle", ":app:spdxSbomForRelease", "--init-script", initScript.pathString, "--project-dir", androidFolderAbsolute.pathString, "--console=plain"], environment: env)
+        try await command.run(with: out, "Generate Android SBOM", ["gradle", ":app:spdxSbomForRelease", "--init-script", initScript.pathString, "--project-dir", androidFolderAbsolute.pathString, "--console=plain"], environment: env)
 
         // The spdx plugin writes output to {app.buildDir}/spdx/release.spdx.json.
         // The Skip build plugin sets buildDir to {projectPath}/.build/Android/app

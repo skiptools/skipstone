@@ -10,9 +10,9 @@ extension ProjectOptionValues {
         if self.free {
             if app {
                 if self.appfair {
-                    return .gpl3
+                    return .gpl2
                 } else {
-                    return .gpl3
+                    return .gpl2
                 }
             } else {
                 return .mpl2
