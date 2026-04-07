@@ -237,6 +237,37 @@ enum LicenseIdentification {
         return nil
     }
 
+    // MARK: - SPDX Compatibility
+
+    /// Check whether two SPDX license identifiers are compatible.
+    /// Treats `-only` and `-or-later` variants of the same license as compatible
+    /// (e.g. `GPL-2.0-only` is compatible with `GPL-2.0-or-later`).
+    static func areCompatible(_ a: String, _ b: String) -> Bool {
+        if a == b { return true }
+        // Strip the -only/-or-later suffix and compare the base license
+        let baseA = spdxBase(a)
+        let baseB = spdxBase(b)
+        return baseA == baseB && baseA != a // only match if a suffix was actually stripped
+    }
+
+    /// Return the base license identifier by stripping `-only` or `-or-later` suffixes,
+    /// and also stripping ` WITH ...` exception clauses for the base comparison.
+    private static func spdxBase(_ identifier: String) -> String {
+        var id = identifier
+        // Strip WITH clauses: "GPL-2.0-only WITH Classpath-exception-2.0" -> "GPL-2.0-only"
+        if let withRange = id.range(of: " WITH ", options: .caseInsensitive) {
+            id = String(id[id.startIndex..<withRange.lowerBound])
+        }
+        // Strip -only / -or-later suffixes
+        if id.hasSuffix("-only") {
+            return String(id.dropLast(5))
+        }
+        if id.hasSuffix("-or-later") {
+            return String(id.dropLast(9))
+        }
+        return id
+    }
+
     /// Extract an SPDX-License-Identifier value from file content.
     static func extractSPDXIdentifier(from content: String) -> String? {
         let lines = content.components(separatedBy: .newlines)

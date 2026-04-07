@@ -129,7 +129,7 @@ struct VerifyCommand: SkipCommand, StreamingCommand, ProjectCommand, ToolOptions
             }.first
 
             if let spdxIdentifier = spdxIdentifier {
-                if spdxIdentifier != expectedIdentifier {
+                if !LicenseIdentification.areCompatible(spdxIdentifier, expectedIdentifier) {
                     await out.write(status: .fail, "License headers: \(relativePath) has \(spdxIdentifier), expected \(expectedIdentifier)")
                     violations += 1
                 }
