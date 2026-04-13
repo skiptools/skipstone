@@ -1353,6 +1353,7 @@ struct TestData : Codable, Hashable {
                 if isAppModule {
                     if isNativeAppModule {
                         modDeps.append(PackageModule(repositoryName: "skip-fuse-ui", moduleName: "SkipFuseUI"))
+                        modDeps.append(PackageModule(repositoryName: "skip-fuse", moduleName: "SkipFuse"))
                     } else {
                         modDeps.append(PackageModule(repositoryName: "skip-ui", moduleName: "SkipUI"))
                     }

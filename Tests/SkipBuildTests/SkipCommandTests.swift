@@ -1255,7 +1255,8 @@ final class SkipCommandTests: XCTestCase {
             targets: [
                 .target(name: "AppModule", dependencies: [
                     "ModelModule",
-                    .product(name: "SkipFuseUI", package: "skip-fuse-ui")
+                    .product(name: "SkipFuseUI", package: "skip-fuse-ui"),
+                    .product(name: "SkipFuse", package: "skip-fuse")
                 ], resources: [.process("Resources")], plugins: [.plugin(name: "skipstone", package: "skip")]),
                 .target(name: "ModelModule", dependencies: [
                     .product(name: "SkipFuse", package: "skip-fuse"),
@@ -1362,11 +1363,13 @@ final class SkipCommandTests: XCTestCase {
             ],
             dependencies: [
                 .package(url: "https://source.skip.tools/skip.git", from: "1.0.0"),
-                .package(url: "https://source.skip.tools/skip-fuse-ui.git", from: "1.0.0")
+                .package(url: "https://source.skip.tools/skip-fuse-ui.git", from: "1.0.0"),
+                .package(url: "https://source.skip.tools/skip-fuse.git", from: "1.0.0")
             ],
             targets: [
                 .target(name: "AppModule", dependencies: [
-                    .product(name: "SkipFuseUI", package: "skip-fuse-ui")
+                    .product(name: "SkipFuseUI", package: "skip-fuse-ui"),
+                    .product(name: "SkipFuse", package: "skip-fuse")
                 ], resources: [.process("Resources")], plugins: [.plugin(name: "skipstone", package: "skip")]),
             ]
         )
