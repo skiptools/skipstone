@@ -32,11 +32,18 @@ struct TestCommand: SkipCommand, StreamingCommand, ToolOptionsCommand {
 
         # Run tests targeting a specific emulator
         skip test --android-serial emulator-5554
+
+        # Run a subset of Swift tests and matching Kotlin (Gradle --tests)
+        skip test --filter URLTests
         """,
         discussion: """
         Builds and runs Swift (XCTest) and transpiled Kotlin (JUnit) tests, then \
         produces a side-by-side parity report. By default, Kotlin tests run locally \
         via Robolectric. Use --android-serial to run instrumented tests on a device or emulator.
+
+        With --filter, the same patterns are passed to swift test (OR semantics) and also \
+        forwarded to Gradle as --tests via the SKIP_TEST_FILTER environment variable when \
+        the XCSkipTests harness runs.
         """,
         shouldDisplay: testCommandEnabled)
 
@@ -50,7 +57,7 @@ struct TestCommand: SkipCommand, StreamingCommand, ToolOptionsCommand {
     @Flag(inversion: .prefixedNo, help: ArgumentHelp("Run the project tests"))
     var test: Bool = true
 
-    @Option(help: ArgumentHelp("Test filter(s) to run", valueName: "Test.testFun"))
+    @Option(help: ArgumentHelp("Test filter(s) for swift test and Gradle --tests", valueName: "pattern"))
     var filter: [String] = []
 
     @Option(help: ArgumentHelp("Project folder", valueName: "dir"))
@@ -138,13 +145,25 @@ extension TestCommand {
             }
         }
 
+        // Newline-separated patterns for XCGradleHarness (Gradle --tests); omit when unset so the harness runs the full Kotlin suite.
+        if !filter.isEmpty {
+            additionalEnv["SKIP_TEST_FILTER"] = filter.joined(separator: "\n")
+        }
+
         let xunit = xunit ?? ".build/xcunit-\(UUID().uuidString).xml"
 
         try await run(with: out, "Build Project", ["swift", "build", "--build-tests", "--verbose", "--configuration", configuration, "--package-path", project], additionalEnvironment: additionalEnv)
 
         var testResult: Result<ProcessOutput, Error>? = nil
         if test == true {
-            testResult = try await run(with: out, "Test project", ["swift", "test", "--parallel", "-c", configuration, "--enable-code-coverage", "--xunit-output", xunit, "--package-path", project], additionalEnvironment: additionalEnv)
+            var testArgs = ["swift", "test", "--parallel", "-c", configuration, "--enable-code-coverage", "--xunit-output", xunit, "--package-path", project]
+            for pattern in filter {
+                testArgs += ["--filter", pattern]
+            }
+            if !filter.isEmpty && !filter.contains("testSkipModule") {
+                testArgs += ["--filter", "testSkipModule"]
+            }
+            testResult = try await run(with: out, "Test project", testArgs, additionalEnvironment: additionalEnv)
         } else if self.xunit == nil {
             // we can only use the generated xunit if we are running the tests
             throw SkipDriveError(errorDescription: "Must either specify --xunit path or run tests with --test")
