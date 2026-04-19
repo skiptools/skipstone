@@ -113,6 +113,15 @@ extension TestCommand {
         }
     }
 
+    /// Next to the primary XCTest report, SwiftPM writes Swift Testing results to `<stem>-swift-testing.<ext>` when `--xunit-output` is passed as its own argument (not `--xunit-output=path`).
+    private func swiftTestingXUnitCompanionPath(xunitPath: String) -> String {
+        let url = URL(fileURLWithPath: xunitPath)
+        let directory = url.deletingLastPathComponent()
+        let stem = url.deletingPathExtension().lastPathComponent
+        let ext = url.pathExtension
+        return directory.appendingPathComponent("\(stem)-swift-testing.\(ext)").path
+    }
+
     func runTestCommand(with out: MessageQueue) async throws {
 
         // only run tests when there is a Tests/ folder
@@ -144,10 +153,19 @@ extension TestCommand {
         #if !canImport(SkipDriveExternal)
         throw SkipDriveError(errorDescription: "SkipDrive not linked")
         #else
-        // load the xunit results file
-        let xunitResults = try GradleDriver.TestSuite.parse(contentsOf: URL(fileURLWithPath: xunit))
-        if xunitResults.count == 0 {
-            throw SkipDriveError(errorDescription: "No test results found in \(xunit)")
+        // load XCTest XUnit and, when SwiftPM emits it, merge Swift Testing XUnit from the sibling file
+        let primaryXunitURL = URL(fileURLWithPath: xunit)
+        let primarySuites = try GradleDriver.TestSuite.parse(contentsOf: primaryXunitURL)
+        let swiftTestingPath = swiftTestingXUnitCompanionPath(xunitPath: xunit)
+        let swiftTestingSuites: [GradleDriver.TestSuite]
+        if FileManager.default.fileExists(atPath: swiftTestingPath) {
+            swiftTestingSuites = try GradleDriver.TestSuite.parse(contentsOf: URL(fileURLWithPath: swiftTestingPath))
+        } else {
+            swiftTestingSuites = []
+        }
+        let xunitResults = primarySuites + swiftTestingSuites
+        if xunitResults.flatMap(\.testCases).isEmpty {
+            throw SkipDriveError(errorDescription: "No test results found in \(xunit)" + (swiftTestingSuites.isEmpty ? "" : " or \(swiftTestingPath)"))
         }
 
         func testNameComparison(_ t1: TestCaseInfo, _ t2: TestCaseInfo) -> Bool {
