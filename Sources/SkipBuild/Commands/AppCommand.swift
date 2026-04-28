@@ -100,7 +100,7 @@ struct AppLaunchCommand: MessageCommand, ToolOptionsCommand {
             throw error("PRODUCT_BUNDLE_IDENTIFIER not found in \(skipEnvURL.path)")
         }
 
-        let derivedDataPath = projectURL.appendingPathComponent(".build/Darwin/DerivedData", isDirectory: true).path
+        let derivedDataPath = projectURL.appendingPathComponent("\(darwinBuildFolder)/DerivedData", isDirectory: true).path
 
         var buildEnv: [String: String] = [:]
         if ios {
@@ -126,13 +126,13 @@ struct AppLaunchCommand: MessageCommand, ToolOptionsCommand {
             return
         }
 
-        let appPath = derivedDataPath + "/Build/Products/\(configuration.rawValue.capitalized)-iphonesimulator/\(bundleIdentifier).app"
+        let appPath = derivedDataPath + "/Build/Products/\(configuration.rawValue.capitalized)-iphonesimulator/\(productName).app"
 
-        try await run(with: out, "Install \(bundleIdentifier).app", [
+        try await run(with: out, "Install \(productName).app", [
             "xcrun", "simctl", "install", "booted", appPath,
         ])
 
-        try await run(with: out, "Launch \(bundleIdentifier)", [
+        try await run(with: out, "Launch \(productName)", [
             "xcrun", "simctl", "launch", "booted", bundleIdentifier,
         ])
     }
