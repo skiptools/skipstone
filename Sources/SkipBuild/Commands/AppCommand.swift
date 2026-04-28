@@ -100,6 +100,10 @@ struct AppLaunchCommand: MessageCommand, ToolOptionsCommand {
             throw error("PRODUCT_BUNDLE_IDENTIFIER not found in \(skipEnvURL.path)")
         }
 
+        let darwinFolder = projectURL.appendingPathComponent("Darwin", isDirectory: true)
+        let xcodeProjectURL = darwinFolder.appendingPathComponent("\(productName).xcodeproj", isDirectory: true)
+        let appSchemeName = try await resolveAppSchemeName(schemeName: nil, xcodeProjectURL: xcodeProjectURL, out: out)
+
         let derivedDataPath = projectURL.appendingPathComponent("\(darwinBuildFolder)/DerivedData", isDirectory: true).path
 
         var buildEnv: [String: String] = [:]
@@ -109,10 +113,10 @@ struct AppLaunchCommand: MessageCommand, ToolOptionsCommand {
             buildEnv["SKIP_ACTION"] = "none"
         }
 
-        try await run(with: out, "Build \(productName)", [
+        try await run(with: out, "Build \(appSchemeName)", [
             "xcodebuild",
             "-workspace", workspaceURL.path,
-            "-scheme", productName,
+            "-scheme", appSchemeName,
             "-sdk", "iphonesimulator",
             "-configuration", configuration.rawValue.capitalized,
             "-skipPackagePluginValidation",
