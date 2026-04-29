@@ -31,11 +31,9 @@ public final class OutputGenerator {
         case endNode(OutputNode, Indentation)
     }
 
-    /// When true, calls to the public `append` methods record fragments
-    /// instead of writing to the output buffer or recursing.
-    private var isRecording = false
-
     /// Fragments accumulated during the current recording session.
+    /// The public `append` methods always record fragments here; the work loop
+    /// in `generateOutput` is responsible for processing them iteratively.
     private var recordedFragments: [Fragment] = []
 
     /// Supply node.
@@ -99,16 +97,14 @@ public final class OutputGenerator {
         return ret
     }
 
-    /// Run a node's append method in recording mode to capture its output as fragments.
+    /// Run a node's append method to capture its output as fragments.
     ///
     /// The node's `append(to:indentation:)` (or custom closure) executes, but every call
     /// it makes to `output.append(...)` records a fragment rather than recursing or writing.
     /// The result is a flat list: [leadingTrivia, beginNode, ...childFragments..., endNode].
     private func recordNodeFragments(node: OutputNode, indentation: Indentation, customAppend: ((OutputGenerator) -> Void)? = nil) -> [Fragment] {
-        // Save and enter recording mode (supports re-entrant recording for the 3-arg form).
-        let savedRecording = isRecording
+        // Save the outer recording buffer so re-entrant calls don't clobber it.
         let savedFragments = recordedFragments
-        isRecording = true
         recordedFragments = []
 
         // Leading trivia.
@@ -131,7 +127,6 @@ public final class OutputGenerator {
         recordedFragments.append(.endNode(node, indentation))
 
         let result = recordedFragments
-        isRecording = savedRecording
         recordedFragments = savedFragments
         return result
     }
@@ -139,28 +134,12 @@ public final class OutputGenerator {
     // MARK: - Public API (called by OutputNode.append implementations)
 
     @discardableResult public func append(_ node: OutputNode, indentation: Indentation) -> OutputGenerator {
-        if isRecording {
-            recordedFragments.append(.node(node, indentation))
-        } else {
-            // Direct mode (outside generateOutput): process immediately.
-            // This preserves backward compatibility if append is called outside the iterative loop.
-            let fragments = recordNodeFragments(node: node, indentation: indentation)
-            for fragment in fragments {
-                processFragmentDirect(fragment)
-            }
-        }
+        recordedFragments.append(.node(node, indentation))
         return self
     }
 
     @discardableResult public func append(_ node: OutputNode, indentation: Indentation, appendContent: @escaping (OutputGenerator) -> Void) -> OutputGenerator {
-        if isRecording {
-            recordedFragments.append(.nodeCustom(node, indentation, appendContent))
-        } else {
-            let fragments = recordNodeFragments(node: node, indentation: indentation, customAppend: appendContent)
-            for fragment in fragments {
-                processFragmentDirect(fragment)
-            }
-        }
+        recordedFragments.append(.nodeCustom(node, indentation, appendContent))
         return self
     }
 
@@ -172,55 +151,12 @@ public final class OutputGenerator {
     }
 
     @discardableResult public func append(_ string: String) -> OutputGenerator {
-        if isRecording {
-            recordedFragments.append(.text(string))
-        } else {
-            content += string
-        }
+        recordedFragments.append(.text(string))
         return self
     }
 
     @discardableResult public func append(_ convertible: CustomStringConvertible) -> OutputGenerator {
         append(convertible.description)
-    }
-
-    // MARK: - Direct processing fallback
-
-    /// A mapping stack for direct-mode processing (outside generateOutput).
-    private var directMappingStack: [Int] = []
-
-    /// Process a single fragment immediately (used when append is called outside the iterative loop).
-    private func processFragmentDirect(_ fragment: Fragment) {
-        switch fragment {
-        case .text(let str):
-            content += str
-        case .node(let node, let indentation):
-            let fragments = recordNodeFragments(node: node, indentation: indentation)
-            for f in fragments { processFragmentDirect(f) }
-        case .nodeCustom(let node, let indentation, let customAppend):
-            let fragments = recordNodeFragments(node: node, indentation: indentation, customAppend: customAppend)
-            for f in fragments { processFragmentDirect(f) }
-        case .beginNode:
-            directMappingStack.append(content.utf8.count)
-        case .endNode(let node, let indentation):
-            guard let startOffset = directMappingStack.popLast() else { return }
-            let trailingTrivia = node.trailingTrivia(indentation: indentation)
-            var trailingNewline = false
-            if !trailingTrivia.isEmpty && content.last == "\n" {
-                content = String(content.dropLast())
-                trailingNewline = true
-            }
-            let length = content.utf8.count - startOffset
-            if length > 0, let sourceFile = node.sourceFile {
-                mapEntryOffsets.append((sourceFile, node.sourceRange, startOffset, length))
-            }
-            if !trailingTrivia.isEmpty {
-                content += " \(trailingTrivia)"
-                if trailingNewline {
-                    content += "\n"
-                }
-            }
-        }
     }
 
     private func outputMapEntry(for offsets: MapEntryOffsets, in output: Source) -> OutputMap.Entry {
