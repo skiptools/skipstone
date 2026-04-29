@@ -41,6 +41,40 @@ public final class OutputGenerator {
         self.root = root
     }
 
+    /// Run a node's append method to capture its output as fragments.
+    ///
+    /// The node's `append(to:indentation:)` (or custom closure) executes, but every call
+    /// it makes to `output.append(...)` records a fragment rather than recursing or writing.
+    /// The result is a flat list: [leadingTrivia, beginNode, ...childFragments..., endNode].
+    private func recordNodeFragments(node: OutputNode, indentation: Indentation, customAppend: ((OutputGenerator) -> Void)? = nil) -> [Fragment] {
+        // Save the outer recording buffer so re-entrant calls don't clobber it.
+        let savedFragments = recordedFragments
+        recordedFragments = []
+
+        // Leading trivia.
+        let leading = node.leadingTrivia(indentation: indentation)
+        if !leading.isEmpty {
+            recordedFragments.append(.text(leading))
+        }
+
+        // Source mapping begin marker.
+        recordedFragments.append(.beginNode(node))
+
+        // Run the node's append logic — all its output.append() calls record fragments.
+        if let customAppend = customAppend {
+            customAppend(self)
+        } else {
+            node.append(to: self, indentation: indentation)
+        }
+
+        // Source mapping end marker (handles trailing trivia and offset computation).
+        recordedFragments.append(.endNode(node, indentation))
+
+        let result = recordedFragments
+        recordedFragments = savedFragments
+        return result
+    }
+
     func generateOutput(file: Source.FilePath) -> (output: Source, map: OutputMap) {
         // Seed the work stack with the root node.
         var workStack: [Fragment] = [.node(root, .zero)]
@@ -97,39 +131,6 @@ public final class OutputGenerator {
         return ret
     }
 
-    /// Run a node's append method to capture its output as fragments.
-    ///
-    /// The node's `append(to:indentation:)` (or custom closure) executes, but every call
-    /// it makes to `output.append(...)` records a fragment rather than recursing or writing.
-    /// The result is a flat list: [leadingTrivia, beginNode, ...childFragments..., endNode].
-    private func recordNodeFragments(node: OutputNode, indentation: Indentation, customAppend: ((OutputGenerator) -> Void)? = nil) -> [Fragment] {
-        // Save the outer recording buffer so re-entrant calls don't clobber it.
-        let savedFragments = recordedFragments
-        recordedFragments = []
-
-        // Leading trivia.
-        let leading = node.leadingTrivia(indentation: indentation)
-        if !leading.isEmpty {
-            recordedFragments.append(.text(leading))
-        }
-
-        // Source mapping begin marker.
-        recordedFragments.append(.beginNode(node))
-
-        // Run the node's append logic — all its output.append() calls record fragments.
-        if let customAppend = customAppend {
-            customAppend(self)
-        } else {
-            node.append(to: self, indentation: indentation)
-        }
-
-        // Source mapping end marker (handles trailing trivia and offset computation).
-        recordedFragments.append(.endNode(node, indentation))
-
-        let result = recordedFragments
-        recordedFragments = savedFragments
-        return result
-    }
 
     // MARK: - Public API (called by OutputNode.append implementations)
 
