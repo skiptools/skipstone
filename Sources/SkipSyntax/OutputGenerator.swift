@@ -16,7 +16,6 @@
 /// to produce more fragments — all without growing the call stack.
 public final class OutputGenerator {
     private let root: OutputNode
-    private var content = ""
     private typealias MapEntryOffsets = (sourceFile: Source.FilePath, sourceRange: Source.Range?, offset: Int, length: Int)
     private var mapEntryOffsets: [MapEntryOffsets] = []
 
@@ -76,6 +75,8 @@ public final class OutputGenerator {
     }
 
     func generateOutput(file: Source.FilePath) -> (output: Source, map: OutputMap) {
+        var output = ""
+
         // Seed the work stack with the root node.
         var workStack: [Fragment] = [.node(root, .zero)]
 
@@ -86,7 +87,7 @@ public final class OutputGenerator {
         while let fragment = workStack.popLast() {
             switch fragment {
             case .text(let str):
-                content += str
+                output += str
 
             case .node(let node, let indentation):
                 // Expand this node: run its append(to:) in recording mode to get fragments,
@@ -100,33 +101,33 @@ public final class OutputGenerator {
 
             case .beginNode:
                 // Record the current content offset for source mapping.
-                mappingStack.append(content.utf8.count)
+                mappingStack.append(output.utf8.count)
 
             case .endNode(let node, let indentation):
                 // Compute trailing trivia and source mapping for this node.
                 guard let startOffset = mappingStack.popLast() else { continue }
                 let trailingTrivia = node.trailingTrivia(indentation: indentation)
                 var trailingNewline = false
-                if !trailingTrivia.isEmpty && content.last == "\n" {
-                    content = String(content.dropLast())
+                if !trailingTrivia.isEmpty && output.last == "\n" {
+                    output.removeLast()
                     trailingNewline = true
                 }
-                let length = content.utf8.count - startOffset
+                let length = output.utf8.count - startOffset
                 if length > 0, let sourceFile = node.sourceFile {
                     mapEntryOffsets.append((sourceFile, node.sourceRange, startOffset, length))
                 }
                 if !trailingTrivia.isEmpty {
-                    content += " \(trailingTrivia)"
+                    output += " "
+                    output += trailingTrivia
                     if trailingNewline {
-                        content += "\n"
+                        output += "\n"
                     }
                 }
             }
         }
 
-        let output = Source(file: file, content: content)
-        let ret = (output, OutputMap(entries: mapEntryOffsets.map { outputMapEntry(for: $0, in: output) }))
-        content = ""
+        let source = Source(file: file, content: output)
+        let ret = (source, OutputMap(entries: mapEntryOffsets.map { outputMapEntry(for: $0, in: source) }))
         mapEntryOffsets.removeAll()
         return ret
     }
