@@ -153,6 +153,376 @@ final class SkipBuildTests: XCTestCase {
         XCTAssertEqual("SkipModel", pmod.dependencies.first?.moduleName)
     }
 
+    // MARK: - Meta Generate Tests
+
+    func testLocaleNormalization() {
+        XCTAssertEqual("zh-CN", MetaIndexCommand.normalizeLocale("zh-Hans"))
+        XCTAssertEqual("zh-TW", MetaIndexCommand.normalizeLocale("zh-Hant"))
+        XCTAssertEqual("zh-TW", MetaIndexCommand.normalizeLocale("zh-Hant-TW"))
+        XCTAssertEqual("zh-HK", MetaIndexCommand.normalizeLocale("zh-Hant-HK"))
+        XCTAssertEqual("ar", MetaIndexCommand.normalizeLocale("ar-SA"))
+        XCTAssertEqual("no-NO", MetaIndexCommand.normalizeLocale("nb-NO"))
+        XCTAssertEqual("iw-IL", MetaIndexCommand.normalizeLocale("he-IL"))
+        XCTAssertEqual("en-US", MetaIndexCommand.normalizeLocale("en-US"))
+        XCTAssertEqual("fr-FR", MetaIndexCommand.normalizeLocale("fr-FR"))
+        XCTAssertEqual("pt-BR", MetaIndexCommand.normalizeLocale("pt-BR"))
+        XCTAssertEqual("pt-PT", MetaIndexCommand.normalizeLocale("pt-PT"))
+        XCTAssertEqual("de-DE", MetaIndexCommand.normalizeLocale("de-DE"))
+    }
+
+    func testMetadataKeyNormalization() {
+        XCTAssertEqual("description", MetaIndexCommand.normalizeMetadataKey("full_description", platform: .android))
+        XCTAssertEqual("subtitle", MetaIndexCommand.normalizeMetadataKey("short_description", platform: .android))
+        XCTAssertEqual("title", MetaIndexCommand.normalizeMetadataKey("title", platform: .android))
+        XCTAssertEqual("releaseNotes", MetaIndexCommand.normalizeMetadataKey("release_notes", platform: .ios))
+        XCTAssertEqual("privacyURL", MetaIndexCommand.normalizeMetadataKey("privacy_url", platform: .ios))
+        XCTAssertEqual("supportURL", MetaIndexCommand.normalizeMetadataKey("support_url", platform: .ios))
+        XCTAssertEqual("subtitle", MetaIndexCommand.normalizeMetadataKey("subtitle", platform: .ios))
+    }
+
+    func testParseSkipEnv() throws {
+        let cmd = MetaIndexCommand()
+        let tmpDir = URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: tmpDir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: tmpDir) }
+
+        let envFile = tmpDir.appendingPathComponent("Skip.env")
+        try """
+        PRODUCT_NAME = TestApp
+        PRODUCT_BUNDLE_IDENTIFIER = com.example.test
+        MARKETING_VERSION = 1.2.3
+        CURRENT_PROJECT_VERSION = 42
+        ANDROID_APPLICATION_ID = com.example.test.android
+        APPLE_APP_STORE_ID = 123456789
+        GOOGLE_PLAY_STORE_ID = com.example.test
+        """.write(to: envFile, atomically: true, encoding: .utf8)
+
+        let env = try cmd.parseSkipEnv(at: envFile)
+        XCTAssertEqual(env["PRODUCT_NAME"], "TestApp")
+        XCTAssertEqual(env["PRODUCT_BUNDLE_IDENTIFIER"], "com.example.test")
+        XCTAssertEqual(env["MARKETING_VERSION"], "1.2.3")
+        XCTAssertEqual(env["CURRENT_PROJECT_VERSION"], "42")
+        XCTAssertEqual(env["ANDROID_APPLICATION_ID"], "com.example.test.android")
+        XCTAssertEqual(env["APPLE_APP_STORE_ID"], "123456789")
+        XCTAssertEqual(env["GOOGLE_PLAY_STORE_ID"], "com.example.test")
+    }
+
+    func testParseInfoPlist() throws {
+        let cmd = MetaIndexCommand()
+        let tmpDir = URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: tmpDir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: tmpDir) }
+
+        let plistFile = tmpDir.appendingPathComponent("Info.plist")
+        try """
+        <?xml version="1.0" encoding="UTF-8"?>
+        <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+        <plist version="1.0">
+        <dict>
+            <key>ITSAppUsesNonExemptEncryption</key>
+            <false/>
+            <key>NSLocationWhenInUseUsageDescription</key>
+            <string>We need your location for nearby search</string>
+            <key>NSCameraUsageDescription</key>
+            <string>We need camera access for photos</string>
+        </dict>
+        </plist>
+        """.write(to: plistFile, atomically: true, encoding: .utf8)
+
+        let info = try cmd.parseInfoPlist(at: plistFile)
+        XCTAssertEqual(info["ITSAppUsesNonExemptEncryption"] as? Bool, false)
+
+        let permissions = try cmd.extractIOSPermissions(at: plistFile)
+        XCTAssertEqual(permissions.count, 2)
+        let permKeys = permissions.map { $0["key"]! }.sorted()
+        XCTAssertEqual(permKeys, ["NSCameraUsageDescription", "NSLocationWhenInUseUsageDescription"])
+    }
+
+    func testParseAndroidManifest() throws {
+        let cmd = MetaIndexCommand()
+        let tmpDir = URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: tmpDir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: tmpDir) }
+
+        let manifestFile = tmpDir.appendingPathComponent("AndroidManifest.xml")
+        try """
+        <?xml version="1.0" encoding="utf-8"?>
+        <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+            <!-- <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/> -->
+            <uses-permission android:name="android.permission.INTERNET" />
+            <uses-permission android:name="android.permission.CAMERA" />
+            <application
+                android:label="${PRODUCT_NAME}"
+                android:name=".AndroidAppMain">
+            </application>
+        </manifest>
+        """.write(to: manifestFile, atomically: true, encoding: .utf8)
+
+        let permissions = try cmd.extractAndroidPermissions(at: manifestFile)
+        // Should only include non-commented permissions
+        XCTAssertEqual(permissions.count, 2)
+        XCTAssertEqual(permissions[0]["name"], "android.permission.INTERNET")
+        XCTAssertEqual(permissions[1]["name"], "android.permission.CAMERA")
+
+        let meta = try cmd.parseAndroidManifest(at: manifestFile)
+        XCTAssertEqual(meta["label"] as? String, "${PRODUCT_NAME}")
+    }
+
+    func testParseFastlaneMetadata() throws {
+        let cmd = MetaIndexCommand()
+        let tmpDir = URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: tmpDir) }
+
+        // Create Android-style metadata structure
+        let metaDir = tmpDir.appendingPathComponent("metadata/android")
+        let enDir = metaDir.appendingPathComponent("en-US")
+        let frDir = metaDir.appendingPathComponent("fr-FR")
+        let zhDir = metaDir.appendingPathComponent("zh-Hans")
+        try FileManager.default.createDirectory(at: enDir, withIntermediateDirectories: true)
+        try FileManager.default.createDirectory(at: frDir, withIntermediateDirectories: true)
+        try FileManager.default.createDirectory(at: zhDir, withIntermediateDirectories: true)
+
+        try "My App".write(to: enDir.appendingPathComponent("title.txt"), atomically: true, encoding: .utf8)
+        try "A great app".write(to: enDir.appendingPathComponent("full_description.txt"), atomically: true, encoding: .utf8)
+        try "Great".write(to: enDir.appendingPathComponent("short_description.txt"), atomically: true, encoding: .utf8)
+
+        try "Mon App".write(to: frDir.appendingPathComponent("title.txt"), atomically: true, encoding: .utf8)
+        try "Une super app".write(to: frDir.appendingPathComponent("full_description.txt"), atomically: true, encoding: .utf8)
+
+        try "My App Chinese".write(to: zhDir.appendingPathComponent("title.txt"), atomically: true, encoding: .utf8)
+
+        let result = cmd.parseFastlaneMetadata(folder: metaDir, platform: .android)
+
+        // Check title across locales
+        XCTAssertEqual(result["title"]?["en-US"], "My App")
+        XCTAssertEqual(result["title"]?["fr-FR"], "Mon App")
+        // zh-Hans should be normalized to zh-CN
+        XCTAssertEqual(result["title"]?["zh-CN"], "My App Chinese")
+
+        // Check description (full_description → "description")
+        XCTAssertEqual(result["description"]?["en-US"], "A great app")
+        XCTAssertEqual(result["description"]?["fr-FR"], "Une super app")
+
+        // Check short description
+        XCTAssertEqual(result["subtitle"]?["en-US"], "Great")
+    }
+
+    func testParseEntitlements() throws {
+        let cmd = MetaIndexCommand()
+        let tmpDir = URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: tmpDir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: tmpDir) }
+
+        let entFile = tmpDir.appendingPathComponent("Entitlements.plist")
+        try """
+        <?xml version="1.0" encoding="UTF-8"?>
+        <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+        <plist version="1.0">
+        <dict>
+            <key>com.apple.developer.aps-environment</key>
+            <string>production</string>
+            <key>com.apple.security.app-sandbox</key>
+            <true/>
+        </dict>
+        </plist>
+        """.write(to: entFile, atomically: true, encoding: .utf8)
+
+        let entitlements = try cmd.parseEntitlements(at: entFile)
+        XCTAssertEqual(entitlements["com.apple.developer.aps-environment"] as? String, "production")
+        XCTAssertEqual(entitlements["com.apple.security.app-sandbox"] as? Bool, true)
+    }
+
+    func testMetaGenerateCatalogStructure() throws {
+        // Test that a generated catalog from a mock project has the expected structure.
+        // We can't call generateAppCatalog directly (needs parseSwiftPackage), but we
+        // can test that building iOS/Android metadata dictionaries produces correct output.
+        let cmd = MetaIndexCommand()
+        let tmpDir = URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: tmpDir) }
+
+        // Create a minimal app project structure
+        let fm = FileManager.default
+        try fm.createDirectory(at: tmpDir.appendingPathComponent("Sources/TestApp/Skip"), withIntermediateDirectories: true)
+        try fm.createDirectory(at: tmpDir.appendingPathComponent("Sources/TestApp/Resources"), withIntermediateDirectories: true)
+        try fm.createDirectory(at: tmpDir.appendingPathComponent("Tests/TestAppTests"), withIntermediateDirectories: true)
+        try fm.createDirectory(at: tmpDir.appendingPathComponent("Darwin/Sources"), withIntermediateDirectories: true)
+        try fm.createDirectory(at: tmpDir.appendingPathComponent("Darwin/TestApp.xcodeproj"), withIntermediateDirectories: true)
+        try fm.createDirectory(at: tmpDir.appendingPathComponent("Darwin/Assets.xcassets/AccentColor.colorset"), withIntermediateDirectories: true)
+        try fm.createDirectory(at: tmpDir.appendingPathComponent("Darwin/Assets.xcassets/AppIcon.appiconset"), withIntermediateDirectories: true)
+        try fm.createDirectory(at: tmpDir.appendingPathComponent("Darwin/fastlane/metadata/en-US"), withIntermediateDirectories: true)
+        try fm.createDirectory(at: tmpDir.appendingPathComponent("Darwin/fastlane/metadata/fr-FR"), withIntermediateDirectories: true)
+        try fm.createDirectory(at: tmpDir.appendingPathComponent("Android/app/src/main/kotlin"), withIntermediateDirectories: true)
+        try fm.createDirectory(at: tmpDir.appendingPathComponent("Android/fastlane/metadata/android/en-US"), withIntermediateDirectories: true)
+        try fm.createDirectory(at: tmpDir.appendingPathComponent("Android/gradle/wrapper"), withIntermediateDirectories: true)
+
+        // Required files
+        try "".write(to: tmpDir.appendingPathComponent("Sources/TestApp/Skip/skip.yml"), atomically: true, encoding: .utf8)
+        try "".write(to: tmpDir.appendingPathComponent("Sources/TestApp/Resources/Localizable.xcstrings"), atomically: true, encoding: .utf8)
+        try "".write(to: tmpDir.appendingPathComponent("Darwin/Sources/Main.swift"), atomically: true, encoding: .utf8)
+        try "".write(to: tmpDir.appendingPathComponent("Darwin/TestApp.xcconfig"), atomically: true, encoding: .utf8)
+        try "".write(to: tmpDir.appendingPathComponent("Darwin/TestApp.xcodeproj/project.pbxproj"), atomically: true, encoding: .utf8)
+        try "{}".write(to: tmpDir.appendingPathComponent("Darwin/Assets.xcassets/Contents.json"), atomically: true, encoding: .utf8)
+        try "{}".write(to: tmpDir.appendingPathComponent("Darwin/Assets.xcassets/AccentColor.colorset/Contents.json"), atomically: true, encoding: .utf8)
+        try "{}".write(to: tmpDir.appendingPathComponent("Darwin/Assets.xcassets/AppIcon.appiconset/Contents.json"), atomically: true, encoding: .utf8)
+        try "".write(to: tmpDir.appendingPathComponent("Android/gradle.properties"), atomically: true, encoding: .utf8)
+        try "".write(to: tmpDir.appendingPathComponent("Android/settings.gradle.kts"), atomically: true, encoding: .utf8)
+        try "".write(to: tmpDir.appendingPathComponent("Android/app/build.gradle.kts"), atomically: true, encoding: .utf8)
+        try "".write(to: tmpDir.appendingPathComponent("Android/app/proguard-rules.pro"), atomically: true, encoding: .utf8)
+
+        // Skip.env
+        try """
+        PRODUCT_NAME = TestApp
+        PRODUCT_BUNDLE_IDENTIFIER = com.example.testapp
+        MARKETING_VERSION = 2.0.0
+        CURRENT_PROJECT_VERSION = 10
+        APPLE_APP_STORE_ID = 9876543
+        GOOGLE_PLAY_STORE_ID = com.example.testapp
+        """.write(to: tmpDir.appendingPathComponent("Skip.env"), atomically: true, encoding: .utf8)
+
+        // Info.plist with a permission
+        try """
+        <?xml version="1.0" encoding="UTF-8"?>
+        <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+        <plist version="1.0">
+        <dict>
+            <key>ITSAppUsesNonExemptEncryption</key>
+            <false/>
+            <key>NSPhotoLibraryUsageDescription</key>
+            <string>Access photos for sharing</string>
+        </dict>
+        </plist>
+        """.write(to: tmpDir.appendingPathComponent("Darwin/Info.plist"), atomically: true, encoding: .utf8)
+
+        // Entitlements
+        try """
+        <?xml version="1.0" encoding="UTF-8"?>
+        <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+        <plist version="1.0">
+        <dict>
+            <key>com.apple.developer.aps-environment</key>
+            <string>development</string>
+        </dict>
+        </plist>
+        """.write(to: tmpDir.appendingPathComponent("Darwin/Entitlements.plist"), atomically: true, encoding: .utf8)
+
+        // AndroidManifest.xml
+        try """
+        <?xml version="1.0" encoding="utf-8"?>
+        <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+            <uses-permission android:name="android.permission.INTERNET" />
+            <uses-permission android:name="android.permission.CAMERA" />
+            <application android:label="${PRODUCT_NAME}" android:name=".AndroidAppMain">
+            </application>
+        </manifest>
+        """.write(to: tmpDir.appendingPathComponent("Android/app/src/main/AndroidManifest.xml"), atomically: true, encoding: .utf8)
+
+        // iOS fastlane metadata
+        try "TestApp".write(to: tmpDir.appendingPathComponent("Darwin/fastlane/metadata/en-US/title.txt"), atomically: true, encoding: .utf8)
+        try "A test app".write(to: tmpDir.appendingPathComponent("Darwin/fastlane/metadata/en-US/description.txt"), atomically: true, encoding: .utf8)
+        try "TestApp FR".write(to: tmpDir.appendingPathComponent("Darwin/fastlane/metadata/fr-FR/title.txt"), atomically: true, encoding: .utf8)
+
+        // Android fastlane metadata
+        try "TestApp".write(to: tmpDir.appendingPathComponent("Android/fastlane/metadata/android/en-US/title.txt"), atomically: true, encoding: .utf8)
+        try "A test app for Android".write(to: tmpDir.appendingPathComponent("Android/fastlane/metadata/android/en-US/full_description.txt"), atomically: true, encoding: .utf8)
+
+        // Build the project layout (with no URL checks since this is a test)
+        let appProject = AppProjectLayout(moduleName: "TestApp", root: tmpDir, check: AppProjectLayout.noURLChecks)
+        let env = try cmd.parseSkipEnv(at: appProject.skipEnv)
+
+        // Build iOS metadata
+        let ios = try cmd.buildIOSMetadata(appProject: appProject, projectRoot: tmpDir, productName: env["PRODUCT_NAME"]!, bundleId: env["PRODUCT_BUNDLE_IDENTIFIER"]!, version: env["MARKETING_VERSION"]!, buildNumber: env["CURRENT_PROJECT_VERSION"]!, appleStoreId: env["APPLE_APP_STORE_ID"])
+
+        XCTAssertEqual(ios["bundleIdentifier"] as? String, "com.example.testapp")
+        XCTAssertEqual(ios["version"] as? String, "2.0.0")
+        XCTAssertEqual(ios["appStoreId"] as? String, "9876543")
+        XCTAssertEqual(ios["appStoreURL"] as? String, "https://apps.apple.com/app/id9876543")
+
+        // Check iOS permissions
+        let iosPerms = ios["permissions"] as? [[String: String]]
+        XCTAssertEqual(iosPerms?.count, 1)
+        XCTAssertEqual(iosPerms?.first?["key"], "NSPhotoLibraryUsageDescription")
+
+        // Check iOS entitlements
+        let entitlements = ios["entitlements"] as? [String: Any]
+        XCTAssertEqual(entitlements?["com.apple.developer.aps-environment"] as? String, "development")
+
+        // Check iOS localized metadata
+        let iosTitle = ios["title"] as? [String: String]
+        XCTAssertEqual(iosTitle?["en-US"], "TestApp")
+        XCTAssertEqual(iosTitle?["fr-FR"], "TestApp FR")
+
+        // Build Android metadata
+        let android = try cmd.buildAndroidMetadata(appProject: appProject, projectRoot: tmpDir, productName: env["PRODUCT_NAME"]!, bundleId: env["PRODUCT_BUNDLE_IDENTIFIER"]!, androidAppId: nil, version: env["MARKETING_VERSION"]!, buildNumber: env["CURRENT_PROJECT_VERSION"]!, googlePlayStoreId: env["GOOGLE_PLAY_STORE_ID"])
+
+        XCTAssertEqual(android["applicationId"] as? String, "com.example.testapp")
+        XCTAssertEqual(android["playStoreId"] as? String, "com.example.testapp")
+
+        // Check Android permissions
+        let androidPerms = android["permissions"] as? [[String: String]]
+        XCTAssertEqual(androidPerms?.count, 2)
+        XCTAssertEqual(androidPerms?[0]["name"], "android.permission.INTERNET")
+        XCTAssertEqual(androidPerms?[1]["name"], "android.permission.CAMERA")
+
+        // Check Android localized metadata
+        let androidTitle = android["title"] as? [String: String]
+        XCTAssertEqual(androidTitle?["en-US"], "TestApp")
+        let androidDesc = android["description"] as? [String: String]
+        XCTAssertEqual(androidDesc?["en-US"], "A test app for Android")
+    }
+
+    func testPNGDimensionParsing() {
+        // Construct a minimal valid PNG: 8-byte signature + IHDR chunk
+        // IHDR: 4-byte length (13) + "IHDR" + 4-byte width + 4-byte height + 5 bytes (bit depth, color type, etc.)
+        var png = Data()
+        // PNG signature
+        png.append(contentsOf: [137, 80, 78, 71, 13, 10, 26, 10] as [UInt8])
+        // IHDR chunk length: 13 bytes
+        png.append(contentsOf: [0, 0, 0, 13] as [UInt8])
+        // IHDR type
+        png.append(contentsOf: [73, 72, 68, 82] as [UInt8]) // "IHDR"
+        // Width: 320 (0x00000140)
+        png.append(contentsOf: [0, 0, 1, 64] as [UInt8])
+        // Height: 480 (0x000001E0)
+        png.append(contentsOf: [0, 0, 1, 224] as [UInt8])
+        // bit depth, color type, compression, filter, interlace
+        png.append(contentsOf: [8, 6, 0, 0, 0] as [UInt8])
+
+        let (width, height) = ImageResourceRef.parsePNGDimensions(png)
+        XCTAssertEqual(width, 320)
+        XCTAssertEqual(height, 480)
+
+        // Invalid data should return (0, 0)
+        let (w2, h2) = ImageResourceRef.parsePNGDimensions(Data([0, 1, 2]))
+        XCTAssertEqual(w2, 0)
+        XCTAssertEqual(h2, 0)
+    }
+
+    func testImageResourceRefFromPNG() throws {
+        let tmpDir = URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: tmpDir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: tmpDir) }
+
+        // Create a minimal PNG file
+        var png = Data()
+        png.append(contentsOf: [137, 80, 78, 71, 13, 10, 26, 10] as [UInt8])
+        png.append(contentsOf: [0, 0, 0, 13] as [UInt8])
+        png.append(contentsOf: [73, 72, 68, 82] as [UInt8])
+        png.append(contentsOf: [0, 0, 4, 0] as [UInt8])   // 1024
+        png.append(contentsOf: [0, 0, 4, 0] as [UInt8])   // 1024
+        png.append(contentsOf: [8, 6, 0, 0, 0] as [UInt8])
+
+        let iconFile = tmpDir.appendingPathComponent("icon.png")
+        try png.write(to: iconFile)
+
+        let ref = try XCTUnwrap(ImageResourceRef.from(pngURL: iconFile, relativeTo: tmpDir))
+        XCTAssertEqual(ref.width, 1024)
+        XCTAssertEqual(ref.height, 1024)
+        XCTAssertEqual(ref.location, "icon.png")
+        XCTAssertEqual(ref.mimeType, "image/png")
+        XCTAssertEqual(ref.size, Int64(png.count))
+        XCTAssertFalse(ref.hash.isEmpty)
+    }
+
     func testParseSwiftToolchainAPI() async throws {
         let staticLinuxSDKs = try await SwiftSDKOpenAPI.fetchSDKs(sdkName: "static")
         let staticDownloadURL = "https://download.swift.org/swift-6.2.3-release/static-sdk/swift-6.2.3-RELEASE/swift-6.2.3-RELEASE_static-linux-0.0.1.artifactbundle.tar.gz"

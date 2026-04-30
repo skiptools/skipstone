@@ -624,10 +624,12 @@ enum SBOMGenerator {
         for pin in resolved.pins {
             let depSPDXID = "SPDXRef-Package-\(spdxSafeID(pin.identity))"
 
+            let versionInfo = pin.state.version ?? pin.state.branch ?? pin.state.revision
+
             var pkg: [String: Any] = [
                 "SPDXID": depSPDXID,
                 "name": pin.identity,
-                "versionInfo": pin.state.version,
+                "versionInfo": versionInfo,
                 "downloadLocation": pin.location,
                 "filesAnalyzed": false,
                 "supplier": "NOASSERTION",
