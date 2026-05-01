@@ -101,56 +101,7 @@ The output uses Android/Play Store locale codes (e.g. "zh-CN" instead of Apple's
 
     func generateAppCatalog(projectURL: URL, includeSBOM: Bool, with out: MessageQueue) async throws -> [String: Any] {
         let packageJSON = try await parseSwiftPackage(with: out, at: projectURL.path)
-        let moduleNames = packageJSON.targets.compactMap(\.a).filter({ $0.type == "regular" }).filter({ $0.pluginUsages != nil }).map(\.name)
-        guard let appModuleName = moduleNames.first else {
-            throw error("No Skip module targets found in package \(packageJSON.name)")
-        }
-
-        let appProject = AppProjectLayout(moduleName: appModuleName, root: projectURL, check: AppProjectLayout.noURLChecks)
-
-        // Parse Skip.env for shared configuration
-        let env = try parseSkipEnv(at: appProject.skipEnv)
-
-        let bundleId = env["PRODUCT_BUNDLE_IDENTIFIER"] ?? ""
-        let version = env["MARKETING_VERSION"] ?? "0.0.1"
-        let buildNumber = env["CURRENT_PROJECT_VERSION"] ?? "1"
-        let productName = env["PRODUCT_NAME"] ?? appModuleName
-        let androidAppId = env["ANDROID_APPLICATION_ID"]
-        let appleStoreId = env["APPLE_APP_STORE_ID"]
-        let googlePlayStoreId = env["GOOGLE_PLAY_STORE_ID"]
-
-        // Build per-platform metadata
-        var iosDict = try buildIOSMetadata(appProject: appProject, projectRoot: projectURL, productName: productName, bundleId: bundleId, version: version, buildNumber: buildNumber, appleStoreId: appleStoreId)
-        var androidDict = try buildAndroidMetadata(appProject: appProject, projectRoot: projectURL, productName: productName, bundleId: bundleId, androidAppId: androidAppId, version: version, buildNumber: buildNumber, googlePlayStoreId: googlePlayStoreId)
-
-        // Include SBOM if requested
-        if includeSBOM {
-            #if canImport(SkipDriveExternal)
-            let outputDir = try AbsolutePath(validating: NSTemporaryDirectory())
-            let sbomFiles = try await SBOMGenerator.generateSBOMFiles(generateIOS: true, generateAndroid: true, projectPath: projectURL.path, packageName: packageJSON.name, packageJSON: packageJSON, outputDirAbsolute: outputDir, command: self, out: out)
-            for file in sbomFiles {
-                let data = try Data(contentsOf: file)
-                let json = try JSONSerialization.jsonObject(with: data)
-                if file.lastPathComponent.contains("darwin") || file.lastPathComponent.contains("ios") {
-                    iosDict["sbom"] = json
-                } else if file.lastPathComponent.contains("android") {
-                    androidDict["sbom"] = json
-                }
-            }
-            #endif
-        }
-
-        let appDict: [String: Any] = [
-            "name": productName,
-            "version": version,
-            "buildNumber": buildNumber,
-            "platforms": [
-                "ios": iosDict,
-                "android": androidDict,
-            ] as [String: Any],
-        ]
-
-        return ["app": appDict]
+        return try await AppIndexGenerator.generateAppIndex(projectURL: projectURL, packageJSON: packageJSON, includeSBOM: includeSBOM, command: self, out: out)
     }
 
     // MARK: - Skip.env Parsing
@@ -645,6 +596,108 @@ extension MetaIndexCommand {
 
         return result
     }
+}
+
+// MARK: - Shared App Index Generator
+
+/// Shared logic for generating an app index JSON document, used by both
+/// `skip meta index` and `skip export --appindex`.
+@available(macOS 13, iOS 16, tvOS 16, watchOS 8, *)
+enum AppIndexGenerator {
+    static let appIndexFilename = "appindex.json"
+
+    /// Generate the app index dictionary from a project.
+    static func generateAppIndex<C: StreamingCommand & OutputOptionsCommand>(projectURL: URL, packageJSON: PackageManifest, includeSBOM: Bool, command: C, out: MessageQueue) async throws -> [String: Any] {
+        let moduleNames = packageJSON.targets.compactMap(\.a).filter({ $0.type == "regular" }).filter({ $0.pluginUsages != nil }).map(\.name)
+        guard let appModuleName = moduleNames.first else {
+            throw AppIndexError(message: "No Skip module targets found in package \(packageJSON.name)")
+        }
+
+        let appProject = AppProjectLayout(moduleName: appModuleName, root: projectURL, check: AppProjectLayout.noURLChecks)
+        let cmd = MetaIndexCommand()
+
+        let env = try cmd.parseSkipEnv(at: appProject.skipEnv)
+
+        let bundleId = env["PRODUCT_BUNDLE_IDENTIFIER"] ?? ""
+        let version = env["MARKETING_VERSION"] ?? "0.0.1"
+        let buildNumber = env["CURRENT_PROJECT_VERSION"] ?? "1"
+        let productName = env["PRODUCT_NAME"] ?? appModuleName
+        let androidAppId = env["ANDROID_APPLICATION_ID"]
+        let appleStoreId = env["APPLE_APP_STORE_ID"]
+        let googlePlayStoreId = env["GOOGLE_PLAY_STORE_ID"]
+
+        var iosDict = try cmd.buildIOSMetadata(appProject: appProject, projectRoot: projectURL, productName: productName, bundleId: bundleId, version: version, buildNumber: buildNumber, appleStoreId: appleStoreId)
+        var androidDict = try cmd.buildAndroidMetadata(appProject: appProject, projectRoot: projectURL, productName: productName, bundleId: bundleId, androidAppId: androidAppId, version: version, buildNumber: buildNumber, googlePlayStoreId: googlePlayStoreId)
+
+        if includeSBOM {
+            #if canImport(SkipDriveExternal)
+            let outputDir = try AbsolutePath(validating: NSTemporaryDirectory())
+            let sbomFiles = try await SBOMGenerator.generateSBOMFiles(generateIOS: true, generateAndroid: true, projectPath: projectURL.path, packageName: packageJSON.name, packageJSON: packageJSON, outputDirAbsolute: outputDir, command: command, out: out)
+            for file in sbomFiles {
+                let data = try Data(contentsOf: file)
+                let json = try JSONSerialization.jsonObject(with: data)
+                if file.lastPathComponent.contains("darwin") || file.lastPathComponent.contains("ios") {
+                    iosDict["sbom"] = json
+                } else if file.lastPathComponent.contains("android") {
+                    androidDict["sbom"] = json
+                }
+            }
+            #endif
+        }
+
+        let appDict: [String: Any] = [
+            "name": productName,
+            "version": version,
+            "buildNumber": buildNumber,
+            "platforms": [
+                "ios": iosDict,
+                "android": androidDict,
+            ] as [String: Any],
+        ]
+
+        return ["app": appDict]
+    }
+
+    /// Write the app index JSON to a file and optionally create a symlink in the app Resources folder.
+    static func writeAppIndex(_ catalog: [String: Any], to outputURL: URL, linkResource: Bool, appModuleName: String, projectURL: URL, out: MessageQueue) async throws -> URL {
+        let jsonData = try JSONSerialization.data(withJSONObject: catalog, options: [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes])
+        try jsonData.write(to: outputURL)
+
+        if linkResource {
+            let resourcesFolder = projectURL.appendingPathComponent("Sources/\(appModuleName)/Resources", isDirectory: true)
+            try FileManager.default.createDirectory(at: resourcesFolder, withIntermediateDirectories: true)
+
+            let linkPath = resourcesFolder.appendingPathComponent(appIndexFilename).path
+            try? FileManager.default.removeItem(atPath: linkPath)
+            let relPath = relativePath(from: resourcesFolder.path, to: outputURL.path)
+            try FileManager.default.createSymbolicLink(atPath: linkPath, withDestinationPath: relPath)
+            await out.write(status: .pass, "Linked \(appIndexFilename) -> \(relPath)")
+        }
+
+        return outputURL
+    }
+
+    /// Compute a relative path for symlink creation.
+    private static func relativePath(from fromDir: String, to toPath: String) -> String {
+        let fromComponents = URL(fileURLWithPath: fromDir).standardized.pathComponents
+        let toComponents = URL(fileURLWithPath: toPath).standardized.pathComponents
+
+        var commonLength = 0
+        while commonLength < fromComponents.count && commonLength < toComponents.count
+                && fromComponents[commonLength] == toComponents[commonLength] {
+            commonLength += 1
+        }
+
+        let ups = fromComponents.count - commonLength
+        var parts = Array(repeating: "..", count: ups)
+        parts.append(contentsOf: toComponents[commonLength...])
+        return parts.joined(separator: "/")
+    }
+}
+
+private struct AppIndexError: LocalizedError {
+    let message: String
+    var errorDescription: String? { message }
 }
 
 // MARK: - Android Manifest XML Parser
