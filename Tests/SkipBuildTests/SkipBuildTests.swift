@@ -155,6 +155,34 @@ final class SkipBuildTests: XCTestCase {
 
     // MARK: - Meta Generate Tests
 
+    func testGitRemoteToHTTPS() {
+        XCTAssertEqual("https://github.com/Org/Repo", MetaIndexCommand.gitRemoteToHTTPS("https://github.com/Org/Repo.git"))
+        XCTAssertEqual("https://github.com/Org/Repo", MetaIndexCommand.gitRemoteToHTTPS("git@github.com:Org/Repo.git"))
+        XCTAssertEqual("https://github.com/Org/Repo", MetaIndexCommand.gitRemoteToHTTPS("https://github.com/Org/Repo"))
+        XCTAssertEqual("https://gitlab.com/Org/Repo", MetaIndexCommand.gitRemoteToHTTPS("git@gitlab.com:Org/Repo.git"))
+    }
+
+    func testParseGitOriginURL() throws {
+        let cmd = MetaIndexCommand()
+        let tmpDir = URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: tmpDir.appendingPathComponent(".git"), withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: tmpDir) }
+
+        try """
+        [core]
+        \trepositoryformatversion = 0
+        \tfilemode = true
+        [remote "origin"]
+        \turl = https://github.com/Example/MyApp.git
+        \tfetch = +refs/heads/*:refs/remotes/origin/*
+        [branch "main"]
+        \tremote = origin
+        """.write(to: tmpDir.appendingPathComponent(".git/config"), atomically: true, encoding: .utf8)
+
+        let url = cmd.parseGitOriginURL(projectRoot: tmpDir)
+        XCTAssertEqual(url, "https://github.com/Example/MyApp.git")
+    }
+
     func testLocaleNormalization() {
         XCTAssertEqual("zh-CN", MetaIndexCommand.normalizeLocale("zh-Hans"))
         XCTAssertEqual("zh-TW", MetaIndexCommand.normalizeLocale("zh-Hant"))
@@ -232,10 +260,47 @@ final class SkipBuildTests: XCTestCase {
         let info = try cmd.parseInfoPlist(at: plistFile)
         XCTAssertEqual(info["ITSAppUsesNonExemptEncryption"] as? Bool, false)
 
-        let permissions = try cmd.extractIOSPermissions(at: plistFile)
+        // Without xcstrings: descriptions use the default locale
+        let permissions = try cmd.extractIOSPermissions(at: plistFile, xcstringsURL: nil)
         XCTAssertEqual(permissions.count, 2)
-        let permKeys = permissions.map { $0["key"]! }.sorted()
+        let permKeys = permissions.compactMap { $0["key"] as? String }.sorted()
         XCTAssertEqual(permKeys, ["NSCameraUsageDescription", "NSLocationWhenInUseUsageDescription"])
+        let cameraDesc = permissions.first(where: { $0["key"] as? String == "NSCameraUsageDescription" })?["description"] as? [String: String]
+        XCTAssertEqual(cameraDesc?["en-US"], "We need camera access for photos")
+
+        // With xcstrings: translations are merged in
+        let xcstringsFile = tmpDir.appendingPathComponent("InfoPlist.xcstrings")
+        try """
+        {
+          "sourceLanguage" : "en",
+          "strings" : {
+            "NSCameraUsageDescription" : {
+              "localizations" : {
+                "fr" : {
+                  "stringUnit" : {
+                    "state" : "translated",
+                    "value" : "Accès caméra pour les photos"
+                  }
+                },
+                "zh-Hans" : {
+                  "stringUnit" : {
+                    "state" : "translated",
+                    "value" : "需要相机权限来拍照"
+                  }
+                }
+              }
+            }
+          },
+          "version" : "1.0"
+        }
+        """.write(to: xcstringsFile, atomically: true, encoding: .utf8)
+
+        let localizedPerms = try cmd.extractIOSPermissions(at: plistFile, xcstringsURL: xcstringsFile)
+        let cameraPerm = localizedPerms.first(where: { $0["key"] as? String == "NSCameraUsageDescription" })
+        let cameraDescs = cameraPerm?["description"] as? [String: String]
+        XCTAssertEqual(cameraDescs?["en-US"], "We need camera access for photos")
+        XCTAssertEqual(cameraDescs?["fr"], "Accès caméra pour les photos")
+        XCTAssertEqual(cameraDescs?["zh-CN"], "需要相机权限来拍照")  // zh-Hans normalized to zh-CN
     }
 
     func testParseAndroidManifest() throws {
@@ -261,8 +326,8 @@ final class SkipBuildTests: XCTestCase {
         let permissions = try cmd.extractAndroidPermissions(at: manifestFile)
         // Should only include non-commented permissions
         XCTAssertEqual(permissions.count, 2)
-        XCTAssertEqual(permissions[0]["name"], "android.permission.INTERNET")
-        XCTAssertEqual(permissions[1]["name"], "android.permission.CAMERA")
+        XCTAssertEqual(permissions[0]["key"], "android.permission.INTERNET")
+        XCTAssertEqual(permissions[1]["key"], "android.permission.CAMERA")
 
         let meta = try cmd.parseAndroidManifest(at: manifestFile)
         XCTAssertEqual(meta["label"] as? String, "${PRODUCT_NAME}")
@@ -438,9 +503,11 @@ final class SkipBuildTests: XCTestCase {
         XCTAssertEqual(ios["appStoreURL"] as? String, "https://apps.apple.com/app/id9876543")
 
         // Check iOS permissions
-        let iosPerms = ios["permissions"] as? [[String: String]]
+        let iosPerms = ios["permissions"] as? [[String: Any]]
         XCTAssertEqual(iosPerms?.count, 1)
-        XCTAssertEqual(iosPerms?.first?["key"], "NSPhotoLibraryUsageDescription")
+        XCTAssertEqual(iosPerms?.first?["key"] as? String, "NSPhotoLibraryUsageDescription")
+        let photoDesc = iosPerms?.first?["description"] as? [String: String]
+        XCTAssertEqual(photoDesc?["en-US"], "Access photos for sharing")
 
         // Check iOS entitlements
         let entitlements = ios["entitlements"] as? [String: Any]
@@ -460,8 +527,8 @@ final class SkipBuildTests: XCTestCase {
         // Check Android permissions
         let androidPerms = android["permissions"] as? [[String: String]]
         XCTAssertEqual(androidPerms?.count, 2)
-        XCTAssertEqual(androidPerms?[0]["name"], "android.permission.INTERNET")
-        XCTAssertEqual(androidPerms?[1]["name"], "android.permission.CAMERA")
+        XCTAssertEqual(androidPerms?[0]["key"], "android.permission.INTERNET")
+        XCTAssertEqual(androidPerms?[1]["key"], "android.permission.CAMERA")
 
         // Check Android localized metadata
         let androidTitle = android["title"] as? [String: String]

@@ -108,6 +108,50 @@ The output uses Android/Play Store locale codes (e.g. "zh-CN" instead of Apple's
         return try await AppIndexGenerator.generateAppIndex(projectURL: projectURL, packageJSON: packageJSON, includeSBOM: includeSBOM, command: self, out: out)
     }
 
+    // MARK: - Git Origin Parsing
+
+    /// Parse the git remote origin URL from `.git/config`.
+    func parseGitOriginURL(projectRoot: URL) -> String? {
+        let gitConfig = projectRoot.appendingPathComponent(".git/config")
+        guard let contents = try? String(contentsOf: gitConfig, encoding: .utf8) else { return nil }
+
+        var inOrigin = false
+        for line in contents.components(separatedBy: .newlines) {
+            let trimmed = line.trimmingCharacters(in: .whitespaces)
+            if trimmed.hasPrefix("[") {
+                inOrigin = trimmed == "[remote \"origin\"]"
+                continue
+            }
+            if inOrigin && trimmed.hasPrefix("url") {
+                let parts = trimmed.split(separator: "=", maxSplits: 1)
+                if parts.count == 2 {
+                    return parts[1].trimmingCharacters(in: .whitespaces)
+                }
+            }
+        }
+        return nil
+    }
+
+    /// Convert a git remote URL to an HTTPS browse URL.
+    /// Handles both HTTPS and SSH formats:
+    ///   https://github.com/Org/Repo.git → https://github.com/Org/Repo
+    ///   git@github.com:Org/Repo.git     → https://github.com/Org/Repo
+    static func gitRemoteToHTTPS(_ remoteURL: String) -> String {
+        var url = remoteURL
+        // Convert SSH to HTTPS
+        if url.hasPrefix("git@") {
+            url = url.replacingOccurrences(of: "git@", with: "https://")
+            if let colonRange = url.range(of: ":", range: url.index(url.startIndex, offsetBy: 8)..<url.endIndex) {
+                url = url.replacingCharacters(in: colonRange, with: "/")
+            }
+        }
+        // Strip trailing .git
+        if url.hasSuffix(".git") {
+            url = String(url.dropLast(4))
+        }
+        return url
+    }
+
     // MARK: - Skip.env Parsing
 
     func parseSkipEnv(at url: URL) throws -> [String: String] {
@@ -140,7 +184,8 @@ The output uses Android/Play Store locale codes (e.g. "zh-CN" instead of Apple's
             if !infoPlistData.isEmpty {
                 ios["infoPlist"] = infoPlistData
             }
-            let permissions = try extractIOSPermissions(at: appProject.darwinInfoPlist)
+            let xcstringsURL = FileManager.default.fileExists(atPath: appProject.darwinInfoPlistXcstrings.path) ? appProject.darwinInfoPlistXcstrings : nil
+            let permissions = try extractIOSPermissions(at: appProject.darwinInfoPlist, xcstringsURL: xcstringsURL)
             if !permissions.isEmpty {
                 ios["permissions"] = permissions
             }
@@ -253,18 +298,65 @@ The output uses Android/Play Store locale codes (e.g. "zh-CN" instead of Apple's
         return result
     }
 
-    func extractIOSPermissions(at url: URL) throws -> [[String: String]] {
-        let data = try Data(contentsOf: url)
+    func extractIOSPermissions(at plistURL: URL, xcstringsURL: URL?, defaultLocale: String = "en-US") throws -> [[String: Any]] {
+        let data = try Data(contentsOf: plistURL)
         guard let plist = try PropertyListSerialization.propertyList(from: data, format: nil) as? [String: Any] else {
-            throw error("Info.plist at \(url.path) is not a valid dictionary plist")
+            throw error("Info.plist at \(plistURL.path) is not a valid dictionary plist")
         }
-        var permissions: [[String: String]] = []
+
+        // Parse InfoPlist.xcstrings for translations if available
+        let xcstringsTranslations = xcstringsURL.flatMap { parseXcstrings(at: $0) } ?? [:]
+
+        var permissions: [[String: Any]] = []
         for (key, value) in plist {
-            if key.hasSuffix("UsageDescription"), let desc = value as? String {
-                permissions.append(["key": key, "description": desc])
+            guard key.hasSuffix("UsageDescription"), let defaultDesc = value as? String else { continue }
+
+            var descriptions: [String: String] = [defaultLocale: defaultDesc]
+
+            // Merge translations from xcstrings
+            if let localizations = xcstringsTranslations[key] {
+                for (locale, translation) in localizations {
+                    let normalizedLocale = Self.normalizeLocale(locale)
+                    descriptions[normalizedLocale] = translation
+                }
+            }
+
+            permissions.append([
+                "key": key,
+                "description": descriptions,
+            ] as [String: Any])
+        }
+
+        return permissions.sorted { ($0["key"] as? String ?? "") < ($1["key"] as? String ?? "") }
+    }
+
+    // MARK: - Xcstrings Parsing
+
+    /// Parse an .xcstrings file and return a map of key → { locale → translated string }.
+    func parseXcstrings(at url: URL) -> [String: [String: String]]? {
+        guard let data = try? Data(contentsOf: url),
+              let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let strings = json["strings"] as? [String: Any] else {
+            return nil
+        }
+
+        var result: [String: [String: String]] = [:]
+        for (key, value) in strings {
+            guard let entry = value as? [String: Any],
+                  let localizations = entry["localizations"] as? [String: Any] else { continue }
+            var translations: [String: String] = [:]
+            for (locale, locValue) in localizations {
+                if let locDict = locValue as? [String: Any],
+                   let stringUnit = locDict["stringUnit"] as? [String: Any],
+                   let translated = stringUnit["value"] as? String {
+                    translations[locale] = translated
+                }
+            }
+            if !translations.isEmpty {
+                result[key] = translations
             }
         }
-        return permissions.sorted { ($0["key"] ?? "") < ($1["key"] ?? "") }
+        return result
     }
 
     // MARK: - Entitlements Parsing
@@ -640,7 +732,7 @@ enum AppIndexGenerator {
             #endif
         }
 
-        let appDict: [String: Any] = [
+        var appDict: [String: Any] = [
             "name": productName,
             "version": version,
             "buildNumber": buildNumber,
@@ -649,6 +741,19 @@ enum AppIndexGenerator {
                 "android": androidDict,
             ] as [String: Any],
         ]
+
+        // Add source repository info from .git/config
+        if let originURL = cmd.parseGitOriginURL(projectRoot: projectURL) {
+            let browseURL = MetaIndexCommand.gitRemoteToHTTPS(originURL)
+            var source: [String: String] = [
+                "url": originURL,
+            ]
+            if browseURL.contains("github.com") {
+                source["release"] = "\(browseURL)/releases/tag/\(version)/"
+                source["assets"] = "https://raw.githubusercontent.com/\(browseURL.components(separatedBy: "github.com/").last ?? "")/refs/tags/\(version)/"
+            }
+            appDict["source"] = source
+        }
 
         return ["app": appDict]
     }
@@ -708,7 +813,7 @@ private class AndroidManifestParserDelegate: NSObject, XMLParserDelegate {
             }
         case "uses-permission":
             if let name = attributeDict["android:name"] {
-                permissions.append(["name": name])
+                permissions.append(["key": name])
             }
         case "uses-feature":
             if let name = attributeDict["android:name"] {
