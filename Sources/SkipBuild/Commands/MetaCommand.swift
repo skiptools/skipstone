@@ -451,7 +451,7 @@ public struct ImageResourceRef: Codable, Equatable, Sendable {
         guard fileSize > 0 else { return nil }
         let hash = data.SHA256Hash()
         let (width, height) = parsePNGDimensions(data)
-        let location = relativePath(of: pngURL, to: root)
+        let location = relativePath(from: root.standardized.path, to: pngURL.standardized.path)
         return ImageResourceRef(mimeType: "image/png", location: location, size: fileSize, hash: hash, width: width, height: height)
     }
 
@@ -473,15 +473,6 @@ public struct ImageResourceRef: Codable, Equatable, Sendable {
         return (width, height)
     }
 
-    /// Compute a relative path from a file URL to a root URL.
-    static func relativePath(of fileURL: URL, to root: URL) -> String {
-        let filePath = fileURL.standardized.path
-        let rootPath = root.standardized.path.hasSuffix("/") ? root.standardized.path : root.standardized.path + "/"
-        if filePath.hasPrefix(rootPath) {
-            return String(filePath.dropFirst(rootPath.count))
-        }
-        return filePath
-    }
 }
 
 @available(macOS 13, iOS 16, tvOS 16, watchOS 8, *)
@@ -681,22 +672,7 @@ enum AppIndexGenerator {
         return outputURL
     }
 
-    /// Compute a relative path for symlink creation.
-    private static func relativePath(from fromDir: String, to toPath: String) -> String {
-        let fromComponents = URL(fileURLWithPath: fromDir).standardized.pathComponents
-        let toComponents = URL(fileURLWithPath: toPath).standardized.pathComponents
-
-        var commonLength = 0
-        while commonLength < fromComponents.count && commonLength < toComponents.count
-                && fromComponents[commonLength] == toComponents[commonLength] {
-            commonLength += 1
-        }
-
-        let ups = fromComponents.count - commonLength
-        var parts = Array(repeating: "..", count: ups)
-        parts.append(contentsOf: toComponents[commonLength...])
-        return parts.joined(separator: "/")
-    }
+    // relativePath(from:to:) is defined in Utilities.swift
 }
 
 private struct AppIndexError: LocalizedError {
