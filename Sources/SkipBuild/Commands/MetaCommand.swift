@@ -7,6 +7,10 @@ import ArgumentParser
 import SkipSyntax
 import TSCBasic
 
+#if canImport(FoundationXML)
+import FoundationXML
+#endif
+
 #if canImport(SkipDriveExternal)
 import SkipDriveExternal
 extension MetaIndexCommand : GradleHarness { }
