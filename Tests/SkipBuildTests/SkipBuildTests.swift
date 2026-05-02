@@ -587,7 +587,7 @@ final class SkipBuildTests: XCTestCase {
         XCTAssertEqual(ref.location, "icon.png")
         XCTAssertEqual(ref.mimeType, "image/png")
         XCTAssertEqual(ref.size, Int64(png.count))
-        XCTAssertFalse(ref.hash.isEmpty)
+        XCTAssertEqual(ref.digest, "sha256:8e20268c0d22111a27852d29c38e49bf908ff15b2380eb24c0675b2f500ba1e6")
     }
 
     func testParseSwiftToolchainAPI() async throws {

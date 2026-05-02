@@ -517,7 +517,7 @@ public struct ImageResourceRef: Codable, Equatable, Sendable {
     public var mimeType: String?
     public var location: String
     public var size: Int64
-    public var hash: String
+    public var digest: String
     public var width: Int
     public var height: Int
     public var caption: String?
@@ -527,7 +527,7 @@ public struct ImageResourceRef: Codable, Equatable, Sendable {
         var dict: [String: Any] = [
             "location": location,
             "size": size,
-            "hash": hash,
+            "digest": digest,
             "width": width,
             "height": height,
         ]
@@ -544,7 +544,7 @@ public struct ImageResourceRef: Codable, Equatable, Sendable {
         let hash = data.SHA256Hash()
         let (width, height) = parsePNGDimensions(data)
         let location = relativePath(from: root.standardized.path, to: pngURL.standardized.path)
-        return ImageResourceRef(mimeType: "image/png", location: location, size: fileSize, hash: hash, width: width, height: height)
+        return ImageResourceRef(mimeType: "image/png", location: location, size: fileSize, digest: "sha256:\(hash)", width: width, height: height)
     }
 
     /// Parse width and height from a PNG file's IHDR chunk.
@@ -734,8 +734,6 @@ enum AppIndexGenerator {
 
         var appDict: [String: Any] = [
             "name": productName,
-            "version": version,
-            "buildNumber": buildNumber,
             "platforms": [
                 "ios": iosDict,
                 "android": androidDict,
@@ -755,7 +753,16 @@ enum AppIndexGenerator {
             appDict["source"] = source
         }
 
-        return ["app": appDict]
+        let dateFormatter = ISO8601DateFormatter()
+        dateFormatter.formatOptions = [.withInternetDateTime]
+
+        return [
+            "$schema": "https://appfair.org/schemas/appindex/v1.json",
+            "specVersion": "1.0",
+            "generated": dateFormatter.string(from: Date()),
+            "generator": "skip/\(skipVersion)",
+            "apps": [appDict],
+        ] as [String: Any]
     }
 
     /// Write the app index JSON to a file and optionally create a symlink in the app Resources folder.
