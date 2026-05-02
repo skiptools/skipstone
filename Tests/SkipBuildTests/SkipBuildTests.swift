@@ -184,18 +184,65 @@ final class SkipBuildTests: XCTestCase {
     }
 
     func testLocaleNormalization() {
-        XCTAssertEqual("zh-CN", MetaIndexCommand.normalizeLocale("zh-Hans"))
-        XCTAssertEqual("zh-TW", MetaIndexCommand.normalizeLocale("zh-Hant"))
-        XCTAssertEqual("zh-TW", MetaIndexCommand.normalizeLocale("zh-Hant-TW"))
-        XCTAssertEqual("zh-HK", MetaIndexCommand.normalizeLocale("zh-Hant-HK"))
-        XCTAssertEqual("ar", MetaIndexCommand.normalizeLocale("ar-SA"))
-        XCTAssertEqual("no-NO", MetaIndexCommand.normalizeLocale("nb-NO"))
-        XCTAssertEqual("iw-IL", MetaIndexCommand.normalizeLocale("he-IL"))
-        XCTAssertEqual("en-US", MetaIndexCommand.normalizeLocale("en-US"))
-        XCTAssertEqual("fr-FR", MetaIndexCommand.normalizeLocale("fr-FR"))
-        XCTAssertEqual("pt-BR", MetaIndexCommand.normalizeLocale("pt-BR"))
-        XCTAssertEqual("pt-PT", MetaIndexCommand.normalizeLocale("pt-PT"))
-        XCTAssertEqual("de-DE", MetaIndexCommand.normalizeLocale("de-DE"))
+        // Apple codes → BCP 47 canonical
+        XCTAssertEqual("ar", MetaIndexCommand.normalizeLocale("ar-SA", convention: .apple))       // Arabic
+        XCTAssertEqual("zh-Hans", MetaIndexCommand.normalizeLocale("zh-Hans", convention: .apple)) // Chinese Simplified
+        XCTAssertEqual("zh-Hant", MetaIndexCommand.normalizeLocale("zh-Hant", convention: .apple)) // Chinese Traditional
+        XCTAssertEqual("en", MetaIndexCommand.normalizeLocale("en-US", convention: .apple))        // English (US) → default English
+        XCTAssertEqual("en-GB", MetaIndexCommand.normalizeLocale("en-GB", convention: .apple))     // English (UK) preserved
+        XCTAssertEqual("en-AU", MetaIndexCommand.normalizeLocale("en-AU", convention: .apple))     // English (AU) preserved
+        XCTAssertEqual("fr", MetaIndexCommand.normalizeLocale("fr-FR", convention: .apple))        // French (France) → French
+        XCTAssertEqual("fr-CA", MetaIndexCommand.normalizeLocale("fr-CA", convention: .apple))     // French (Canada) preserved
+        XCTAssertEqual("de", MetaIndexCommand.normalizeLocale("de-DE", convention: .apple))        // German
+        XCTAssertEqual("es", MetaIndexCommand.normalizeLocale("es-ES", convention: .apple))        // Spanish (Spain) → Spanish
+        XCTAssertEqual("es-MX", MetaIndexCommand.normalizeLocale("es-MX", convention: .apple))     // Spanish (Mexico) preserved
+        XCTAssertEqual("nl", MetaIndexCommand.normalizeLocale("nl-NL", convention: .apple))        // Dutch
+        XCTAssertEqual("pt-BR", MetaIndexCommand.normalizeLocale("pt-BR", convention: .apple))     // Portuguese (Brazil)
+        XCTAssertEqual("pt", MetaIndexCommand.normalizeLocale("pt-PT", convention: .apple))        // Portuguese (Portugal) → Portuguese
+        XCTAssertEqual("he", MetaIndexCommand.normalizeLocale("he", convention: .apple))           // Hebrew (Apple)
+        XCTAssertEqual("ja", MetaIndexCommand.normalizeLocale("ja", convention: .apple))           // Japanese (Apple)
+        XCTAssertEqual("ko", MetaIndexCommand.normalizeLocale("ko", convention: .apple))           // Korean (Apple)
+        XCTAssertEqual("no", MetaIndexCommand.normalizeLocale("no", convention: .apple))           // Norwegian (Apple)
+
+        // Google codes → BCP 47 canonical
+        XCTAssertEqual("ar", MetaIndexCommand.normalizeLocale("ar", convention: .google))           // Arabic
+        XCTAssertEqual("zh-Hans", MetaIndexCommand.normalizeLocale("zh-CN", convention: .google))   // Chinese Simplified
+        XCTAssertEqual("zh-Hant", MetaIndexCommand.normalizeLocale("zh-TW", convention: .google))   // Chinese Traditional
+        XCTAssertEqual("zh-Hant", MetaIndexCommand.normalizeLocale("zh-HK", convention: .google))   // Chinese Traditional (HK)
+        XCTAssertEqual("he", MetaIndexCommand.normalizeLocale("iw-IL", convention: .google))        // Hebrew (legacy "iw")
+        XCTAssertEqual("en", MetaIndexCommand.normalizeLocale("en-US", convention: .google))        // same for both platforms
+        XCTAssertEqual("cs", MetaIndexCommand.normalizeLocale("cs-CZ", convention: .google))        // Czech
+        XCTAssertEqual("da", MetaIndexCommand.normalizeLocale("da-DK", convention: .google))        // Danish
+        XCTAssertEqual("fi", MetaIndexCommand.normalizeLocale("fi-FI", convention: .google))        // Finnish
+        XCTAssertEqual("el", MetaIndexCommand.normalizeLocale("el-GR", convention: .google))        // Greek
+        XCTAssertEqual("hi", MetaIndexCommand.normalizeLocale("hi-IN", convention: .google))        // Hindi
+        XCTAssertEqual("hu", MetaIndexCommand.normalizeLocale("hu-HU", convention: .google))        // Hungarian
+        XCTAssertEqual("it", MetaIndexCommand.normalizeLocale("it-IT", convention: .google))        // Italian
+        XCTAssertEqual("ja", MetaIndexCommand.normalizeLocale("ja-JP", convention: .google))        // Japanese
+        XCTAssertEqual("ko", MetaIndexCommand.normalizeLocale("ko-KR", convention: .google))        // Korean
+        XCTAssertEqual("no", MetaIndexCommand.normalizeLocale("no-NO", convention: .google))        // Norwegian
+        XCTAssertEqual("pl", MetaIndexCommand.normalizeLocale("pl-PL", convention: .google))        // Polish
+        XCTAssertEqual("ru", MetaIndexCommand.normalizeLocale("ru-RU", convention: .google))        // Russian
+        XCTAssertEqual("sv", MetaIndexCommand.normalizeLocale("sv-SE", convention: .google))        // Swedish
+        XCTAssertEqual("tr", MetaIndexCommand.normalizeLocale("tr-TR", convention: .google))        // Turkish
+        XCTAssertEqual("ms", MetaIndexCommand.normalizeLocale("ms-MY", convention: .google))        // Malay
+        XCTAssertEqual("es-419", MetaIndexCommand.normalizeLocale("es-419", convention: .google))   // Spanish (LatAm) preserved
+        XCTAssertEqual("es-US", MetaIndexCommand.normalizeLocale("es-US", convention: .google))     // Spanish (US) preserved
+
+        // Already canonical codes pass through unchanged
+        XCTAssertEqual("ca", MetaIndexCommand.normalizeLocale("ca", convention: .apple))
+        XCTAssertEqual("hr", MetaIndexCommand.normalizeLocale("hr", convention: .apple))
+        XCTAssertEqual("ro", MetaIndexCommand.normalizeLocale("ro", convention: .apple))
+        XCTAssertEqual("sk", MetaIndexCommand.normalizeLocale("sk", convention: .apple))
+        XCTAssertEqual("uk", MetaIndexCommand.normalizeLocale("uk", convention: .apple))
+        XCTAssertEqual("vi", MetaIndexCommand.normalizeLocale("vi", convention: .apple))
+        XCTAssertEqual("th", MetaIndexCommand.normalizeLocale("th", convention: .apple))
+        XCTAssertEqual("hr", MetaIndexCommand.normalizeLocale("hr", convention: .google))
+        XCTAssertEqual("ro", MetaIndexCommand.normalizeLocale("ro", convention: .google))
+        XCTAssertEqual("sk", MetaIndexCommand.normalizeLocale("sk", convention: .google))
+        XCTAssertEqual("uk", MetaIndexCommand.normalizeLocale("uk", convention: .google))
+        XCTAssertEqual("vi", MetaIndexCommand.normalizeLocale("vi", convention: .google))
+        XCTAssertEqual("th", MetaIndexCommand.normalizeLocale("th", convention: .google))
     }
 
     func testMetadataKeyNormalization() {
@@ -266,7 +313,7 @@ final class SkipBuildTests: XCTestCase {
         let permKeys = permissions.compactMap { $0["key"] as? String }.sorted()
         XCTAssertEqual(permKeys, ["NSCameraUsageDescription", "NSLocationWhenInUseUsageDescription"])
         let cameraDesc = permissions.first(where: { $0["key"] as? String == "NSCameraUsageDescription" })?["description"] as? [String: String]
-        XCTAssertEqual(cameraDesc?["en-US"], "We need camera access for photos")
+        XCTAssertEqual(cameraDesc?["en"], "We need camera access for photos")
 
         // With xcstrings: translations are merged in
         let xcstringsFile = tmpDir.appendingPathComponent("InfoPlist.xcstrings")
@@ -298,9 +345,9 @@ final class SkipBuildTests: XCTestCase {
         let localizedPerms = try cmd.extractIOSPermissions(at: plistFile, xcstringsURL: xcstringsFile)
         let cameraPerm = localizedPerms.first(where: { $0["key"] as? String == "NSCameraUsageDescription" })
         let cameraDescs = cameraPerm?["description"] as? [String: String]
-        XCTAssertEqual(cameraDescs?["en-US"], "We need camera access for photos")
+        XCTAssertEqual(cameraDescs?["en"], "We need camera access for photos")
         XCTAssertEqual(cameraDescs?["fr"], "Accès caméra pour les photos")
-        XCTAssertEqual(cameraDescs?["zh-CN"], "需要相机权限来拍照")  // zh-Hans normalized to zh-CN
+        XCTAssertEqual(cameraDescs?["zh-Hans"], "需要相机权限来拍照")  // zh-Hans is canonical BCP 47
     }
 
     func testParseAndroidManifest() throws {
@@ -359,17 +406,20 @@ final class SkipBuildTests: XCTestCase {
         let result = cmd.parseFastlaneMetadata(folder: metaDir, platform: .android)
 
         // Check title across locales
-        XCTAssertEqual(result["title"]?["en-US"], "My App")
-        XCTAssertEqual(result["title"]?["fr-FR"], "Mon App")
-        // zh-Hans should be normalized to zh-CN
-        XCTAssertEqual(result["title"]?["zh-CN"], "My App Chinese")
+        let titles = result["title"] as? [String: String]
+        XCTAssertEqual(titles?["en"], "My App")
+        XCTAssertEqual(titles?["fr"], "Mon App")
+        // zh-Hans is the canonical BCP 47 code for Simplified Chinese
+        XCTAssertEqual(titles?["zh-Hans"], "My App Chinese")
 
         // Check description (full_description → "description")
-        XCTAssertEqual(result["description"]?["en-US"], "A great app")
-        XCTAssertEqual(result["description"]?["fr-FR"], "Une super app")
+        let descs = result["description"] as? [String: String]
+        XCTAssertEqual(descs?["en"], "A great app")
+        XCTAssertEqual(descs?["fr"], "Une super app")
 
         // Check short description
-        XCTAssertEqual(result["subtitle"]?["en-US"], "Great")
+        let subtitles = result["subtitle"] as? [String: String]
+        XCTAssertEqual(subtitles?["en"], "Great")
     }
 
     func testParseEntitlements() throws {
@@ -499,30 +549,36 @@ final class SkipBuildTests: XCTestCase {
 
         XCTAssertEqual(ios["bundleIdentifier"] as? String, "com.example.testapp")
         XCTAssertEqual(ios["version"] as? String, "2.0.0")
-        XCTAssertEqual(ios["appStoreId"] as? String, "9876543")
-        XCTAssertEqual(ios["appStoreURL"] as? String, "https://apps.apple.com/app/id9876543")
+        let iosChannels = ios["channels"] as? [String: Any]
+        let appleAppStore = iosChannels?["appleappstore"] as? [String: Any]
+        XCTAssertEqual(appleAppStore?["id"] as? String, "9876543")
+        XCTAssertEqual(appleAppStore?["url"] as? String, "https://apps.apple.com/app/id9876543")
 
         // Check iOS permissions
         let iosPerms = ios["permissions"] as? [[String: Any]]
         XCTAssertEqual(iosPerms?.count, 1)
         XCTAssertEqual(iosPerms?.first?["key"] as? String, "NSPhotoLibraryUsageDescription")
         let photoDesc = iosPerms?.first?["description"] as? [String: String]
-        XCTAssertEqual(photoDesc?["en-US"], "Access photos for sharing")
+        XCTAssertEqual(photoDesc?["en"], "Access photos for sharing")
 
-        // Check iOS entitlements
-        let entitlements = ios["entitlements"] as? [String: Any]
+        // Check iOS metadata (entitlements are now inside metadata dict)
+        let iosMetadata = ios["metadata"] as? [String: Any]
+        let entitlements = iosMetadata?["entitlements"] as? [String: Any]
         XCTAssertEqual(entitlements?["com.apple.developer.aps-environment"] as? String, "development")
 
         // Check iOS localized metadata
         let iosTitle = ios["title"] as? [String: String]
-        XCTAssertEqual(iosTitle?["en-US"], "TestApp")
-        XCTAssertEqual(iosTitle?["fr-FR"], "TestApp FR")
+        XCTAssertEqual(iosTitle?["en"], "TestApp")
+        XCTAssertEqual(iosTitle?["fr"], "TestApp FR")
 
         // Build Android metadata
         let android = try cmd.buildAndroidMetadata(appProject: appProject, projectRoot: tmpDir, productName: env["PRODUCT_NAME"]!, bundleId: env["PRODUCT_BUNDLE_IDENTIFIER"]!, androidAppId: nil, version: env["MARKETING_VERSION"]!, buildNumber: env["CURRENT_PROJECT_VERSION"]!, googlePlayStoreId: env["GOOGLE_PLAY_STORE_ID"])
 
         XCTAssertEqual(android["applicationId"] as? String, "com.example.testapp")
-        XCTAssertEqual(android["playStoreId"] as? String, "com.example.testapp")
+        let androidChannels = android["channels"] as? [String: Any]
+        let googlePlayStore = androidChannels?["googleplaystore"] as? [String: Any]
+        XCTAssertEqual(googlePlayStore?["id"] as? String, "com.example.testapp")
+        XCTAssertEqual(googlePlayStore?["url"] as? String, "https://play.google.com/store/apps/details?id=com.example.testapp")
 
         // Check Android permissions
         let androidPerms = android["permissions"] as? [[String: String]]
@@ -532,9 +588,9 @@ final class SkipBuildTests: XCTestCase {
 
         // Check Android localized metadata
         let androidTitle = android["title"] as? [String: String]
-        XCTAssertEqual(androidTitle?["en-US"], "TestApp")
+        XCTAssertEqual(androidTitle?["en"], "TestApp")
         let androidDesc = android["description"] as? [String: String]
-        XCTAssertEqual(androidDesc?["en-US"], "A test app for Android")
+        XCTAssertEqual(androidDesc?["en"], "A test app for Android")
     }
 
     func testPNGDimensionParsing() {

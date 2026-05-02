@@ -152,6 +152,60 @@ The output uses Android/Play Store locale codes (e.g. "zh-CN" instead of Apple's
         return url
     }
 
+    // MARK: - License Detection
+
+    /// Detect the SPDX license identifier from a LICENSE file in the project root.
+    func detectLicense(projectRoot: URL) -> String? {
+        let fm = FileManager.default
+        let candidates = ["LICENSE", "LICENSE.md", "LICENSE.txt", "LICENSE.GPL", "LICENSE.AGPL", "LICENSE.MPL", "LICENCE", "LICENCE.md", "LICENCE.txt", "LICENSE-MIT", "LICENSE-APACHE", "COPYING", "COPYING.md"]
+        for name in candidates {
+            let url = projectRoot.appendingPathComponent(name)
+            guard fm.fileExists(atPath: url.path),
+                  let content = try? String(contentsOf: url, encoding: .utf8) else { continue }
+            let lower = content.lowercased()
+            // Check for common SPDX-identifiable licenses by their distinctive text
+            if lower.contains("gnu general public license") && lower.contains("version 3") {
+                return lower.contains("affero") ? "AGPL-3.0-only" : "GPL-3.0-only"
+            }
+            if lower.contains("gnu general public license") && lower.contains("version 2") {
+                return "GPL-2.0-only"
+            }
+            if lower.contains("gnu lesser general public license") {
+                return lower.contains("version 3") ? "LGPL-3.0-only" : "LGPL-2.1-only"
+            }
+            if lower.contains("mozilla public license") && lower.contains("version 2") {
+                return "MPL-2.0"
+            }
+            if lower.contains("apache license") && lower.contains("version 2") {
+                return "Apache-2.0"
+            }
+            if lower.contains("mit license") || lower.contains("permission is hereby granted, free of charge") {
+                return "MIT"
+            }
+            if lower.contains("bsd 2-clause") || (lower.contains("redistribution and use") && !lower.contains("neither the name")) {
+                return "BSD-2-Clause"
+            }
+            if lower.contains("bsd 3-clause") || (lower.contains("redistribution and use") && lower.contains("neither the name")) {
+                return "BSD-3-Clause"
+            }
+            if lower.contains("the unlicense") || lower.contains("this is free and unencumbered software") {
+                return "Unlicense"
+            }
+            if lower.contains("isc license") {
+                return "ISC"
+            }
+            // Check for SPDX header in the file itself
+            if let range = content.range(of: "SPDX-License-Identifier:") {
+                let start = range.upperBound
+                let remaining = content[start...].trimmingCharacters(in: .whitespaces)
+                let id = remaining.components(separatedBy: .whitespacesAndNewlines).first ?? ""
+                if !id.isEmpty { return id }
+            }
+            return nil
+        }
+        return nil
+    }
+
     // MARK: - Skip.env Parsing
 
     func parseSkipEnv(at url: URL) throws -> [String: String] {
@@ -167,22 +221,26 @@ The output uses Android/Play Store locale codes (e.g. "zh-CN" instead of Apple's
 
     func buildIOSMetadata(appProject: AppProjectLayout, projectRoot: URL, productName: String, bundleId: String, version: String, buildNumber: String, appleStoreId: String?) throws -> [String: Any] {
         var ios: [String: Any] = [
-            "platform": "ios",
             "bundleIdentifier": bundleId,
             "version": version,
             "buildNumber": buildNumber,
         ]
 
         if let appleStoreId = appleStoreId, !appleStoreId.isEmpty {
-            ios["appStoreId"] = appleStoreId
-            ios["appStoreURL"] = "https://apps.apple.com/app/id\(appleStoreId)"
+            ios["channels"] = [
+                "appleappstore": [
+                    "id": appleStoreId,
+                    "url": "https://apps.apple.com/app/id\(appleStoreId)",
+                ] as [String: Any]
+            ] as [String: Any]
         }
 
-        // Parse Info.plist for permissions and metadata (optional file)
+        // Parse Info.plist and Entitlements into a "metadata" dictionary
+        var metadata: [String: Any] = [:]
         if FileManager.default.fileExists(atPath: appProject.darwinInfoPlist.path) {
             let infoPlistData = try parseInfoPlist(at: appProject.darwinInfoPlist)
             if !infoPlistData.isEmpty {
-                ios["infoPlist"] = infoPlistData
+                metadata["infoPlist"] = infoPlistData
             }
             let xcstringsURL = FileManager.default.fileExists(atPath: appProject.darwinInfoPlistXcstrings.path) ? appProject.darwinInfoPlistXcstrings : nil
             let permissions = try extractIOSPermissions(at: appProject.darwinInfoPlist, xcstringsURL: xcstringsURL)
@@ -190,31 +248,34 @@ The output uses Android/Play Store locale codes (e.g. "zh-CN" instead of Apple's
                 ios["permissions"] = permissions
             }
         }
-
-        // Parse Entitlements.plist
         if FileManager.default.fileExists(atPath: appProject.darwinEntitlementsPlist.path) {
             let entitlements = try parseEntitlements(at: appProject.darwinEntitlementsPlist)
             if !entitlements.isEmpty {
-                ios["entitlements"] = entitlements
+                metadata["entitlements"] = entitlements
             }
+        }
+        if !metadata.isEmpty {
+            ios["metadata"] = metadata
         }
 
         // Parse localized fastlane metadata
         let localizedMeta = parseFastlaneMetadata(folder: appProject.darwinFastlaneMetadataFolder, platform: .ios)
-        for (key, locales) in localizedMeta {
-            ios[key] = locales
+        for (key, value) in localizedMeta {
+            ios[key] = value
         }
 
-        // App icon: largest PNG in AppIcon.appiconset
+        // Assets: icon, screenshots
+        var assets: [String: Any] = [:]
         if let iconRef = findLargestPNG(in: appProject.darwinAppIconFolder, relativeTo: projectRoot) {
-            ios["icon"] = iconRef.asDictionary
+            assets["icon"] = iconRef.asDictionary
         }
-
-        // Screenshots: Darwin/fastlane/screenshots/{locale}/*.png
         let screenshotDir = appProject.darwinFastlaneFolder.appendingPathComponent("screenshots")
-        let screenshots = collectLocalizedScreenshots(folder: screenshotDir, relativeTo: projectRoot)
+        let screenshots = collectLocalizedScreenshots(folder: screenshotDir, relativeTo: projectRoot, convention: .apple)
         if !screenshots.isEmpty {
-            ios["screenshots"] = screenshots
+            assets["screenshots"] = screenshots
+        }
+        if !assets.isEmpty {
+            ios["assets"] = assets
         }
 
         return ios
@@ -226,17 +287,19 @@ The output uses Android/Play Store locale codes (e.g. "zh-CN" instead of Apple's
         let effectiveAppId = androidAppId ?? bundleId.replacingOccurrences(of: "-", with: "_")
 
         var android: [String: Any] = [
-            "platform": "android",
             "applicationId": effectiveAppId,
             "version": version,
             "buildNumber": buildNumber,
         ]
 
-        if let googlePlayStoreId = googlePlayStoreId, !googlePlayStoreId.isEmpty {
-            android["playStoreId"] = googlePlayStoreId
-            android["playStoreURL"] = "https://play.google.com/store/apps/details?id=\(googlePlayStoreId)"
-        } else {
-            android["playStoreURL"] = "https://play.google.com/store/apps/details?id=\(effectiveAppId)"
+        do {
+            let playId = (googlePlayStoreId?.isEmpty == false ? googlePlayStoreId : nil) ?? effectiveAppId
+            android["channels"] = [
+                "googleplaystore": [
+                    "id": playId,
+                    "url": "https://play.google.com/store/apps/details?id=\(playId)",
+                ] as [String: Any]
+            ] as [String: Any]
         }
 
         // Parse AndroidManifest.xml for permissions and metadata
@@ -247,32 +310,32 @@ The output uses Android/Play Store locale codes (e.g. "zh-CN" instead of Apple's
             }
             let manifestMeta = try parseAndroidManifest(at: appProject.androidManifest)
             if !manifestMeta.isEmpty {
-                android["manifest"] = manifestMeta
+                android["metadata"] = ["manifest": manifestMeta] as [String: Any]
             }
         }
 
         // Parse localized fastlane metadata
         let localizedMeta = parseFastlaneMetadata(folder: appProject.androidFastlaneMetadataFolder, platform: .android)
-        for (key, locales) in localizedMeta {
-            android[key] = locales
+        for (key, value) in localizedMeta {
+            android[key] = value
         }
 
-        // App icon: Android/fastlane/metadata/android/en-US/images/icon.png
+        // Assets: icon, featureGraphic, screenshots
+        var assets: [String: Any] = [:]
         let androidIconURL = appProject.androidFastlaneMetadataFolder.appendingPathComponent("en-US/images/icon.png")
         if let iconRef = ImageResourceRef.from(pngURL: androidIconURL, relativeTo: projectRoot) {
-            android["icon"] = iconRef.asDictionary
+            assets["icon"] = iconRef.asDictionary
         }
-
-        // Feature graphic: Android/fastlane/metadata/android/{locale}/images/featureGraphic.png
-        let featureGraphics = collectLocalizedImages(named: "featureGraphic.png", subpath: "images", metadataFolder: appProject.androidFastlaneMetadataFolder, relativeTo: projectRoot)
+        let featureGraphics = collectLocalizedImages(named: "featureGraphic.png", subpath: "images", metadataFolder: appProject.androidFastlaneMetadataFolder, relativeTo: projectRoot, convention: .google)
         if !featureGraphics.isEmpty {
-            android["featureGraphic"] = featureGraphics
+            assets["featureGraphic"] = featureGraphics
         }
-
-        // Screenshots: Android/fastlane/metadata/android/{locale}/images/phoneScreenshots/
-        let screenshots = collectAndroidScreenshots(metadataFolder: appProject.androidFastlaneMetadataFolder, relativeTo: projectRoot)
+        let screenshots = collectAndroidScreenshots(metadataFolder: appProject.androidFastlaneMetadataFolder, relativeTo: projectRoot, convention: .google)
         if !screenshots.isEmpty {
-            android["screenshots"] = screenshots
+            assets["screenshots"] = screenshots
+        }
+        if !assets.isEmpty {
+            android["assets"] = assets
         }
 
         return android
@@ -298,7 +361,7 @@ The output uses Android/Play Store locale codes (e.g. "zh-CN" instead of Apple's
         return result
     }
 
-    func extractIOSPermissions(at plistURL: URL, xcstringsURL: URL?, defaultLocale: String = "en-US") throws -> [[String: Any]] {
+    func extractIOSPermissions(at plistURL: URL, xcstringsURL: URL?, defaultLocale: String = "en") throws -> [[String: Any]] {
         let data = try Data(contentsOf: plistURL)
         guard let plist = try PropertyListSerialization.propertyList(from: data, format: nil) as? [String: Any] else {
             throw error("Info.plist at \(plistURL.path) is not a valid dictionary plist")
@@ -316,7 +379,7 @@ The output uses Android/Play Store locale codes (e.g. "zh-CN" instead of Apple's
             // Merge translations from xcstrings
             if let localizations = xcstringsTranslations[key] {
                 for (locale, translation) in localizations {
-                    let normalizedLocale = Self.normalizeLocale(locale)
+                    let normalizedLocale = Self.normalizeLocale(locale, convention: .apple)
                     descriptions[normalizedLocale] = translation
                 }
             }
@@ -409,20 +472,22 @@ The output uses Android/Play Store locale codes (e.g. "zh-CN" instead of Apple's
                                    "privacy_url", "support_url", "marketing_url"]
     static let androidMetadataFiles = ["title", "short_description", "full_description"]
 
-    func parseFastlaneMetadata(folder: URL, platform: MetadataPlatform) -> [String: [String: String]] {
+    func parseFastlaneMetadata(folder: URL, platform: MetadataPlatform) -> [String: Any] {
         let fm = FileManager.default
         guard fm.fileExists(atPath: folder.path) else { return [:] }
         guard let locales = try? fm.contentsOfDirectory(atPath: folder.path) else { return [:] }
 
         let metadataFiles = platform == .ios ? Self.iosMetadataFiles : Self.androidMetadataFiles
-        var result: [String: [String: String]] = [:]
+        var stringResults: [String: [String: String]] = [:]
+        var arrayResults: [String: [String: [String]]] = [:]
 
         for locale in locales.sorted() {
             let localeDir = folder.appendingPathComponent(locale)
             var isDir: ObjCBool = false
             guard fm.fileExists(atPath: localeDir.path, isDirectory: &isDir), isDir.boolValue else { continue }
 
-            let normalizedLocale = Self.normalizeLocale(locale)
+            let convention: LocaleConvention = platform == .ios ? .apple : .google
+            let normalizedLocale = Self.normalizeLocale(locale, convention: convention)
 
             for fileName in metadataFiles {
                 let filePath = localeDir.appendingPathComponent(fileName + ".txt")
@@ -431,13 +496,22 @@ The output uses Android/Play Store locale codes (e.g. "zh-CN" instead of Apple's
                       !content.isEmpty else { continue }
 
                 let key = Self.normalizeMetadataKey(fileName, platform: platform)
-                if result[key] == nil {
-                    result[key] = [:]
+
+                // Keywords are split into arrays
+                if key == "keywords" {
+                    let keywords = content.components(separatedBy: ",").map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }
+                    if arrayResults[key] == nil { arrayResults[key] = [:] }
+                    arrayResults[key]?[normalizedLocale] = keywords
+                } else {
+                    if stringResults[key] == nil { stringResults[key] = [:] }
+                    stringResults[key]?[normalizedLocale] = content
                 }
-                result[key]?[normalizedLocale] = content
             }
         }
 
+        var result: [String: Any] = [:]
+        for (key, value) in stringResults { result[key] = value }
+        for (key, value) in arrayResults { result[key] = value }
         return result
     }
 
@@ -456,58 +530,193 @@ The output uses Android/Play Store locale codes (e.g. "zh-CN" instead of Apple's
 
     // MARK: - Locale Normalization
 
-    /// Normalize Apple/iOS locale codes to Android/Play Store codes.
-    /// Apple uses codes like "zh-Hans", "zh-Hant", "pt-BR", "ar-SA".
-    /// Android uses codes like "zh-CN", "zh-TW", "pt-BR", "ar".
-    /// See: https://support.google.com/googleplay/android-developer/answer/9844778
-    static func normalizeLocale(_ locale: String) -> String {
-        // Apple script subtag → Android region subtag mappings
-        let scriptMappings: [String: String] = [
-            "zh-Hans": "zh-CN",
-            "zh-Hant": "zh-TW",
-            "zh-Hant-TW": "zh-TW",
-            "zh-Hant-HK": "zh-HK",
+    /// The platform convention for locale codes in fastlane metadata directories.
+    enum LocaleConvention {
+        /// Apple App Store locale codes (e.g. "ar-SA", "zh-Hans", "en-US").
+        /// Reference: https://docs.fastlane.tools/actions/appstore/#available-language-codes
+        case apple
+        /// Google Play Store locale codes (e.g. "ar", "zh-CN", "en-US").
+        /// Reference: https://support.google.com/googleplay/android-developer/answer/9844778
+        case google
+    }
+
+    /// Normalize a platform-specific locale code to BCP 47 canonical form.
+    ///
+    /// - Parameters:
+    ///   - locale: The locale code from the platform's fastlane metadata directory.
+    ///   - convention: Which platform's naming convention the locale uses.
+    /// - Returns: The canonical BCP 47 locale code.
+    ///
+    /// To update the mapping tables when Apple or Google add or change their language codes:
+    /// 1. Check the platform reference URL listed in each table's doc comment.
+    /// 2. Add the new code to the appropriate `normalizeLocaleApple()` or `normalizeLocaleGoogle()` table.
+    /// 3. Map it to the BCP 47 canonical form (typically the shortest unambiguous subtag).
+    /// 4. Update the test cases in `testLocaleNormalization()` to cover the new code.
+    static func normalizeLocale(_ locale: String, convention: LocaleConvention) -> String {
+        switch convention {
+        case .apple:  return normalizeLocaleApple(locale)
+        case .google: return normalizeLocaleGoogle(locale)
+        }
+    }
+
+    /// Normalize an Apple App Store locale code to BCP 47 canonical form.
+    ///
+    /// Apple locale codes used in fastlane metadata directories:
+    /// ar-SA, ca, cs, da, de-DE, el, en-AU, en-CA, en-GB, en-US, es-ES, es-MX,
+    /// fi, fr-CA, fr-FR, he, hi, hr, hu, id, it, ja, ko, ms, nl-NL, no, pl,
+    /// pt-BR, pt-PT, ro, ru, sk, sv, th, tr, uk, vi, zh-Hans, zh-Hant
+    ///
+    /// Source: https://developer.apple.com/documentation/appstoreconnectapi/managing-metadata-in-your-app-by-using-locale-shortcodes and https://docs.fastlane.tools/actions/appstore/#available-language-codes
+    static func normalizeLocaleApple(_ locale: String) -> String {
+        let appleToCanonical: [String: String] = [
+            "ar-SA":   "ar",       // Arabic (Saudi Arabia) → Arabic
+            "ca":      "ca",       // Catalan
+            "cs":      "cs",       // Czech
+            "da":      "da",       // Danish
+            "de-DE":   "de",       // German (Germany) → German
+            "el":      "el",       // Greek
+            "en-AU":   "en-AU",    // English (Australia)
+            "en-CA":   "en-CA",    // English (Canada)
+            "en-GB":   "en-GB",    // English (UK)
+            "en-US":   "en",       // English (US) → English (default)
+            "es-ES":   "es",       // Spanish (Spain) → Spanish
+            "es-MX":   "es-MX",    // Spanish (Mexico)
+            "fi":      "fi",       // Finnish
+            "fr-CA":   "fr-CA",    // French (Canada)
+            "fr-FR":   "fr",       // French (France) → French
+            "he":      "he",       // Hebrew
+            "hi":      "hi",       // Hindi
+            "hr":      "hr",       // Croatian
+            "hu":      "hu",       // Hungarian
+            "id":      "id",       // Indonesian
+            "it":      "it",       // Italian
+            "ja":      "ja",       // Japanese
+            "ko":      "ko",       // Korean
+            "ms":      "ms",       // Malay
+            "nl-NL":   "nl",       // Dutch (Netherlands) → Dutch
+            "no":      "no",       // Norwegian
+            "pl":      "pl",       // Polish
+            "pt-BR":   "pt-BR",    // Portuguese (Brazil)
+            "pt-PT":   "pt",       // Portuguese (Portugal) → Portuguese
+            "ro":      "ro",       // Romanian
+            "ru":      "ru",       // Russian
+            "sk":      "sk",       // Slovak
+            "sv":      "sv",       // Swedish
+            "th":      "th",       // Thai
+            "tr":      "tr",       // Turkish
+            "uk":      "uk",       // Ukrainian
+            "vi":      "vi",       // Vietnamese
+            "zh-Hans": "zh-Hans",  // Chinese Simplified
+            "zh-Hant": "zh-Hant",  // Chinese Traditional
         ]
 
-        if let mapped = scriptMappings[locale] {
-            return mapped
-        }
+        return appleToCanonical[locale] ?? locale
+    }
 
-        // Apple sometimes uses 3-letter region subtags that Android doesn't use
-        let simplifyMappings: [String: String] = [
-            "ar-SA": "ar",
-            "ca-ES": "ca",
-            "cs-CZ": "cs",
-            "da-DK": "da",
-            "el-GR": "el",
-            "fi-FI": "fi",
-            "he-IL": "iw-IL",  // Android uses "iw" for Hebrew
-            "hi-IN": "hi-IN",
-            "hr-HR": "hr",
-            "hu-HU": "hu",
-            "id-ID": "id",
-            "ja-JP": "ja-JP",
-            "ko-KR": "ko-KR",
-            "ms-MY": "ms-MY",
-            "nb-NO": "no-NO",  // Norwegian Bokmal → "no" on Android
-            "nl-NL": "nl-NL",
-            "pl-PL": "pl-PL",
-            "pt-PT": "pt-PT",
-            "ro-RO": "ro",
-            "ru-RU": "ru-RU",
-            "sk-SK": "sk",
-            "sv-SE": "sv-SE",
-            "th-TH": "th",
-            "tr-TR": "tr-TR",
-            "uk-UA": "uk",
-            "vi-VN": "vi",
+    /// Normalize a Google Play Store locale code to BCP 47 canonical form.
+    ///
+    /// Google locale codes used in fastlane metadata directories:
+    /// af, sq, am, ar, hy-AM, az-AZ, bn-BD, eu-ES, be, bg, my-MM, ca, zh-HK,
+    /// zh-CN, zh-TW, hr, cs-CZ, da-DK, nl-NL, en-AU, en-CA, en-US, en-GB,
+    /// en-IN, en-SG, en-ZA, et, fil, fi-FI, fr-CA, fr-FR, gl-ES, ka-GE, de-DE,
+    /// el-GR, gu, iw-IL, hi-IN, hu-HU, is-IS, id, it-IT, ja-JP, kn-IN, kk,
+    /// km-KH, ko-KR, ky-KG, lo-LA, lv, lt, mk-MK, ms-MY, ms, ml-IN, mr-IN,
+    /// mn-MN, ne-NP, no-NO, fa, fa-AE, fa-AF, fa-IR, pl-PL, pt-BR, pt-PT, pa,
+    /// ro, rm, ru-RU, sr, si-LK, sk, sl, es-419, es-ES, es-US, sw, sv-SE,
+    /// ta-IN, te-IN, th, tr-TR, uk, ur, vi
+    ///
+    /// Source: https://support.google.com/googleplay/android-developer/answer/9844778
+    static func normalizeLocaleGoogle(_ locale: String) -> String {
+        let googleToCanonical: [String: String] = [
+            "af":      "af",       // Afrikaans
+            "am":      "am",       // Amharic
+            "ar":      "ar",       // Arabic
+            "az-AZ":   "az",       // Azerbaijani
+            "be":      "be",       // Belarusian
+            "bg":      "bg",       // Bulgarian
+            "bn-BD":   "bn",       // Bengali
+            "ca":      "ca",       // Catalan
+            "cs-CZ":   "cs",       // Czech
+            "da-DK":   "da",       // Danish
+            "de-DE":   "de",       // German
+            "el-GR":   "el",       // Greek
+            "en-AU":   "en-AU",    // English (Australia)
+            "en-CA":   "en-CA",    // English (Canada)
+            "en-GB":   "en-GB",    // English (UK)
+            "en-IN":   "en-IN",    // English (India)
+            "en-SG":   "en-SG",    // English (Singapore)
+            "en-US":   "en",       // English (US) → English (default)
+            "en-ZA":   "en-ZA",    // English (South Africa)
+            "es-419":  "es-419",   // Spanish (Latin America)
+            "es-ES":   "es",       // Spanish (Spain) → Spanish
+            "es-US":   "es-US",    // Spanish (US)
+            "et":      "et",       // Estonian
+            "eu-ES":   "eu",       // Basque
+            "fa-AE":   "fa",       // Persian (UAE) → Persian
+            "fa-AF":   "fa",       // Persian (Afghanistan) → Persian
+            "fa-IR":   "fa",       // Persian (Iran) → Persian
+            "fa":      "fa",       // Persian
+            "fi-FI":   "fi",       // Finnish
+            "fil":     "fil",      // Filipino
+            "fr-CA":   "fr-CA",    // French (Canada)
+            "fr-FR":   "fr",       // French (France) → French
+            "gl-ES":   "gl",       // Galician
+            "gu":      "gu",       // Gujarati
+            "hi-IN":   "hi",       // Hindi
+            "hr":      "hr",       // Croatian
+            "hu-HU":   "hu",       // Hungarian
+            "hy-AM":   "hy",       // Armenian
+            "id":      "id",       // Indonesian
+            "is-IS":   "is",       // Icelandic
+            "it-IT":   "it",       // Italian
+            "iw-IL":   "he",       // Hebrew (legacy "iw" code)
+            "ja-JP":   "ja",       // Japanese
+            "ka-GE":   "ka",       // Georgian
+            "kk":      "kk",       // Kazakh
+            "km-KH":   "km",       // Khmer
+            "kn-IN":   "kn",       // Kannada
+            "ko-KR":   "ko",       // Korean
+            "ky-KG":   "ky",       // Kyrgyz
+            "lo-LA":   "lo",       // Lao
+            "lt":      "lt",       // Lithuanian
+            "lv":      "lv",       // Latvian
+            "mk-MK":   "mk",       // Macedonian
+            "ml-IN":   "ml",       // Malayalam
+            "mn-MN":   "mn",       // Mongolian
+            "mr-IN":   "mr",       // Marathi
+            "ms-MY":   "ms",       // Malay (Malaysia) → Malay
+            "ms":      "ms",       // Malay
+            "my-MM":   "my",       // Burmese
+            "ne-NP":   "ne",       // Nepali
+            "nl-NL":   "nl",       // Dutch
+            "no-NO":   "no",       // Norwegian
+            "pa":      "pa",       // Punjabi
+            "pl-PL":   "pl",       // Polish
+            "pt-BR":   "pt-BR",    // Portuguese (Brazil)
+            "pt-PT":   "pt",       // Portuguese (Portugal) → Portuguese
+            "rm":      "rm",       // Romansh
+            "ro":      "ro",       // Romanian
+            "ru-RU":   "ru",       // Russian
+            "si-LK":   "si",       // Sinhala
+            "sk":      "sk",       // Slovak
+            "sl":      "sl",       // Slovenian
+            "sq":      "sq",       // Albanian
+            "sr":      "sr",       // Serbian
+            "sv-SE":   "sv",       // Swedish
+            "sw":      "sw",       // Swahili
+            "ta-IN":   "ta",       // Tamil
+            "te-IN":   "te",       // Telugu
+            "th":      "th",       // Thai
+            "tr-TR":   "tr",       // Turkish
+            "uk":      "uk",       // Ukrainian
+            "ur":      "ur",       // Urdu
+            "vi":      "vi",       // Vietnamese
+            "zh-CN":   "zh-Hans",  // Chinese (China) → Chinese Simplified
+            "zh-HK":   "zh-Hant",  // Chinese (Hong Kong) → Chinese Traditional
+            "zh-TW":   "zh-Hant",  // Chinese (Taiwan) → Chinese Traditional
         ]
 
-        if let mapped = simplifyMappings[locale] {
-            return mapped
-        }
-
-        return locale
+        return googleToCanonical[locale] ?? locale
     }
 }
 
@@ -597,7 +806,7 @@ extension MetaIndexCommand {
     /// Collect a single named image file across locale directories.
     /// Returns a locale → ImageResourceRef dictionary.
     /// Path: {metadataFolder}/{locale}/{subpath}/{fileName}
-    func collectLocalizedImages(named fileName: String, subpath: String, metadataFolder: URL, relativeTo root: URL) -> [String: [String: Any]] {
+    func collectLocalizedImages(named fileName: String, subpath: String, metadataFolder: URL, relativeTo root: URL, convention: MetaIndexCommand.LocaleConvention) -> [String: [String: Any]] {
         let fm = FileManager.default
         guard fm.fileExists(atPath: metadataFolder.path) else { return [:] }
         guard let locales = try? fm.contentsOfDirectory(atPath: metadataFolder.path) else { return [:] }
@@ -609,7 +818,7 @@ extension MetaIndexCommand {
                 .appendingPathComponent(fileName)
             if fm.fileExists(atPath: imageURL.path),
                let ref = ImageResourceRef.from(pngURL: imageURL, relativeTo: root) {
-                result[Self.normalizeLocale(locale)] = ref.asDictionary
+                result[MetaIndexCommand.normalizeLocale(locale, convention: convention)] = ref.asDictionary
             }
         }
         return result
@@ -617,8 +826,8 @@ extension MetaIndexCommand {
 
     // MARK: - Screenshot Discovery
 
-    /// Collect iOS screenshots from Darwin/fastlane/screenshots/{locale}/*.png
-    func collectLocalizedScreenshots(folder: URL, relativeTo root: URL) -> [String: [[String: Any]]] {
+    /// Collect localized screenshots from a fastlane screenshots directory.
+    func collectLocalizedScreenshots(folder: URL, relativeTo root: URL, convention: MetaIndexCommand.LocaleConvention) -> [String: [[String: Any]]] {
         let fm = FileManager.default
         guard fm.fileExists(atPath: folder.path) else { return [:] }
         guard let locales = try? fm.contentsOfDirectory(atPath: folder.path) else { return [:] }
@@ -630,7 +839,7 @@ extension MetaIndexCommand {
             var isDir: ObjCBool = false
             guard fm.fileExists(atPath: localeDir.path, isDirectory: &isDir), isDir.boolValue else { continue }
 
-            let normalizedLocale = Self.normalizeLocale(locale)
+            let normalizedLocale = MetaIndexCommand.normalizeLocale(locale, convention: convention)
             var refs: [[String: Any]] = []
 
             if let files = try? fm.contentsOfDirectory(atPath: localeDir.path) {
@@ -651,7 +860,7 @@ extension MetaIndexCommand {
     }
 
     /// Collect Android screenshots from Android/fastlane/metadata/android/{locale}/images/phoneScreenshots/*.png
-    func collectAndroidScreenshots(metadataFolder: URL, relativeTo root: URL) -> [String: [[String: Any]]] {
+    func collectAndroidScreenshots(metadataFolder: URL, relativeTo root: URL, convention: MetaIndexCommand.LocaleConvention) -> [String: [[String: Any]]] {
         let fm = FileManager.default
         guard fm.fileExists(atPath: metadataFolder.path) else { return [:] }
         guard let locales = try? fm.contentsOfDirectory(atPath: metadataFolder.path) else { return [:] }
@@ -664,7 +873,7 @@ extension MetaIndexCommand {
             var isDir: ObjCBool = false
             guard fm.fileExists(atPath: screenshotDir.path, isDirectory: &isDir), isDir.boolValue else { continue }
 
-            let normalizedLocale = Self.normalizeLocale(locale)
+            let normalizedLocale = MetaIndexCommand.normalizeLocale(locale, convention: convention)
             var refs: [[String: Any]] = []
 
             if let files = try? fm.contentsOfDirectory(atPath: screenshotDir.path) {
@@ -732,23 +941,87 @@ enum AppIndexGenerator {
             #endif
         }
 
+        // Extract link-type keys from platform dicts into a top-level "links" dictionary.
+        let linkKeyMapping: [String: String] = [
+            "privacyURL": "privacy",
+            "supportURL": "support",
+            "marketingURL": "marketing",
+        ]
+
+        var links: [String: Any] = [:]
+        for (metaKey, linkKey) in linkKeyMapping {
+            var merged: [String: String] = [:]
+            if let iosLocales = iosDict.removeValue(forKey: metaKey) as? [String: String] {
+                for (locale, url) in iosLocales { merged[locale] = url }
+            }
+            if let androidLocales = androidDict.removeValue(forKey: metaKey) as? [String: String] {
+                for (locale, url) in androidLocales {
+                    if merged[locale] == nil { merged[locale] = url }
+                }
+            }
+            if !merged.isEmpty {
+                links[linkKey] = collapseToDefault(merged)
+            }
+        }
+
+        // Promote shared metadata fields: if a field appears in only one platform,
+        // or in both platforms with identical content, move it to the app level.
+        let promotableKeys = ["title", "subtitle", "description", "keywords", "releaseNotes"]
         var appDict: [String: Any] = [
             "name": productName,
-            "platforms": [
-                "ios": iosDict,
-                "android": androidDict,
-            ] as [String: Any],
         ]
+
+        for key in promotableKeys {
+            let iosVal = iosDict[key]
+            let androidVal = androidDict[key]
+
+            var promoted: Any?
+            if let iosVal = iosVal, let androidVal = androidVal {
+                // Both platforms have this key — promote only if identical
+                if let iosData = try? JSONSerialization.data(withJSONObject: iosVal, options: .sortedKeys),
+                   let androidData = try? JSONSerialization.data(withJSONObject: androidVal, options: .sortedKeys),
+                   iosData == androidData {
+                    promoted = iosVal
+                    iosDict.removeValue(forKey: key)
+                    androidDict.removeValue(forKey: key)
+                }
+            } else if let onlyVal = iosVal ?? androidVal {
+                // Only one platform has this key — promote it
+                promoted = onlyVal
+                iosDict.removeValue(forKey: key)
+                androidDict.removeValue(forKey: key)
+            }
+
+            // Collapse localized dictionaries when all values are identical
+            if let dict = promoted as? [String: String] {
+                appDict[key] = collapseToDefault(dict)
+            } else if let promoted = promoted {
+                appDict[key] = promoted
+            }
+        }
+
+        appDict["platforms"] = [
+            "ios": iosDict,
+            "android": androidDict,
+        ] as [String: Any]
+
+        if !links.isEmpty {
+            appDict["links"] = links
+        }
 
         // Add source repository info from .git/config
         if let originURL = cmd.parseGitOriginURL(projectRoot: projectURL) {
             let browseURL = MetaIndexCommand.gitRemoteToHTTPS(originURL)
-            var source: [String: String] = [
+            var source: [String: Any] = [
                 "url": originURL,
-            ]
+            ] as [String: Any]
             if browseURL.contains("github.com") {
                 source["release"] = "\(browseURL)/releases/tag/\(version)/"
                 source["assets"] = "https://raw.githubusercontent.com/\(browseURL.components(separatedBy: "github.com/").last ?? "")/refs/tags/\(version)/"
+            }
+            // Detect license from LICENSE file
+            if let license = cmd.detectLicense(projectRoot: projectURL) {
+                source["license"] = license
             }
             appDict["source"] = source
         }
@@ -763,6 +1036,17 @@ enum AppIndexGenerator {
             "generator": "skip/\(skipVersion)",
             "apps": [appDict],
         ] as [String: Any]
+    }
+
+    /// Collapse a localized dictionary when all values are identical.
+    /// When every locale points to the same value, returns `{ "en": value }`
+    /// instead of repeating the same URL for every locale.
+    private static func collapseToDefault(_ localized: [String: String]) -> [String: String] {
+        let uniqueValues = Set(localized.values)
+        if uniqueValues.count == 1, let value = uniqueValues.first {
+            return ["en": value]
+        }
+        return localized
     }
 
     /// Write the app index JSON to a file and optionally create a symlink in the app Resources folder.
