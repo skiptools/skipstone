@@ -47,7 +47,7 @@ struct InfoCommand: SingleStreamingCommand {
         }
     }
 
-    static var configuration = CommandConfiguration(commandName: "info",
+    static let configuration = CommandConfiguration(commandName: "info",
                                                            abstract: "Print system information",
                                                            shouldDisplay: false)
 

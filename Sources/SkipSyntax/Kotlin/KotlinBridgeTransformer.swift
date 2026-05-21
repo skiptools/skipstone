@@ -7,7 +7,7 @@ import Foundation
 /// Available bridge options.
 ///
 /// - Seealso: `JConvertibleOptions` in `SkipBridge`.
-public struct KotlinBridgeOptions: OptionSet {
+public struct KotlinBridgeOptions: OptionSet, Sendable {
     public static let kotlincompat = KotlinBridgeOptions(rawValue: 1 << 0)
 
     public let rawValue: Int
@@ -33,7 +33,7 @@ public struct KotlinBridgeOptions: OptionSet {
 
 /// Generate bridging code and transformations.
 public final class KotlinBridgeTransformer: KotlinTransformer {
-    public static var testSkipAndroidBridge = false // For testing
+    nonisolated(unsafe) public static var testSkipAndroidBridge = false // For testing
 
     private let options: KotlinBridgeOptions
 

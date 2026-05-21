@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 /// Indentation helper.
-public struct Indentation: ExpressibleByIntegerLiteral, CustomStringConvertible {
+public struct Indentation: ExpressibleByIntegerLiteral, CustomStringConvertible, Sendable {
     public static let zero = Indentation(level: 0)
 
     public let level: Int

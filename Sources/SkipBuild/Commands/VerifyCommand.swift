@@ -11,7 +11,7 @@ import TSCBasic
 struct VerifyCommand: SkipCommand, StreamingCommand, ProjectCommand, ToolOptionsCommand {
     typealias Output = MessageBlock
 
-    static var configuration = CommandConfiguration(
+    static let configuration = CommandConfiguration(
         commandName: "verify",
         abstract: "Verify Skip project",
         usage: """

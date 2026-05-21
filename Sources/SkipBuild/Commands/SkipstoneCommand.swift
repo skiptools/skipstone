@@ -13,7 +13,7 @@ let skipcodeExtension = ".skipcode.json"
 
 /// The command executed by the Skip plugin that will perform all the actions to transform a SwiftPM module into a Gradle project, including transpiling source code, building native bridges, and processing resources.
 struct SkipstoneCommand: BuildPluginOptionsCommand, StreamingCommand {
-    static var configuration = CommandConfiguration(commandName: "skipstone", abstract: "Convert Swift project to Gradle", shouldDisplay: false, aliases: ["transpile"])
+    static let configuration = CommandConfiguration(commandName: "skipstone", abstract: "Convert Swift project to Gradle", shouldDisplay: false, aliases: ["transpile"])
 
     /// The `ENABLE_PREVIEW` parameter specifies whether we are building for previews
     static let enablePreviews = ProcessInfo.processInfo.environment["ENABLE_PREVIEWS"] == "YES"

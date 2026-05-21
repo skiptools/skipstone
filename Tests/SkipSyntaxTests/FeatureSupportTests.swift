@@ -230,7 +230,7 @@ final class FeatureSupportTests: XCTestCase {
         }
 
         struct MaterialTheme {
-            static var typography = Typography()
+            nonisolated(unsafe) static var typography = Typography()
 
             struct Typography {
                 let bodyLarge: Value = Value()

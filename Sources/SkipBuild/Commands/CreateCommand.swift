@@ -12,7 +12,7 @@ import FoundationNetworking
 
 @available(macOS 13, iOS 16, tvOS 16, watchOS 8, *)
 struct CreateCommand: StreamingCommand, ToolchainOptionsCommand, CreateOptionsCommand {
-    static var configuration = CommandConfiguration(
+    static let configuration = CommandConfiguration(
         commandName: "create",
         abstract: "Create a new Skip project interactively",
         usage: """
@@ -54,7 +54,7 @@ struct CreateCommand: StreamingCommand, ToolchainOptionsCommand, CreateOptionsCo
                 print(msg)
             } else {
                 print(msg, terminator: "")
-                stdoutStream.flush()
+                skipBuildStdoutStream.flush()
             }
         }
 

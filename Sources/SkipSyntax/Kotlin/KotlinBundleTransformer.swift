@@ -7,7 +7,7 @@ public final class KotlinBundleTransformer: KotlinTransformer {
     public static let supportFileName = "Bundle_Support.swift"
 
     private var needsModuleBundle = false
-    public static var testSkipAndroidBridge = false // For testing
+    nonisolated(unsafe) public static var testSkipAndroidBridge = false // For testing
 
     public init() {
     }

@@ -10,7 +10,7 @@ import SkipSyntax
 struct WelcomeCommand: SkipCommand, SingleStreamingCommand {
     typealias Output = WelcomeInfo?
 
-    static var configuration = CommandConfiguration(
+    static let configuration = CommandConfiguration(
         commandName: "welcome",
         abstract: "Show the skip welcome message",
         shouldDisplay: false)

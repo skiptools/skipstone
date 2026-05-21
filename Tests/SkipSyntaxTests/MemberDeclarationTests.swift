@@ -2169,7 +2169,7 @@ final class MemberDeclarationTests: XCTestCase {
     }
 }
 
-var sideEffectOrdering: [String] = []
+nonisolated(unsafe) var sideEffectOrdering: [String] = []
 
 private struct MemberDeclarationTestsSideEffectsStruct {
     var i = 0 {

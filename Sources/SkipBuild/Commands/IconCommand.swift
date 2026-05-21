@@ -11,7 +11,7 @@ import struct UniformTypeIdentifiers.UTType
 
 @available(macOS 13, iOS 16, tvOS 16, watchOS 8, *)
 struct IconCommand: MessageCommand, StreamingCommand {
-    static var configuration = CommandConfiguration(
+    static let configuration = CommandConfiguration(
         commandName: "icon",
         abstract: "Create and manage app icons",
         usage: """
@@ -649,13 +649,13 @@ extension CGContext {
 @objc
 class CGSVGDocument: NSObject { }
 
-private var CGSVGDocumentRetain: (@convention(c) (CGSVGDocument?) -> Unmanaged<CGSVGDocument>?) = loadFunction("CGSVGDocumentRetain")
-private var CGSVGDocumentRelease: (@convention(c) (CGSVGDocument?) -> Void) = loadFunction("CGSVGDocumentRelease")
-private var CGSVGDocumentCreateFromData: (@convention(c) (CFData?, CFDictionary?) -> Unmanaged<CGSVGDocument>?) = loadFunction("CGSVGDocumentCreateFromData")
-private var CGContextDrawSVGDocument: (@convention(c) (CGContext?, CGSVGDocument?) -> Void) = loadFunction("CGContextDrawSVGDocument")
-private var CGSVGDocumentGetCanvasSize: (@convention(c) (CGSVGDocument?) -> CGSize) = loadFunction("CGSVGDocumentGetCanvasSize")
+nonisolated(unsafe) private var CGSVGDocumentRetain: (@convention(c) (CGSVGDocument?) -> Unmanaged<CGSVGDocument>?) = loadFunction("CGSVGDocumentRetain")
+nonisolated(unsafe) private var CGSVGDocumentRelease: (@convention(c) (CGSVGDocument?) -> Void) = loadFunction("CGSVGDocumentRelease")
+nonisolated(unsafe) private var CGSVGDocumentCreateFromData: (@convention(c) (CFData?, CFDictionary?) -> Unmanaged<CGSVGDocument>?) = loadFunction("CGSVGDocumentCreateFromData")
+nonisolated(unsafe) private var CGContextDrawSVGDocument: (@convention(c) (CGContext?, CGSVGDocument?) -> Void) = loadFunction("CGContextDrawSVGDocument")
+nonisolated(unsafe) private var CGSVGDocumentGetCanvasSize: (@convention(c) (CGSVGDocument?) -> CGSize) = loadFunction("CGSVGDocumentGetCanvasSize")
 
-private let CoreSVG = dlopen("/System/Library/PrivateFrameworks/CoreSVG.framework/CoreSVG", RTLD_NOW)
+nonisolated(unsafe) private let CoreSVG = dlopen("/System/Library/PrivateFrameworks/CoreSVG.framework/CoreSVG", RTLD_NOW)
 
 private func loadFunction<T>(_ name: String) -> T {
     unsafeBitCast(dlsym(CoreSVG, name), to: T.self)

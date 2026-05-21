@@ -6,7 +6,7 @@ import Foundation
 import SwiftSyntax
 
 /// Swift or Kotlin source code file.
-public struct Source : Encodable {
+public struct Source : Encodable, Sendable {
     public let file: FilePath
     public let content: String
 
@@ -28,7 +28,7 @@ public struct Source : Encodable {
         self.lines = lines
     }
 
-    struct SourceLine : Encodable {
+    struct SourceLine : Encodable, Sendable {
         let offset: Int
         let line: String
     }
@@ -76,7 +76,7 @@ public struct Source : Encodable {
     /// A Swift source file.
     ///
     /// - Note: `Codable` for use in `CodebaseInfo`.
-    public struct FilePath: Hashable, Codable {
+    public struct FilePath: Hashable, Codable, Sendable {
         public private(set) var path: String
         /// The suffix of a file that indicates it is a bridging file
         public static let bridgeFileSuffix = "_Bridge.swift"
@@ -138,7 +138,7 @@ public struct Source : Encodable {
     }
 
     /// A line and column-based range in the source, appropriate for Xcode reporting.
-    public struct Range: Equatable, Codable {
+    public struct Range: Equatable, Codable, Sendable {
         public let start: Position
         public let end: Position
 
@@ -150,7 +150,7 @@ public struct Source : Encodable {
 
     /// A line and column-based position in the source, appropriate for Xcode reporting.
     /// Line and column numbers start with 1 rather than 0.
-    public struct Position: Equatable, Comparable, Codable {
+    public struct Position: Equatable, Comparable, Codable, Sendable {
         public let line: Int
         public let column: Int
 

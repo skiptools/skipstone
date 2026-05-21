@@ -12,7 +12,7 @@ import FoundationNetworking
 
 @available(macOS 13, iOS 16, tvOS 16, watchOS 8, *)
 struct InitCommand: MessageCommand, CreateOptionsCommand, ProjectCommand, ToolOptionsCommand, BuildOptionsCommand, StreamingCommand {
-    static var configuration = CommandConfiguration(
+    static let configuration = CommandConfiguration(
         commandName: "init",
         abstract: "Initialize a new Skip project",
         usage: """

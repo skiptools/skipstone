@@ -133,7 +133,7 @@ enum AsyncDefaultIsolationPolicy {
 /// @Attributes on a declaration.
 ///
 /// - Note: `Codable` for use in `CodebaseInfo`.
-struct Attributes: Hashable, PrettyPrintable, Codable {
+struct Attributes: Hashable, PrettyPrintable, Codable, Sendable {
     var attributes: [Attribute]
 
     init(attributes: [Attribute] = []) {

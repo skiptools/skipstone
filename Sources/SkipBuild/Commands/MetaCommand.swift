@@ -23,7 +23,7 @@ fileprivate let metaCommandEnabled = false
 
 @available(macOS 13, iOS 16, tvOS 16, watchOS 8, *)
 struct MetaCommand: AsyncParsableCommand {
-    static var configuration = CommandConfiguration(
+    static let configuration = CommandConfiguration(
         commandName: "meta",
         abstract: "App metadata and SBOM tools",
         discussion: """
@@ -40,7 +40,7 @@ struct MetaCommand: AsyncParsableCommand {
 
 @available(macOS 13, iOS 16, tvOS 16, watchOS 8, *)
 struct MetaIndexCommand: MessageCommand, ToolOptionsCommand {
-    static var configuration = CommandConfiguration(
+    static let configuration = CommandConfiguration(
         commandName: "index",
         abstract: "Generate a JSON metadata index for the app",
         usage: """

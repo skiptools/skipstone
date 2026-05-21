@@ -8,7 +8,7 @@ import TSCBasic
 import SkipSyntax
 
 struct DumpSkipCommand: AsyncParsableCommand {
-    static var configuration = CommandConfiguration(commandName: "ast-skip", abstract: "Print the Skip AST", shouldDisplay: false)
+    static let configuration = CommandConfiguration(commandName: "ast-skip", abstract: "Print the Skip AST", shouldDisplay: false)
 
     @Option(name: [.customShort("S")], help: ArgumentHelp("Preprocessor symbols", valueName: "file"))
     var symbols: [String] = []
