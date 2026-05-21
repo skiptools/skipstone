@@ -28,7 +28,7 @@ public struct Source : Encodable, Sendable {
         self.lines = lines
     }
 
-    struct SourceLine : Encodable {
+    struct SourceLine : Encodable, Sendable {
         let offset: Int
         let line: String
     }
@@ -138,7 +138,7 @@ public struct Source : Encodable, Sendable {
     }
 
     /// A line and column-based range in the source, appropriate for Xcode reporting.
-    public struct Range: Equatable, Codable {
+    public struct Range: Equatable, Codable, Sendable {
         public let start: Position
         public let end: Position
 
@@ -150,7 +150,7 @@ public struct Source : Encodable, Sendable {
 
     /// A line and column-based position in the source, appropriate for Xcode reporting.
     /// Line and column numbers start with 1 rather than 0.
-    public struct Position: Equatable, Comparable, Codable {
+    public struct Position: Equatable, Comparable, Codable, Sendable {
         public let line: Int
         public let column: Int
 

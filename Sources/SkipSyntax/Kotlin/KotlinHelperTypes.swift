@@ -301,9 +301,9 @@ extension Attributes {
 }
 
 extension Attribute {
-    nonisolated(unsafe) static let bridgeIgnored = Attribute(signature: .named("BridgeIgnored", []))
-    nonisolated(unsafe) static let bridgeToKotlin = Attribute(signature: .named("BridgeToKotlin", []))
-    nonisolated(unsafe) static let bridgeToSwift = Attribute(signature: .named("BridgeToSwift", []))
+    static let bridgeIgnored = Attribute(signature: .named("BridgeIgnored", []))
+    static let bridgeToKotlin = Attribute(signature: .named("BridgeToKotlin", []))
+    static let bridgeToSwift = Attribute(signature: .named("BridgeToSwift", []))
 
     func append(to output: OutputGenerator, indentation: Indentation) {
         switch kind {
