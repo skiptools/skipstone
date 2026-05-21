@@ -11,7 +11,7 @@ import TSCBasic
 /// It is means to be run from an app's settings.gradle.kts to ensure that the plugin is always available.
 @available(macOS 13, iOS 16, tvOS 16, watchOS 8, *)
 struct PluginCommand: MessageCommand, ToolOptionsCommand {
-    static var configuration = CommandConfiguration(
+    static let configuration = CommandConfiguration(
         commandName: "plugin",
         abstract: "Set up the Skip gradle plugin",
         shouldDisplay: false)

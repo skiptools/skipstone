@@ -11,7 +11,7 @@ import SkipSyntax
 fileprivate let codebaseThresholdSize = 1_000
 
 struct SnippetCommand: SnippetOptionsCommand, StreamingCommand {
-    static var configuration = CommandConfiguration(commandName: "snippet", abstract: "Transpile a snippet of Swift to Kotlin", shouldDisplay: false)
+    static let configuration = CommandConfiguration(commandName: "snippet", abstract: "Transpile a snippet of Swift to Kotlin", shouldDisplay: false)
 
     @OptionGroup(title: "Snippet Options")
     var snippetOptions: SnippetOptions

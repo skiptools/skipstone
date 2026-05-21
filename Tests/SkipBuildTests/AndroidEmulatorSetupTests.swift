@@ -14,7 +14,7 @@ import ArgumentParser
 /// Note: To create an instance, use `try TestMessageCommand.parse([])` in your test.
 @available(macOS 13, iOS 16, tvOS 16, watchOS 8, *)
 struct TestMessageCommand: MessageCommand, ToolOptionsCommand {
-    static var configuration = CommandConfiguration(
+    static let configuration = CommandConfiguration(
         commandName: "test-message-command",
         abstract: "Test command for validators",
         shouldDisplay: false

@@ -22,7 +22,7 @@ fileprivate let sbomCommandEnabled = false
 
 @available(macOS 13, iOS 16, tvOS 16, watchOS 8, *)
 struct SBOMCommand: AsyncParsableCommand {
-    static var configuration = CommandConfiguration(
+    static let configuration = CommandConfiguration(
         commandName: "sbom",
         abstract: "Generate and validate SPDX SBOM files for iOS and Android",
         discussion: """
@@ -41,7 +41,7 @@ struct SBOMCommand: AsyncParsableCommand {
 
 @available(macOS 13, iOS 16, tvOS 16, watchOS 8, *)
 struct SBOMCreateCommand: MessageCommand, ToolOptionsCommand {
-    static var configuration = CommandConfiguration(
+    static let configuration = CommandConfiguration(
         commandName: "create",
         abstract: "Generate SPDX SBOM files for iOS and Android",
         usage: """
@@ -150,7 +150,7 @@ For Android, the spdx-gradle-plugin is used to analyze Gradle dependencies.
 
 @available(macOS 13, iOS 16, tvOS 16, watchOS 8, *)
 struct SBOMValidateCommand: MessageCommand, ToolOptionsCommand {
-    static var configuration = CommandConfiguration(
+    static let configuration = CommandConfiguration(
         commandName: "validate",
         abstract: "Validate existing SBOM files against the current project state",
         usage: """
@@ -347,7 +347,7 @@ that have been added, removed, or changed version.
 
 @available(macOS 13, iOS 16, tvOS 16, watchOS 8, *)
 struct SBOMVerifyCommand: MessageCommand, ToolOptionsCommand {
-    static var configuration = CommandConfiguration(
+    static let configuration = CommandConfiguration(
         commandName: "verify",
         abstract: "Verify SBOM dependency licenses against a policy",
         usage: """

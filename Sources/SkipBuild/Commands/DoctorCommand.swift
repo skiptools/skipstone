@@ -13,7 +13,7 @@ import TSCUtility
 struct DoctorCommand: SkipCommand, StreamingCommand, ToolOptionsCommand {
     typealias Output = MessageBlock
 
-    static var configuration = CommandConfiguration(
+    static let configuration = CommandConfiguration(
         commandName: "doctor",
         abstract: "Evaluate and diagnose Skip development environment",
         usage: """

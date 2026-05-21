@@ -60,7 +60,7 @@ public func skipstone(_ args: [String]) async throws -> (out: String, err: Strin
 
 /// The command that is run by "SkipRunner" (aka "skip")
 public struct SkipRunnerExecutor: SkipCommandExecutor {
-    public static var configuration = CommandConfiguration(
+    public static let configuration = CommandConfiguration(
         commandName: "skip",
         abstract: "skip \(skipVersion)",
         //version: skipVersion,
@@ -161,7 +161,7 @@ struct VersionCommand: SingleStreamingCommand {
         #endif
     }
 
-    static var configuration = CommandConfiguration(commandName: "version",
+    static let configuration = CommandConfiguration(commandName: "version",
                                                            abstract: "Print the skip version",
                                                            shouldDisplay: !experimental)
 
@@ -240,30 +240,7 @@ extension AbsolutePath {
     }
 }
 
-
-// MARK: Utilities
-
-
-/// A command that forwards itself to another command. Used for aliasing commands.
-struct ForwardingCommand<Base: ParsableCommand, Name: RawRepresentable & CaseIterable>: ParsableCommand where Name.RawValue : StringProtocol {
-    static var configuration: CommandConfiguration {
-        var cfg = Base.configuration
-        cfg.commandName = Name.allCases.first?.rawValue.description
-        cfg.shouldDisplay = false
-        return cfg
-    }
-
-    @OptionGroup
-    var command: Base
-
-    mutating func run() throws {
-        try command.run()
-    }
-}
-
-
 // MARK: Streaming command support
-
 
 extension Message: MessageConvertible {
     /// A transpiler mesage converts warnings and errors to warn/fail
@@ -306,11 +283,11 @@ actor MessageQueue {
         return self
     }
 
-    @discardableResult public func yield(_ value: MessageStream.Element) -> AsyncThrowingStream<MessageStream.Element, Error>.Continuation.YieldResult {
+    public func yield(_ value: MessageStream.Element) {
         if retain {
             elements.append(.success(value))
         }
-        return continuation.yield(value)
+        _ = continuation.yield(value)
     }
 
     public func yield(with result: Result<MessageEncodable, Error>) {
@@ -483,9 +460,10 @@ struct StreamCommandError : LocalizedError {
 extension StreamingCommand {
 
     fileprivate func doCommand(with out: MessageQueue) {
+        let selfBox = UncheckedSendableBox(self)
         Task.detached {
             do {
-                try await performCommand(with: out)
+                try await selfBox.value.performCommand(with: out)
                 await out.finish()
             } catch {
                 await out.finish(throwing: error)
@@ -519,7 +497,7 @@ extension SingleStreamingCommand {
 /// A "message" that can be output in various ways.
 ///
 /// The default `message(term:)` must minimally be implemented for terminal messages.
-public protocol MessageConvertible {
+public protocol MessageConvertible: Sendable {
     /// Returns the message for the output with optional ANSI coloring
     func message(term: Term) -> String?
 
@@ -580,7 +558,7 @@ extension Optional : MessageConvertible where Wrapped : MessageConvertible {
 
 /// A message that can optionally be highlighted with colors for rich terminal output, or a `nil` Terminal for omitting a status prefix from the message
 public struct MessageBlock : StringMessageEncodable {
-    public enum Status : String, Encodable {
+    public enum Status : String, Encodable, Sendable {
         case pass, warn, fail, skip
 
         /// The character prefix to output before the command result
@@ -606,7 +584,7 @@ public struct MessageBlock : StringMessageEncodable {
     /// Whether to silence this message from being printed to the terminal
     public var squelch: Bool = false
 
-    let _message: (_ term: Term?) -> String?
+    let _message: @Sendable (_ term: Term?) -> String?
 
     public init(status: Status?, _ message: String) {
         self.status = status
@@ -620,7 +598,7 @@ public struct MessageBlock : StringMessageEncodable {
         self.init(status: .fail, prefix + error.localizedDescription)
     }
 
-    public init(_ message: @escaping (_ term: Term?) -> String?) {
+    public init(_ message: @Sendable @escaping (_ term: Term?) -> String?) {
         self.status = nil
         self._message = message
     }
@@ -726,7 +704,7 @@ extension ProcessInfo {
     /// Mock environment for testing. When set (non-nil), all environment lookups
     /// return values from this dictionary, allowing tests to explicitly mock the absence
     /// of variables by not including them. Falls back to real process environment only when nil.
-    public static var mockEnvironment: [String: String]?
+    nonisolated(unsafe) public static var mockEnvironment: [String: String]?
 
     /// Returns an environment variable from mockEnvironment if it's set (even if nil/empty),
     /// otherwise falls back to the real process environment.
@@ -1008,7 +986,7 @@ extension ToolOptionsCommand where Self : StreamingCommand {
 
 extension ToolOptionsCommand {
     /// Perform a monitor check on the given URL
-    @discardableResult func check<T, U>(_ item: T, with out: MessageQueue, title: String, handle: @escaping (T) throws -> U) async -> Result<U, Error> {
+    @discardableResult func check<T, U: Sendable>(_ item: T, with out: MessageQueue, title: String, handle: @escaping (T) throws -> U) async -> Result<U, Error> {
         await outputOptions.monitor(with: out, title, resultHandler: { result in
             return (nil, nil) as (result: Result<U, any Error>?, message: MessageBlock?)
         }) { line in
@@ -1177,7 +1155,7 @@ struct BuildOptions: ParsableArguments {
 }
 
 struct LicenseCommand: AsyncParsableCommand {
-    static var configuration = CommandConfiguration(
+    static let configuration = CommandConfiguration(
         commandName: "license",
         abstract: "License management (obsolete)",
         discussion: """

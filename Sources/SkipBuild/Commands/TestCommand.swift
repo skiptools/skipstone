@@ -17,7 +17,7 @@ fileprivate let testCommandEnabled = false
 struct TestCommand: SkipCommand, StreamingCommand, ToolOptionsCommand {
     typealias Output = MessageBlock
     
-    static var configuration = CommandConfiguration(
+    static let configuration = CommandConfiguration(
         commandName: "test",
         abstract: "Run parity tests and generate reports",
         usage: """

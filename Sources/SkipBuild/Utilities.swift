@@ -50,7 +50,7 @@ extension BinaryInteger {
 }
 
 /// Terminal output information, such as how to output messages in various ANSI colors.
-public struct Term {
+public struct Term: Sendable {
     public static let plain = Term(colors: false)
     public static let ansi = Term(colors: true)
 

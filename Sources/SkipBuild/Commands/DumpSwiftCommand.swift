@@ -9,7 +9,7 @@ import SwiftParser
 import SkipSyntax
 
 struct DumpSwiftCommand: AsyncParsableCommand {
-    static var configuration = CommandConfiguration(commandName: "ast-swift", abstract: "Print the Swift AST", shouldDisplay: false)
+    static let configuration = CommandConfiguration(commandName: "ast-swift", abstract: "Print the Swift AST", shouldDisplay: false)
 
     @Option(name: [.customShort("S")], help: ArgumentHelp("Preprocessor symbols", valueName: "file"))
     var symbols: [String] = []

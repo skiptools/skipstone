@@ -11,7 +11,7 @@ import Either
 struct DevicesCommand: SkipCommand, StreamingCommand, OutputOptionsCommand, ToolOptionsCommand {
     typealias Output = DevicesOutput
     
-    static var configuration = CommandConfiguration(
+    static let configuration = CommandConfiguration(
         commandName: "devices",
         abstract: "List connected devices and emulators/simulators",
         usage: """

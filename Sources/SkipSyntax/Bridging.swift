@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 /// Determines what API is bridged without being explicitly annotated.
-public enum AutoBridge: Int {
+public enum AutoBridge: Int, Sendable {
     /// Bridge only API with bridge attribute.
     case none
     /// Bridge UI code that isn't explicitly excluded.

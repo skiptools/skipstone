@@ -12,7 +12,7 @@ import SkipDriveExternal
 
 @available(macOS 13, iOS 16, tvOS 16, watchOS 8, *)
 struct AndroidTestCommand: AndroidOperationCommand {
-    static var configuration = CommandConfiguration(
+    static let configuration = CommandConfiguration(
         commandName: "test",
         abstract: "Test the native project on an Android device or emulator",
         usage: """
@@ -490,8 +490,8 @@ fileprivate extension AndroidOperationCommand {
             if line.hasPrefix(instrumentationStatusPrefix) {
                 let output = String(line.dropFirst(instrumentationStatusPrefix.count))
                 if let formatted = formatTestEvent(output, term: outputOptions.term) {
-                    print(formatted, to: &TSCBasic.stdoutStream)
-                    TSCBasic.stdoutStream.flush()
+                    print(formatted, to: &skipBuildStdoutStream)
+                    skipBuildStdoutStream.flush()
                 }
                 eventLines.append(output)
             } else if line.hasPrefix(instrumentationCodePrefix) {
@@ -600,7 +600,7 @@ private let testFullClass = "\(testPackage).\(testClassName)"
 /// Package.swift for the generated Swift test harness package.
 /// Defines a dynamic library target that produces `libtest_harness.so`
 private let harnessPackageSwift: String = """
-// swift-tools-version: 6.0
+// swift-tools-version: 6.1
 import PackageDescription
 
 let package = Package(

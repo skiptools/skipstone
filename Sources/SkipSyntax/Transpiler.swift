@@ -7,7 +7,7 @@ import SwiftParser
 import SwiftSyntax
 
 /// Manages the transpilation process.
-public struct Transpiler {
+public struct Transpiler: @unchecked Sendable {
     private let packageName: String?
     private let transpileFiles: [Source.FilePath]
     private let bridgeFiles: [Source.FilePath]

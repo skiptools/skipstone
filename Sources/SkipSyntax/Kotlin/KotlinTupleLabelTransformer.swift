@@ -9,7 +9,7 @@ import Foundation
 /// This transformer also generates errors for label conflicts, i.e. the same label being used to access different elements of the same N-tuple.
 final class KotlinTupleLabelTransformer: KotlinTransformer {
     /// Used in testing.
-    static var gatherLabelsFromTypeSignatures = true
+    nonisolated(unsafe) static var gatherLabelsFromTypeSignatures = true
 
     // Tuple arity -> Element -> Labels
     private typealias TupleLabels = [Int: [Int: Set<String>]]

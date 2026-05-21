@@ -12,8 +12,8 @@ import Glibc
 #endif
 
 @available(macOS 13, iOS 16, tvOS 16, watchOS 8, *)
-struct CheckupCommand: MessageCommand, ToolOptionsCommand {
-    static var configuration = CommandConfiguration(
+struct CheckupCommand: MessageCommand, ToolOptionsCommand, @unchecked Sendable {
+    static let configuration = CommandConfiguration(
         commandName: "checkup",
         abstract: "Run tests to ensure Skip is in working order",
         usage: """

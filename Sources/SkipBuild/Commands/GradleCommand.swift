@@ -17,7 +17,7 @@ fileprivate let gradleCommandEnabled = false
 
 @available(macOS 13, iOS 16, tvOS 16, watchOS 8, *)
 struct GradleCommand: SkipCommand {
-    static var configuration = CommandConfiguration(
+    static let configuration = CommandConfiguration(
         commandName: "gradle",
         abstract: "Launch the gradle build tool",
         usage: """

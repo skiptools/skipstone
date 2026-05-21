@@ -6,7 +6,7 @@ import Foundation
 import SwiftSyntax
 
 /// Swift or Kotlin source code file.
-public struct Source : Encodable {
+public struct Source : Encodable, Sendable {
     public let file: FilePath
     public let content: String
 
@@ -76,7 +76,7 @@ public struct Source : Encodable {
     /// A Swift source file.
     ///
     /// - Note: `Codable` for use in `CodebaseInfo`.
-    public struct FilePath: Hashable, Codable {
+    public struct FilePath: Hashable, Codable, Sendable {
         public private(set) var path: String
         /// The suffix of a file that indicates it is a bridging file
         public static let bridgeFileSuffix = "_Bridge.swift"

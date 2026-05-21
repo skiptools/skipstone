@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 /// A transpilation result.
-public struct Transpilation : Encodable { // Encodable for tool JSON output option
+public struct Transpilation : Encodable, @unchecked Sendable { // Encodable for tool JSON output option
     public var input: Source
     public var output: Source
     public var outputType: OutputType

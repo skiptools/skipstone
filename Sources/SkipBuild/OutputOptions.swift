@@ -14,7 +14,7 @@ public protocol OutputOptionsCommand : ParsableArguments {
     var outputOptions: OutputOptions { get }
 }
 
-public struct OutputOptions: ParsableArguments {
+public struct OutputOptions: ParsableArguments, @unchecked Sendable {
     @Option(name: [.customShort("o"), .long], help: ArgumentHelp("Send output to the given file (stdout: -)", valueName: "path"))
     var output: String?
     
@@ -98,8 +98,8 @@ public struct OutputOptions: ParsableArguments {
     }
 
     internal final class OutputHandler : Decodable {
-        var out: WritableByteStream = stdoutStream
-        var err: WritableByteStream = stderrStream
+        var out: WritableByteStream = skipBuildStdoutStream
+        var err: WritableByteStream = skipBuildStderrStream
         var outFile: LocalFileOutputByteStream? = nil
         var logFile: LocalFileOutputByteStream? = nil
         private let logFileLock = NSLock()
@@ -432,11 +432,12 @@ extension OutputOptions {
     /// Perform an operation with a given message handler, which will be invoked in the progress cycle with a nil result, and then a final time with the result of the block invocation
     ///
     /// If we are using a rich terminal (and not specifying plain or JSON output), outputs a progress animation while waiting for the given process to complete
-    @discardableResult func monitor<T>(with messenger: MessageQueue, _ message: String, watch: Bool = false, resultHandler rhandler: MessageResultHandler<T>? = nil, monitorAction: @escaping (_ outputHandler: @escaping (String) -> ()) async throws -> T) async -> Result<T, Error> {
+    @discardableResult func monitor<T: Sendable>(with messenger: MessageQueue, _ message: String, watch: Bool = false, resultHandler rhandler: MessageResultHandler<T>? = nil, monitorAction: @escaping (_ outputHandler: @escaping (String) -> ()) async throws -> T) async -> Result<T, Error> {
         _ = self.streams.outputBuffer(reset: true) // reset the output line buffer
         let terminalWidth = TerminalController.terminalWidth()
 
-        let resultHandler = rhandler ?? defaultResultHandler(message: message)
+        let resultHandler = UncheckedSendableBox(rhandler ?? defaultResultHandler(message: message))
+        let monitorActionBox = UncheckedSendableBox(monitorAction)
 
         let startTime = Date.now
 
@@ -453,7 +454,7 @@ extension OutputOptions {
                 func animatingMessageHandler(_ result: Result<T, Error>?) -> String {
                     let prefix = monitorPrefix(progressSprites, for: result?.messageStatusAny, startTime: startTime)
                     if let result = result {
-                        let msg = resultHandler(result)
+                        let msg = resultHandler.value(result)
                         return msg.message.message(term: term) ?? ((prefix ?? "") + message)
                     } else {
                         // the progress index is based on the current time index
@@ -511,7 +512,7 @@ extension OutputOptions {
             // Capture the async monitorAction as a Result
             await {
                 do {
-                    let result = try await monitorAction({ line in
+                    let result = try await monitorActionBox.value({ line in
                         logMessage(line)
                         streams.outputBuffer(add: line) // remember the current output line
                     })
@@ -546,7 +547,7 @@ extension OutputOptions {
         }
 
         // send the final message to the block
-        let resultHandled = resultHandler(result)
+        let resultHandled = resultHandler.value(result)
         if let msgmsg = resultHandled.message { // the result handler specifies a message to issue
             await postMessage(msgmsg)
         } else { // otherwise translate the result

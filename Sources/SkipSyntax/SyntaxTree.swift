@@ -6,7 +6,7 @@
 import SwiftSyntax
 
 /// Representation of the Swift syntax tree.
-public final class SyntaxTree: PrettyPrintable {
+public final class SyntaxTree: PrettyPrintable, @unchecked Sendable {
     let source: Source
     let preprocessorSymbols: Set<String>
     let root: CodeBlock = CodeBlock(statements: [])

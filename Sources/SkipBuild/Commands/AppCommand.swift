@@ -9,7 +9,7 @@ import SkipSyntax
 
 @available(macOS 13, iOS 16, tvOS 16, watchOS 8, *)
 struct AppCommand: AsyncParsableCommand {
-    static var configuration = CommandConfiguration(
+    static let configuration = CommandConfiguration(
         commandName: "app",
         abstract: "Build, run, and manage Skip apps",
         discussion: """
@@ -24,7 +24,7 @@ struct AppCommand: AsyncParsableCommand {
 
 @available(macOS 13, iOS 16, tvOS 16, watchOS 8, *)
 struct AppLaunchCommand: MessageCommand, ToolOptionsCommand {
-    static var configuration = CommandConfiguration(
+    static let configuration = CommandConfiguration(
         commandName: "launch",
         abstract: "Build and launch the Skip app on iOS simulator and/or Android emulator",
         usage: """

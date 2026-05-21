@@ -11,7 +11,7 @@ import SwiftSyntax
 ///
 /// - Warning: Use the factory methods of this enum to extract and apply modifiers rather than attempting to create enums by hand.
 /// - Note: `Codable` for use in `CodebaseInfo`.
-indirect enum TypeSignature: CustomStringConvertible, Hashable, Codable {
+indirect enum TypeSignature: CustomStringConvertible, Hashable, Codable, Sendable {
     case any
     case anyObject
     case array(TypeSignature?) // Nil means the generic type has been erased
@@ -2146,7 +2146,7 @@ indirect enum TypeSignature: CustomStringConvertible, Hashable, Codable {
     }
 
     /// A parameter in a function signature.
-    struct Parameter: CustomStringConvertible, Hashable, Codable {
+    struct Parameter: CustomStringConvertible, Hashable, Codable, Sendable {
         var label: String?
         var type: TypeSignature
         var isInOut = false

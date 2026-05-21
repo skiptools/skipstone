@@ -15,7 +15,7 @@ fileprivate let adbCommandEnabled = false
 
 @available(macOS 13, iOS 16, tvOS 16, watchOS 8, *)
 struct ADBCommand: MessageCommand, ToolOptionsCommand {
-    static var configuration = CommandConfiguration(
+    static let configuration = CommandConfiguration(
         commandName: "adb",
         abstract: "Run an adb command with error scanning",
         usage: """

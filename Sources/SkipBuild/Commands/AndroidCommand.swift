@@ -19,7 +19,7 @@ fileprivate let androidCommandEnabled = false
 
 @available(macOS 13, iOS 16, tvOS 16, watchOS 8, *)
 struct AndroidCommand: AsyncParsableCommand {
-    static var configuration = CommandConfiguration(
+    static let configuration = CommandConfiguration(
         commandName: "android",
         abstract: "Build, run, and test Swift packages for Android",
         discussion: """
@@ -41,7 +41,7 @@ struct AndroidCommand: AsyncParsableCommand {
 
 @available(macOS 13, iOS 16, tvOS 16, watchOS 8, *)
 struct AndroidHomeCommand: AsyncParsableCommand {
-    static var configuration = CommandConfiguration(
+    static let configuration = CommandConfiguration(
         commandName: "home",
         abstract: "Install and manage the Android SDK in ANDROID_HOME",
         discussion: """
@@ -55,7 +55,7 @@ struct AndroidHomeCommand: AsyncParsableCommand {
 
 @available(macOS 13, iOS 16, tvOS 16, watchOS 8, *)
 struct AndroidHomeInstallCommand: MessageCommand, ToolOptionsCommand {
-    static var configuration = CommandConfiguration(
+    static let configuration = CommandConfiguration(
         commandName: "install",
         abstract: "Install Android SDK Command-line Tools, platform-tools, and emulator in ANDROID_HOME",
         usage: """
@@ -303,7 +303,7 @@ func installSDKComponents(
 
 @available(macOS 13, iOS 16, tvOS 16, watchOS 8, *)
 struct AndroidSDKCommand: AsyncParsableCommand {
-    static var configuration = CommandConfiguration(
+    static let configuration = CommandConfiguration(
         commandName: "sdk",
         abstract: "Manage installation of Swift Android SDK",
         discussion: """
@@ -421,7 +421,7 @@ extension ToolchainOptionsCommand where Self : StreamingCommand {
 
 @available(macOS 13, iOS 16, tvOS 16, watchOS 8, *)
 struct AndroidSDKInstallCommand: MessageCommand, ToolchainOptionsCommand {
-    static var configuration = CommandConfiguration(
+    static let configuration = CommandConfiguration(
         commandName: "install",
         abstract: "Install the native Swift Android SDK",
         usage: """
@@ -482,7 +482,7 @@ struct AndroidSDKInstallCommand: MessageCommand, ToolchainOptionsCommand {
 
 @available(macOS 13, iOS 16, tvOS 16, watchOS 8, *)
 struct AndroidSDKUninstallCommand: MessageCommand, ToolchainOptionsCommand {
-    static var configuration = CommandConfiguration(
+    static let configuration = CommandConfiguration(
         commandName: "uninstall",
         abstract: "Uninstall the Swift Android SDK",
         usage: """
@@ -555,7 +555,7 @@ struct AndroidSDKUninstallCommand: MessageCommand, ToolchainOptionsCommand {
 struct AndroidSDKListCommand: SkipCommand, StreamingCommand, OutputOptionsCommand, ToolOptionsCommand {
     typealias Output = SwiftSDKOutput
 
-    static var configuration = CommandConfiguration(
+    static let configuration = CommandConfiguration(
         commandName: "list",
         abstract: "List the installed Swift Android SDKs",
         usage: """
@@ -624,7 +624,7 @@ struct AndroidSDKListCommand: SkipCommand, StreamingCommand, OutputOptionsComman
 
 @available(macOS 13, iOS 16, tvOS 16, watchOS 8, *)
 struct AndroidToolchainCommand: AsyncParsableCommand {
-    static var configuration = CommandConfiguration(
+    static let configuration = CommandConfiguration(
         commandName: "toolchain",
         abstract: "Manage installation of Swift Android Host Toolchain",
         discussion: """
@@ -638,7 +638,7 @@ struct AndroidToolchainCommand: AsyncParsableCommand {
 
 @available(macOS 13, iOS 16, tvOS 16, watchOS 8, *)
 struct AndroidToolchainVersionCommand: AndroidOperationCommand {
-    static var configuration = CommandConfiguration(
+    static let configuration = CommandConfiguration(
         commandName: "version",
         abstract: "Show the version of the Swift Android Host Toolchain",
         shouldDisplay: true)
@@ -723,8 +723,8 @@ extension AndroidOperationCommand {
                 ) {
                     continue
                 }
-                print(outputLine.line, to: &TSCBasic.stderrStream)
-                TSCBasic.stderrStream.flush()
+                print(outputLine.line, to: &skipBuildStderrStream)
+                skipBuildStderrStream.flush()
             } else {
                 if !outputOptions.verbose && (
                     outputLine.line.hasPrefix("warning: Could not read SDKSettings.json for SDK")
@@ -733,8 +733,8 @@ extension AndroidOperationCommand {
                 ) {
                     continue
                 }
-                print(outputLine.line, to: &TSCBasic.stdoutStream)
-                TSCBasic.stdoutStream.flush()
+                print(outputLine.line, to: &skipBuildStdoutStream)
+                skipBuildStdoutStream.flush()
             }
         }
         #endif
@@ -1433,7 +1433,7 @@ extension AndroidOperationCommand {
 
 @available(macOS 13, iOS 16, tvOS 16, watchOS 8, *)
 struct AndroidBuildCommand: AndroidOperationCommand {
-    static var configuration = CommandConfiguration(
+    static let configuration = CommandConfiguration(
         commandName: "build",
         abstract: "Build the native project for Android",
         usage: """
@@ -1475,7 +1475,7 @@ struct AndroidBuildCommand: AndroidOperationCommand {
 
 @available(macOS 13, iOS 16, tvOS 16, watchOS 8, *)
 struct AndroidRunCommand: AndroidOperationCommand {
-    static var configuration = CommandConfiguration(
+    static let configuration = CommandConfiguration(
         commandName: "run",
         abstract: "Run the executable target on an Android device or emulator",
         usage: """
@@ -1529,7 +1529,7 @@ struct AndroidRunCommand: AndroidOperationCommand {
 
 @available(macOS 13, iOS 16, tvOS 16, watchOS 8, *)
 struct AndroidEmulatorCommand: AsyncParsableCommand {
-    static var configuration = CommandConfiguration(
+    static let configuration = CommandConfiguration(
         commandName: "emulator",
         abstract: "Manage Android emulators",
         discussion: """
@@ -1546,7 +1546,7 @@ struct AndroidEmulatorCommand: AsyncParsableCommand {
 
 @available(macOS 13, iOS 16, tvOS 16, watchOS 8, *)
 struct AndroidEmulatorCreateCommand: MessageCommand, ToolOptionsCommand {
-    static var configuration = CommandConfiguration(
+    static let configuration = CommandConfiguration(
         commandName: "create",
         abstract: "Install and create an Android emulator image",
         usage: """
@@ -1640,7 +1640,7 @@ struct AndroidEmulatorCreateCommand: MessageCommand, ToolOptionsCommand {
 
 @available(macOS 13, iOS 16, tvOS 16, watchOS 8, *)
 struct AndroidEmulatorLaunchCommand: MessageCommand, ToolOptionsCommand {
-    static var configuration = CommandConfiguration(
+    static let configuration = CommandConfiguration(
         commandName: "launch",
         abstract: "Launch an Android emulator",
         usage: """
@@ -1787,7 +1787,7 @@ struct AndroidEmulatorLaunchCommand: MessageCommand, ToolOptionsCommand {
 
 @available(macOS 13, iOS 16, tvOS 16, watchOS 8, *)
 struct AndroidEmulatorListCommand: MessageCommand, ToolOptionsCommand {
-    static var configuration = CommandConfiguration(
+    static let configuration = CommandConfiguration(
         commandName: "list",
         abstract: "List installed Android emulator images (AVDs)",
         usage: """

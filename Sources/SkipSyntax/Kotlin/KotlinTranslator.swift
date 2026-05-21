@@ -11,7 +11,7 @@ public final class KotlinTranslator {
     private(set) var packageName: String?
 
     /// Module name to custom package name overrides, populated from skip.yml config and dependent module exports.
-    public static var packageNameOverrides: [String: String] = [:]
+    nonisolated(unsafe) public static var packageNameOverrides: [String: String] = [:]
 
     public init(syntaxTree: SyntaxTree) {
         self.syntaxTree = syntaxTree
