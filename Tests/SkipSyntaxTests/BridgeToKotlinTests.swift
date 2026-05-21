@@ -7296,7 +7296,7 @@ final class BridgeToKotlinTests: XCTestCase {
             }
         }
         """, kotlin: """
-        class V: skip.ui.View, skip.bridge.SwiftPeerBridged, skip.lib.SwiftProjecting {
+        class V: skip.ui.View, skip.ui.Renderable, skip.bridge.SwiftPeerBridged, skip.lib.SwiftProjecting {
             var Swift_peer: skip.bridge.SwiftObjectPointer = skip.bridge.SwiftObjectNil
 
             constructor(Swift_peer: skip.bridge.SwiftObjectPointer, marker: skip.bridge.SwiftPeerMarker?) {
@@ -7320,10 +7320,16 @@ final class BridgeToKotlinTests: XCTestCase {
 
             override fun body(): skip.ui.View {
                 return skip.ui.ComposeBuilder { composectx: skip.ui.ComposeContext ->
-                    val observationInvalidation = androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(0) }
-                    observationInvalidation.value
-                    Swift_composableBody(Swift_peer, onChange = { observationInvalidation.value += 1 })?.Compose(composectx) ?: skip.ui.ComposeResult.ok
+                    Render(composectx)
+                    skip.ui.ComposeResult.ok
                 }
+            }
+
+            @androidx.compose.runtime.Composable
+            override fun Render(context: skip.ui.ComposeContext) {
+                val observationInvalidation = androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(0) }
+                observationInvalidation.value
+                Swift_composableBody(Swift_peer, onChange = { observationInvalidation.value += 1 })?.Compose(context)
             }
             private external fun Swift_composableBody(Swift_peer: skip.bridge.SwiftObjectPointer, onChange: () -> Unit): skip.ui.View?
 
@@ -7419,7 +7425,7 @@ final class BridgeToKotlinTests: XCTestCase {
             }
         }
         """, kotlin: """
-        internal class V: skip.ui.View, skip.bridge.SwiftPeerBridged, skip.lib.SwiftProjecting {
+        internal class V: skip.ui.View, skip.ui.Renderable, skip.bridge.SwiftPeerBridged, skip.lib.SwiftProjecting {
             var Swift_peer: skip.bridge.SwiftObjectPointer = skip.bridge.SwiftObjectNil
 
             constructor(Swift_peer: skip.bridge.SwiftObjectPointer, marker: skip.bridge.SwiftPeerMarker?) {
@@ -7452,10 +7458,16 @@ final class BridgeToKotlinTests: XCTestCase {
 
             override fun body(): skip.ui.View {
                 return skip.ui.ComposeBuilder { composectx: skip.ui.ComposeContext ->
-                    val observationInvalidation = androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(0) }
-                    observationInvalidation.value
-                    Swift_composableBody(Swift_peer, onChange = { observationInvalidation.value += 1 })?.Compose(composectx) ?: skip.ui.ComposeResult.ok
+                    Render(composectx)
+                    skip.ui.ComposeResult.ok
                 }
+            }
+
+            @androidx.compose.runtime.Composable
+            override fun Render(context: skip.ui.ComposeContext) {
+                val observationInvalidation = androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(0) }
+                observationInvalidation.value
+                Swift_composableBody(Swift_peer, onChange = { observationInvalidation.value += 1 })?.Compose(context)
             }
             private external fun Swift_composableBody(Swift_peer: skip.bridge.SwiftObjectPointer, onChange: () -> Unit): skip.ui.View?
 
@@ -7573,7 +7585,7 @@ final class BridgeToKotlinTests: XCTestCase {
             }
         }
         """, kotlin: """
-        internal class V<T>: skip.ui.View, skip.bridge.SwiftPeerBridged, skip.lib.SwiftProjecting {
+        internal class V<T>: skip.ui.View, skip.ui.Renderable, skip.bridge.SwiftPeerBridged, skip.lib.SwiftProjecting {
             var Swift_peer: skip.bridge.SwiftObjectPointer = skip.bridge.SwiftObjectNil
 
             constructor(Swift_peer: skip.bridge.SwiftObjectPointer, marker: skip.bridge.SwiftPeerMarker?) {
@@ -7606,10 +7618,16 @@ final class BridgeToKotlinTests: XCTestCase {
 
             override fun body(): skip.ui.View {
                 return skip.ui.ComposeBuilder { composectx: skip.ui.ComposeContext ->
-                    val observationInvalidation = androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(0) }
-                    observationInvalidation.value
-                    Swift_composableBody(Swift_peer, onChange = { observationInvalidation.value += 1 })?.Compose(composectx) ?: skip.ui.ComposeResult.ok
+                    Render(composectx)
+                    skip.ui.ComposeResult.ok
                 }
+            }
+
+            @androidx.compose.runtime.Composable
+            override fun Render(context: skip.ui.ComposeContext) {
+                val observationInvalidation = androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(0) }
+                observationInvalidation.value
+                Swift_composableBody(Swift_peer, onChange = { observationInvalidation.value += 1 })?.Compose(context)
             }
             private external fun Swift_composableBody(Swift_peer: skip.bridge.SwiftObjectPointer, onChange: () -> Unit): skip.ui.View?
 
@@ -7716,7 +7734,7 @@ final class BridgeToKotlinTests: XCTestCase {
             }
         }
         """, kotlin: """
-        internal class V: skip.ui.View, skip.bridge.SwiftPeerBridged, skip.lib.SwiftProjecting {
+        internal class V: skip.ui.View, skip.ui.Renderable, skip.bridge.SwiftPeerBridged, skip.lib.SwiftProjecting {
             var Swift_peer: skip.bridge.SwiftObjectPointer = skip.bridge.SwiftObjectNil
 
             constructor(Swift_peer: skip.bridge.SwiftObjectPointer, marker: skip.bridge.SwiftPeerMarker?) {
@@ -7749,10 +7767,16 @@ final class BridgeToKotlinTests: XCTestCase {
 
             override fun body(): skip.ui.View {
                 return skip.ui.ComposeBuilder { composectx: skip.ui.ComposeContext ->
-                    val observationInvalidation = androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(0) }
-                    observationInvalidation.value
-                    Swift_composableBody(Swift_peer, onChange = { observationInvalidation.value += 1 })?.Compose(composectx) ?: skip.ui.ComposeResult.ok
+                    Render(composectx)
+                    skip.ui.ComposeResult.ok
                 }
+            }
+
+            @androidx.compose.runtime.Composable
+            override fun Render(context: skip.ui.ComposeContext) {
+                val observationInvalidation = androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(0) }
+                observationInvalidation.value
+                Swift_composableBody(Swift_peer, onChange = { observationInvalidation.value += 1 })?.Compose(context)
             }
             private external fun Swift_composableBody(Swift_peer: skip.bridge.SwiftObjectPointer, onChange: () -> Unit): skip.ui.View?
 
@@ -7842,16 +7866,22 @@ final class BridgeToKotlinTests: XCTestCase {
             }
         }
         """, kotlin: """
-        enum class E: skip.ui.View, skip.lib.SwiftProjecting {
+        enum class E: skip.ui.View, skip.ui.Renderable, skip.lib.SwiftProjecting {
 
             a;
 
             override fun body(): skip.ui.View {
                 return skip.ui.ComposeBuilder { composectx: skip.ui.ComposeContext ->
-                    val observationInvalidation = androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(0) }
-                    observationInvalidation.value
-                    Swift_composableBody(name, onChange = { observationInvalidation.value += 1 })?.Compose(composectx) ?: skip.ui.ComposeResult.ok
+                    Render(composectx)
+                    skip.ui.ComposeResult.ok
                 }
+            }
+
+            @androidx.compose.runtime.Composable
+            override fun Render(context: skip.ui.ComposeContext) {
+                val observationInvalidation = androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(0) }
+                observationInvalidation.value
+                Swift_composableBody(name, onChange = { observationInvalidation.value += 1 })?.Compose(context)
             }
             private external fun Swift_composableBody(name: String, onChange: () -> Unit): skip.ui.View?
 
@@ -7927,7 +7957,7 @@ final class BridgeToKotlinTests: XCTestCase {
             }
         }
         """, kotlin: """
-        sealed class E<out T>: skip.ui.View, skip.bridge.SwiftPeerBridged, skip.lib.SwiftProjecting {
+        sealed class E<out T>: skip.ui.View, skip.ui.Renderable, skip.bridge.SwiftPeerBridged, skip.lib.SwiftProjecting {
 
             class ACase<T>(val associated0: T): E<T>() {
             }
@@ -7950,10 +7980,16 @@ final class BridgeToKotlinTests: XCTestCase {
 
             override fun body(): skip.ui.View {
                 return skip.ui.ComposeBuilder { composectx: skip.ui.ComposeContext ->
-                    val observationInvalidation = androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(0) }
-                    observationInvalidation.value
-                    Swift_composableBody(Swift_peer, onChange = { observationInvalidation.value += 1 })?.Compose(composectx) ?: skip.ui.ComposeResult.ok
+                    Render(composectx)
+                    skip.ui.ComposeResult.ok
                 }
+            }
+
+            @androidx.compose.runtime.Composable
+            override fun Render(context: skip.ui.ComposeContext) {
+                val observationInvalidation = androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(0) }
+                observationInvalidation.value
+                Swift_composableBody(Swift_peer, onChange = { observationInvalidation.value += 1 })?.Compose(context)
             }
             private external fun Swift_composableBody(Swift_peer: skip.bridge.SwiftObjectPointer, onChange: () -> Unit): skip.ui.View?
 
@@ -8046,7 +8082,7 @@ final class BridgeToKotlinTests: XCTestCase {
             }
         }
         """, kotlin: """
-        internal class V: skip.ui.View, skip.bridge.SwiftPeerBridged, skip.lib.SwiftProjecting {
+        internal class V: skip.ui.View, skip.ui.Renderable, skip.bridge.SwiftPeerBridged, skip.lib.SwiftProjecting {
             var Swift_peer: skip.bridge.SwiftObjectPointer = skip.bridge.SwiftObjectNil
 
             constructor(Swift_peer: skip.bridge.SwiftObjectPointer, marker: skip.bridge.SwiftPeerMarker?) {
@@ -8079,10 +8115,16 @@ final class BridgeToKotlinTests: XCTestCase {
 
             override fun body(): skip.ui.View {
                 return skip.ui.ComposeBuilder { composectx: skip.ui.ComposeContext ->
-                    val observationInvalidation = androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(0) }
-                    observationInvalidation.value
-                    Swift_composableBody(Swift_peer, onChange = { observationInvalidation.value += 1 })?.Compose(composectx) ?: skip.ui.ComposeResult.ok
+                    Render(composectx)
+                    skip.ui.ComposeResult.ok
                 }
+            }
+
+            @androidx.compose.runtime.Composable
+            override fun Render(context: skip.ui.ComposeContext) {
+                val observationInvalidation = androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(0) }
+                observationInvalidation.value
+                Swift_composableBody(Swift_peer, onChange = { observationInvalidation.value += 1 })?.Compose(context)
             }
             private external fun Swift_composableBody(Swift_peer: skip.bridge.SwiftObjectPointer, onChange: () -> Unit): skip.ui.View?
 
@@ -8169,7 +8211,7 @@ final class BridgeToKotlinTests: XCTestCase {
             }
         }
         """, kotlin: """
-        internal class V: skip.ui.View, skip.bridge.SwiftPeerBridged, skip.lib.SwiftProjecting {
+        internal class V: skip.ui.View, skip.ui.Renderable, skip.bridge.SwiftPeerBridged, skip.lib.SwiftProjecting {
             var Swift_peer: skip.bridge.SwiftObjectPointer = skip.bridge.SwiftObjectNil
 
             constructor(Swift_peer: skip.bridge.SwiftObjectPointer, marker: skip.bridge.SwiftPeerMarker?) {
@@ -8202,10 +8244,16 @@ final class BridgeToKotlinTests: XCTestCase {
 
             override fun body(): skip.ui.View {
                 return skip.ui.ComposeBuilder { composectx: skip.ui.ComposeContext ->
-                    val observationInvalidation = androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(0) }
-                    observationInvalidation.value
-                    Swift_composableBody(Swift_peer, onChange = { observationInvalidation.value += 1 })?.Compose(composectx) ?: skip.ui.ComposeResult.ok
+                    Render(composectx)
+                    skip.ui.ComposeResult.ok
                 }
+            }
+
+            @androidx.compose.runtime.Composable
+            override fun Render(context: skip.ui.ComposeContext) {
+                val observationInvalidation = androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(0) }
+                observationInvalidation.value
+                Swift_composableBody(Swift_peer, onChange = { observationInvalidation.value += 1 })?.Compose(context)
             }
             private external fun Swift_composableBody(Swift_peer: skip.bridge.SwiftObjectPointer, onChange: () -> Unit): skip.ui.View?
 
@@ -8292,7 +8340,7 @@ final class BridgeToKotlinTests: XCTestCase {
             }
         }
         """, kotlin: """
-        internal class V: skip.ui.View, skip.bridge.SwiftPeerBridged, skip.lib.SwiftProjecting {
+        internal class V: skip.ui.View, skip.ui.Renderable, skip.bridge.SwiftPeerBridged, skip.lib.SwiftProjecting {
             var Swift_peer: skip.bridge.SwiftObjectPointer = skip.bridge.SwiftObjectNil
 
             constructor(Swift_peer: skip.bridge.SwiftObjectPointer, marker: skip.bridge.SwiftPeerMarker?) {
@@ -8325,10 +8373,16 @@ final class BridgeToKotlinTests: XCTestCase {
 
             override fun body(): skip.ui.View {
                 return skip.ui.ComposeBuilder { composectx: skip.ui.ComposeContext ->
-                    val observationInvalidation = androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(0) }
-                    observationInvalidation.value
-                    Swift_composableBody(Swift_peer, onChange = { observationInvalidation.value += 1 })?.Compose(composectx) ?: skip.ui.ComposeResult.ok
+                    Render(composectx)
+                    skip.ui.ComposeResult.ok
                 }
+            }
+
+            @androidx.compose.runtime.Composable
+            override fun Render(context: skip.ui.ComposeContext) {
+                val observationInvalidation = androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(0) }
+                observationInvalidation.value
+                Swift_composableBody(Swift_peer, onChange = { observationInvalidation.value += 1 })?.Compose(context)
             }
             private external fun Swift_composableBody(Swift_peer: skip.bridge.SwiftObjectPointer, onChange: () -> Unit): skip.ui.View?
 
@@ -8470,7 +8524,7 @@ final class BridgeToKotlinTests: XCTestCase {
             override fun Swift_projection(options: Int): () -> Any = Swift_projectionImpl(options)
             private external fun Swift_projectionImpl(options: Int): () -> Any
         }
-        internal class V: skip.ui.View, skip.bridge.SwiftPeerBridged, skip.lib.SwiftProjecting {
+        internal class V: skip.ui.View, skip.ui.Renderable, skip.bridge.SwiftPeerBridged, skip.lib.SwiftProjecting {
             var Swift_peer: skip.bridge.SwiftObjectPointer = skip.bridge.SwiftObjectNil
 
             constructor(Swift_peer: skip.bridge.SwiftObjectPointer, marker: skip.bridge.SwiftPeerMarker?) {
@@ -8494,10 +8548,16 @@ final class BridgeToKotlinTests: XCTestCase {
 
             override fun body(): skip.ui.View {
                 return skip.ui.ComposeBuilder { composectx: skip.ui.ComposeContext ->
-                    val observationInvalidation = androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(0) }
-                    observationInvalidation.value
-                    Swift_composableBody(Swift_peer, onChange = { observationInvalidation.value += 1 })?.Compose(composectx) ?: skip.ui.ComposeResult.ok
+                    Render(composectx)
+                    skip.ui.ComposeResult.ok
                 }
+            }
+
+            @androidx.compose.runtime.Composable
+            override fun Render(context: skip.ui.ComposeContext) {
+                val observationInvalidation = androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(0) }
+                observationInvalidation.value
+                Swift_composableBody(Swift_peer, onChange = { observationInvalidation.value += 1 })?.Compose(context)
             }
             private external fun Swift_composableBody(Swift_peer: skip.bridge.SwiftObjectPointer, onChange: () -> Unit): skip.ui.View?
 
@@ -8945,7 +9005,7 @@ final class BridgeToKotlinTests: XCTestCase {
         """, kotlin: """
         import androidx.compose.runtime.Composable
 
-        internal class V: skip.ui.View, skip.bridge.SwiftPeerBridged, skip.lib.SwiftProjecting {
+        internal class V: skip.ui.View, skip.ui.Renderable, skip.bridge.SwiftPeerBridged, skip.lib.SwiftProjecting {
             var Swift_peer: skip.bridge.SwiftObjectPointer = skip.bridge.SwiftObjectNil
 
             constructor(Swift_peer: skip.bridge.SwiftObjectPointer, marker: skip.bridge.SwiftPeerMarker?) {
@@ -8969,10 +9029,16 @@ final class BridgeToKotlinTests: XCTestCase {
 
             override fun body(): skip.ui.View {
                 return skip.ui.ComposeBuilder { composectx: skip.ui.ComposeContext ->
-                    val observationInvalidation = androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(0) }
-                    observationInvalidation.value
-                    Swift_composableBody(Swift_peer, onChange = { observationInvalidation.value += 1 })?.Compose(composectx) ?: skip.ui.ComposeResult.ok
+                    Render(composectx)
+                    skip.ui.ComposeResult.ok
                 }
+            }
+
+            @androidx.compose.runtime.Composable
+            override fun Render(context: skip.ui.ComposeContext) {
+                val observationInvalidation = androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(0) }
+                observationInvalidation.value
+                Swift_composableBody(Swift_peer, onChange = { observationInvalidation.value += 1 })?.Compose(context)
             }
             private external fun Swift_composableBody(Swift_peer: skip.bridge.SwiftObjectPointer, onChange: () -> Unit): skip.ui.View?
 
@@ -9106,7 +9172,7 @@ final class BridgeToKotlinTests: XCTestCase {
         import androidx.compose.runtime.saveable.rememberSaveable
         import androidx.compose.runtime.setValue
 
-        internal class V: skip.ui.View, skip.bridge.SwiftPeerBridged, skip.lib.SwiftProjecting {
+        internal class V: skip.ui.View, skip.ui.Renderable, skip.bridge.SwiftPeerBridged, skip.lib.SwiftProjecting {
             var Swift_peer: skip.bridge.SwiftObjectPointer = skip.bridge.SwiftObjectNil
 
             constructor(Swift_peer: skip.bridge.SwiftObjectPointer, marker: skip.bridge.SwiftPeerMarker?) {
@@ -9130,10 +9196,16 @@ final class BridgeToKotlinTests: XCTestCase {
 
             override fun body(): skip.ui.View {
                 return skip.ui.ComposeBuilder { composectx: skip.ui.ComposeContext ->
-                    val observationInvalidation = androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(0) }
-                    observationInvalidation.value
-                    Swift_composableBody(Swift_peer, onChange = { observationInvalidation.value += 1 })?.Compose(composectx) ?: skip.ui.ComposeResult.ok
+                    Render(composectx)
+                    skip.ui.ComposeResult.ok
                 }
+            }
+
+            @androidx.compose.runtime.Composable
+            override fun Render(context: skip.ui.ComposeContext) {
+                val observationInvalidation = androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(0) }
+                observationInvalidation.value
+                Swift_composableBody(Swift_peer, onChange = { observationInvalidation.value += 1 })?.Compose(context)
             }
             private external fun Swift_composableBody(Swift_peer: skip.bridge.SwiftObjectPointer, onChange: () -> Unit): skip.ui.View?
 

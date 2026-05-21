@@ -1052,6 +1052,9 @@ final class KotlinBridgeToKotlinVisitor {
         }
 
         classDeclaration.inherits = mappedInherits
+        if swiftUIType == .view {
+            classDeclaration.inherits.append(.named("skip.ui.Renderable", []))
+        }
         classDeclaration.extras = Self.bridgeExtras(classDeclaration.extras)
         if clearSuperclassCall {
             classDeclaration.superclassCall = nil
@@ -1766,13 +1769,30 @@ final class KotlinBridgeToKotlinVisitor {
         externalParameters += ", onChange: () -> Unit"
         let externalArguments = swiftUIType == .view || swiftUIType == .toolbarContent ? classType.peerExternalArgument : "\(classType.peerExternalArgument), content"
         let externalSourceCode = "private external fun \(externalName)(\(externalParameters)): skip.ui.View?"
-        let functionSourceCode = [
-            "return skip.ui.ComposeBuilder { composectx: skip.ui.ComposeContext ->",
-            "    val observationInvalidation = androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(0) }",
-            "    observationInvalidation.value",
-            "    \(externalName)(\(externalArguments), onChange = { observationInvalidation.value += 1 })?.Compose(composectx) ?: skip.ui.ComposeResult.ok",
-            "}",
-        ]
+        let bodyFunctionSourceCode: [String]
+        let renderFunctionSourceCode: [String]?
+        if swiftUIType == .view {
+            bodyFunctionSourceCode = [
+                "return skip.ui.ComposeBuilder { composectx: skip.ui.ComposeContext ->",
+                "    Render(composectx)",
+                "    skip.ui.ComposeResult.ok",
+                "}",
+            ]
+            renderFunctionSourceCode = [
+                "val observationInvalidation = androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(0) }",
+                "observationInvalidation.value",
+                "\(externalName)(\(externalArguments), onChange = { observationInvalidation.value += 1 })?.Compose(context)",
+            ]
+        } else {
+            bodyFunctionSourceCode = [
+                "return skip.ui.ComposeBuilder { composectx: skip.ui.ComposeContext ->",
+                "    val observationInvalidation = androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(0) }",
+                "    observationInvalidation.value",
+                "    \(externalName)(\(externalArguments), onChange = { observationInvalidation.value += 1 })?.Compose(composectx) ?: skip.ui.ComposeResult.ok",
+                "}",
+            ]
+            renderFunctionSourceCode = nil
+        }
         let externalFunctionDeclaration = KotlinRawStatement(sourceCode: externalSourceCode)
 
         let functionDeclaration = KotlinFunctionDeclaration(name: "body")
@@ -1782,9 +1802,24 @@ final class KotlinBridgeToKotlinVisitor {
         functionDeclaration.returnType = .skipUIView
         functionDeclaration.modifiers = Modifiers(visibility: .public, isOverride: true)
         functionDeclaration.extras = .singleNewline
-        functionDeclaration.body = KotlinCodeBlock(statements: functionSourceCode.map { KotlinRawStatement(sourceCode: $0) })
+        functionDeclaration.body = KotlinCodeBlock(statements: bodyFunctionSourceCode.map { KotlinRawStatement(sourceCode: $0) })
         functionDeclaration.body?.disallowSingleStatementAppend = true
         functionDeclaration.parent = classDeclaration
+
+        let renderFunctionDeclaration: KotlinFunctionDeclaration?
+        if let renderFunctionSourceCode {
+            let declaration = KotlinFunctionDeclaration(name: "Render")
+            declaration.parameters = [Parameter<KotlinExpression>(externalLabel: "context", declaredType: .named("skip.ui.ComposeContext", []))]
+            declaration.modifiers = Modifiers(visibility: .public, isOverride: true)
+            declaration.attributes.attributes.append(Attribute(signature: .named("androidx.compose.runtime.Composable", [])))
+            declaration.extras = .singleNewline
+            declaration.body = KotlinCodeBlock(statements: renderFunctionSourceCode.map { KotlinRawStatement(sourceCode: $0) })
+            declaration.body?.disallowSingleStatementAppend = true
+            declaration.parent = classDeclaration
+            renderFunctionDeclaration = declaration
+        } else {
+            renderFunctionDeclaration = nil
+        }
 
         var swift: [String] = []
         let visibilityString = visibility.swift(suffix: " ")
@@ -1831,7 +1866,8 @@ final class KotlinBridgeToKotlinVisitor {
         cdeclSource.append("}")
         let cdeclFunction = CDeclFunction(name: cdeclName, cdecl: cdecl, signature: cdeclSignature, body: cdeclSource)
 
-        return ([functionDeclaration, externalFunctionDeclaration], swift, [cdeclFunction])
+        let declarations = [functionDeclaration] + (renderFunctionDeclaration.map { [$0] } ?? []) + [externalFunctionDeclaration]
+        return (declarations, swift, [cdeclFunction])
     }
 }
 
