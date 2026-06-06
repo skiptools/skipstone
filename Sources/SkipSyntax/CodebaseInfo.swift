@@ -24,6 +24,12 @@ public final class CodebaseInfo {
         }
     }
 
+    /// Names of modules this codebase re-exports via `@_exported import` declarations.
+    ///
+    /// When another module depends on this one, the transpiler will additionally emit imports
+    /// for these modules so that names re-exported in Swift remain visible in Kotlin.
+    public internal(set) var exportedModuleNames: [String] = []
+
     /// Map between a Swift module and the equivalent Skip module(s).
     ///
     /// When a Swift module transitively imports other modules - e.g.`SwiftUI` imports `Foundation` - put the corresponding Skip module first
@@ -62,6 +68,11 @@ public final class CodebaseInfo {
     func gather(from syntaxTree: SyntaxTree) {
         assert(!isInUse)
         let importedModuleNames = syntaxTree.root.statements.importedModulePaths.compactMap(\.moduleName)
+        for exportedModuleName in syntaxTree.root.statements.exportedImportedModulePaths.compactMap(\.moduleName) {
+            if !exportedModuleNames.contains(exportedModuleName) {
+                exportedModuleNames.append(exportedModuleName)
+            }
+        }
         var needsVariableTypeInference = false
         for statement in syntaxTree.root.statements {
             switch statement.type {
@@ -125,7 +136,39 @@ public final class CodebaseInfo {
 
     private func context(importedModuleNames: [String], sourceFile: Source.FilePath?, cache: ContextCache) -> Context {
         let mappedModuleNames = importedModuleNames.flatMap { Self.moduleNameMap[$0] ?? [$0] }
-        return Context(global: self, importedModuleNames: Set(mappedModuleNames), sourceFile: sourceFile, cache: cache)
+        let expandedModuleNames = expandWithExportedImports(in: mappedModuleNames)
+        return Context(global: self, importedModuleNames: expandedModuleNames, sourceFile: sourceFile, cache: cache)
+    }
+
+    /// Expand the given module names to include modules they transitively re-export via `@_exported import`.
+    ///
+    /// When a file imports a module that re-exports others, the imported names must be visible during type
+    /// inference as if those modules were imported directly.
+    private func expandWithExportedImports(in moduleNames: [String]) -> Set<String> {
+        var result = Set(moduleNames)
+        var queue = Array(moduleNames)
+        // Build a name -> exports map, including the current module so source files that import it pick up its re-exports
+        var exportsByModule: [String: [String]] = [:]
+        for dependentModule in dependentModules where !dependentModule.exportedModuleNames.isEmpty {
+            if let name = dependentModule.moduleName {
+                exportsByModule[name] = dependentModule.exportedModuleNames
+            }
+        }
+        if let name = moduleName, !exportedModuleNames.isEmpty {
+            exportsByModule[name] = exportedModuleNames
+        }
+        while let next = queue.popLast() {
+            guard let exported = exportsByModule[next] else { continue }
+            for exportedName in exported {
+                // Re-exported names may themselves be Swift framework names that map to Skip modules
+                for mapped in Self.moduleNameMap[exportedName] ?? [exportedName] {
+                    if result.insert(mapped).inserted {
+                        queue.append(mapped)
+                    }
+                }
+            }
+        }
+        return result
     }
 
     /// The items for the given name.
@@ -1392,6 +1435,12 @@ public final class CodebaseInfo {
         public let moduleName: String?
         public let packageName: String?
 
+        /// Names of modules this module re-exports via `@_exported import`.
+        ///
+        /// Decoded as an optional field for backwards compatibility with `skipcode.json`
+        /// produced by older versions of skipstone that did not record this information.
+        public let exportedModuleNames: [String]
+
         // Default visibility for testing
         var rootTypes: [TypeInfo] = []
         var rootTypealiases: [TypealiasInfo] = []
@@ -1412,24 +1461,56 @@ public final class CodebaseInfo {
             case rootFunctions = "f"
             case rootExtensions = "e"
             case sourceFileTable = "stable"
+            case exportedModuleNames = "x"
         }
 
         public init(of codebaseInfo: CodebaseInfo) {
             self.moduleName = codebaseInfo.moduleName
             self.packageName = codebaseInfo.kotlin?.packageName
+            self.exportedModuleNames = codebaseInfo.exportedModuleNames
 
             // We want to always produce the same encoded output for the same input, because new output from one module might be a signal
             // that modules depending on it have to re-transpile. Sort for stability. API within a file will always have been added in the
             // same order, so we only need to sort by file
             let sortBy: (CodebaseInfoItem, CodebaseInfoItem) -> Bool = { ($0.sourceFile?.path ?? "") < ($1.sourceFile?.path ?? "") }
             let filter: (CodebaseInfoItem) -> Bool = { $0.modifiers.visibility == .public || $0.modifiers.visibility == .open || $0.declarationType == .extensionDeclaration }
-            
+
             // Sort types before applying `export` so that the source file table that export builds is in stable order
             self.rootTypes = codebaseInfo.rootTypes.sorted(by: sortBy).compactMap { export(typeInfo: $0, filter: filter) }
             self.rootTypealiases = codebaseInfo.rootTypealiases.sorted(by: sortBy).filter(filter).map { replaceSourceFile(for: $0) }
             self.rootVariables = codebaseInfo.rootVariables.sorted(by: sortBy).filter(filter).map { replaceSourceFile(for: $0) }
             self.rootFunctions = codebaseInfo.rootFunctions.sorted(by: sortBy).filter(filter).map { replaceSourceFile(for: $0) }
             self.rootExtensions = codebaseInfo.rootExtensions.sorted(by: sortBy).compactMap { export(typeInfo: $0, filter: filter) }
+        }
+
+        public required init(from decoder: Decoder) throws {
+            let container = try decoder.container(keyedBy: CodingKeys.self)
+            self.moduleName = try container.decodeIfPresent(String.self, forKey: .moduleName)
+            self.packageName = try container.decodeIfPresent(String.self, forKey: .packageName)
+            // Backwards-compatible: older skipcode.json files predate `exportedModuleNames` and omit the key
+            self.exportedModuleNames = try container.decodeIfPresent([String].self, forKey: .exportedModuleNames) ?? []
+            self.rootTypes = try container.decodeIfPresent([TypeInfo].self, forKey: .rootTypes) ?? []
+            self.rootTypealiases = try container.decodeIfPresent([TypealiasInfo].self, forKey: .rootTypealiases) ?? []
+            self.rootVariables = try container.decodeIfPresent([VariableInfo].self, forKey: .rootVariables) ?? []
+            self.rootFunctions = try container.decodeIfPresent([FunctionInfo].self, forKey: .rootFunctions) ?? []
+            self.rootExtensions = try container.decodeIfPresent([TypeInfo].self, forKey: .rootExtensions) ?? []
+            self.sourceFileTable = try container.decodeIfPresent([String].self, forKey: .sourceFileTable) ?? []
+        }
+
+        public func encode(to encoder: Encoder) throws {
+            var container = encoder.container(keyedBy: CodingKeys.self)
+            try container.encodeIfPresent(moduleName, forKey: .moduleName)
+            try container.encodeIfPresent(packageName, forKey: .packageName)
+            try container.encode(rootTypes, forKey: .rootTypes)
+            try container.encode(rootTypealiases, forKey: .rootTypealiases)
+            try container.encode(rootVariables, forKey: .rootVariables)
+            try container.encode(rootFunctions, forKey: .rootFunctions)
+            try container.encode(rootExtensions, forKey: .rootExtensions)
+            try container.encode(sourceFileTable, forKey: .sourceFileTable)
+            // Omit the key entirely when empty to keep encoded output identical to older skipstone for modules without `@_exported` imports
+            if !exportedModuleNames.isEmpty {
+                try container.encode(exportedModuleNames, forKey: .exportedModuleNames)
+            }
         }
 
         private func export(typeInfo: TypeInfo, filter: (CodebaseInfoItem) -> Bool) -> TypeInfo? {
