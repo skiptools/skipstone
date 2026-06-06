@@ -16,7 +16,8 @@ final class ExportedImportTests: XCTestCase {
     /// `CodebaseInfo` records the names of modules re-exported via `@_exported import` so that
     /// dependent modules can pick them up at translation time.
     func testCodebaseInfoRecordsExportedModuleNames() throws {
-        let info = try codebaseInfo(moduleName: "Umbrella", swift: """
+        let inner = try moduleExport(named: "Inner")
+        let info = try codebaseInfo(moduleName: "Umbrella", dependentModules: [inner], swift: """
         @_exported import Inner
         import Other
 
@@ -28,7 +29,9 @@ final class ExportedImportTests: XCTestCase {
 
     /// Multiple `@_exported import` declarations stack up, while plain imports do not.
     func testCodebaseInfoRecordsMultipleExportedModuleNames() throws {
-        let info = try codebaseInfo(moduleName: "Umbrella", swift: """
+        let innerA = try moduleExport(named: "InnerA")
+        let innerB = try moduleExport(named: "InnerB")
+        let info = try codebaseInfo(moduleName: "Umbrella", dependentModules: [innerA, innerB], swift: """
         @_exported import InnerA
         @_exported import InnerB
         import Other
@@ -41,7 +44,9 @@ final class ExportedImportTests: XCTestCase {
 
     /// A duplicated `@_exported import` of the same module is only recorded once.
     func testCodebaseInfoDeduplicatesExportedModuleNames() throws {
+        let inner = try moduleExport(named: "Inner")
         let info = CodebaseInfo(moduleName: "Umbrella")
+        info.dependentModules = [inner]
         info.gather(from: try syntaxTree(forSwift: """
         @_exported import Inner
 
@@ -57,9 +62,38 @@ final class ExportedImportTests: XCTestCase {
         XCTAssertEqual(["Inner"], info.exportedModuleNames)
     }
 
+    /// `@_exported import` of a module that Skip does not transpile (no `ModuleExport`, not in
+    /// the built-in name map) must NOT be recorded — otherwise the transpiler would later emit
+    /// a Kotlin import for a package that does not exist on the JVM. This case matches
+    /// `@_exported import SwiftJNI` in `SkipBridge`, where `SwiftJNI` is a native-only Swift
+    /// module without a Kotlin counterpart.
+    func testCodebaseInfoIgnoresNonSkipExportedModuleNames() throws {
+        let info = try codebaseInfo(moduleName: "SkipBridge", dependentModules: [], swift: """
+        @_exported import SwiftJNI
+
+        public class Wrapped {}
+        """)
+
+        XCTAssertEqual([], info.exportedModuleNames)
+    }
+
+    /// `@_exported import` targets that are Swift frameworks with a built-in mapping to a Skip
+    /// module (e.g. `Foundation` → `SkipFoundation`) are recorded so that the transpiler can
+    /// propagate them through the existing import translation.
+    func testCodebaseInfoRecordsMappedFrameworkExportedModuleNames() throws {
+        let info = try codebaseInfo(moduleName: "Umbrella", dependentModules: [], swift: """
+        @_exported import Foundation
+
+        public class Wrapped {}
+        """)
+
+        XCTAssertEqual(["Foundation"], info.exportedModuleNames)
+    }
+
     /// A `ModuleExport` round-trip through JSON preserves `exportedModuleNames`.
     func testModuleExportRoundTrip() throws {
-        let info = try codebaseInfo(moduleName: "Umbrella", swift: """
+        let inner = try moduleExport(named: "Inner")
+        let info = try codebaseInfo(moduleName: "Umbrella", dependentModules: [inner], swift: """
         @_exported import Inner
         """)
         let original = CodebaseInfo.ModuleExport(of: info)
@@ -104,7 +138,7 @@ final class ExportedImportTests: XCTestCase {
             public func value() -> Int { return 0 }
         }
         """))
-        let umbrella = try CodebaseInfo.ModuleExport(of: codebaseInfo(moduleName: "Umbrella", swift: """
+        let umbrella = try CodebaseInfo.ModuleExport(of: codebaseInfo(moduleName: "Umbrella", dependentModules: [inner], swift: """
         @_exported import Inner
 
         public class UmbrellaType {
@@ -135,12 +169,12 @@ final class ExportedImportTests: XCTestCase {
             public func value() -> Int { return 0 }
         }
         """))
-        let middle = try CodebaseInfo.ModuleExport(of: codebaseInfo(moduleName: "Middle", swift: """
+        let middle = try CodebaseInfo.ModuleExport(of: codebaseInfo(moduleName: "Middle", dependentModules: [inner], swift: """
         @_exported import Inner
 
         public class MiddleType { public init() {} }
         """))
-        let umbrella = try CodebaseInfo.ModuleExport(of: codebaseInfo(moduleName: "Umbrella", swift: """
+        let umbrella = try CodebaseInfo.ModuleExport(of: codebaseInfo(moduleName: "Umbrella", dependentModules: [middle, inner], swift: """
         @_exported import Middle
 
         public class UmbrellaType { public init() {} }
@@ -187,11 +221,18 @@ final class ExportedImportTests: XCTestCase {
 
     // MARK: - Helpers
 
-    private func codebaseInfo(moduleName: String, swift: String) throws -> CodebaseInfo {
+    private func codebaseInfo(moduleName: String, dependentModules: [CodebaseInfo.ModuleExport] = [], swift: String) throws -> CodebaseInfo {
         let codebaseInfo = CodebaseInfo(moduleName: moduleName)
+        codebaseInfo.dependentModules = dependentModules
         codebaseInfo.gather(from: try syntaxTree(forSwift: swift, named: moduleName))
         codebaseInfo.prepareForUse()
         return codebaseInfo
+    }
+
+    /// Build a minimal `ModuleExport` for a Skip module with no API, sufficient to register the name
+    /// in `CodebaseInfo.dependentModules` for `@_exported` filtering.
+    private func moduleExport(named name: String) throws -> CodebaseInfo.ModuleExport {
+        return CodebaseInfo.ModuleExport(of: try codebaseInfo(moduleName: name, swift: ""))
     }
 
     private func syntaxTree(forSwift swift: String, named name: String) throws -> SyntaxTree {

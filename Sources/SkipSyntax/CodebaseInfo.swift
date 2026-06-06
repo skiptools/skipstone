@@ -69,6 +69,12 @@ public final class CodebaseInfo {
         assert(!isInUse)
         let importedModuleNames = syntaxTree.root.statements.importedModulePaths.compactMap(\.moduleName)
         for exportedModuleName in syntaxTree.root.statements.exportedImportedModulePaths.compactMap(\.moduleName) {
+            // Only record `@_exported` targets that are themselves Skip modules — i.e. ones we either have
+            // a `ModuleExport` for (transpiled by Skip in this build), or that map onto a Skip module via
+            // the built-in framework name table. Native-only Swift modules (e.g. `SwiftJNI`) must not be
+            // propagated, since the transpiler would otherwise emit a Kotlin import for a package that
+            // does not exist on the JVM side.
+            guard isSkipModuleName(exportedModuleName) else { continue }
             if !exportedModuleNames.contains(exportedModuleName) {
                 exportedModuleNames.append(exportedModuleName)
             }
@@ -138,6 +144,17 @@ public final class CodebaseInfo {
         let mappedModuleNames = importedModuleNames.flatMap { Self.moduleNameMap[$0] ?? [$0] }
         let expandedModuleNames = expandWithExportedImports(in: mappedModuleNames)
         return Context(global: self, importedModuleNames: expandedModuleNames, sourceFile: sourceFile, cache: cache)
+    }
+
+    /// Whether the given Swift module name refers to a Skip-transpiled module — either one transpiled in
+    /// this build (present in `dependentModules`) or a Swift framework that maps to a Skip module via
+    /// `moduleNameMap`. Used to filter `@_exported import` targets so that re-exports of native-only
+    /// Swift modules (e.g. `SwiftJNI`) do not become spurious Kotlin imports.
+    private func isSkipModuleName(_ moduleName: String) -> Bool {
+        if Self.moduleNameMap[moduleName] != nil {
+            return true
+        }
+        return dependentModules.contains(where: { $0.moduleName == moduleName })
     }
 
     /// Expand the given module names to include modules they transitively re-export via `@_exported import`.
