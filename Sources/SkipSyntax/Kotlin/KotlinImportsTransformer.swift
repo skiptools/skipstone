@@ -84,9 +84,9 @@ final class KotlinImportsTransformer: KotlinTransformer {
     /// Build a lookup from the importable module name (the post-mapping module name, e.g., `SkipSQL`) to the list of modules it re-exports.
     private func exportedModuleNamesByModuleName(in codebaseInfo: CodebaseInfo) -> [String: [String]] {
         var result: [String: [String]] = [:]
-        for dependentModule in codebaseInfo.dependentModules where !dependentModule.exportedModuleNames.isEmpty {
-            if let moduleName = dependentModule.moduleName {
-                result[moduleName] = dependentModule.exportedModuleNames
+        for dependentModule in codebaseInfo.dependentModules {
+            if let moduleName = dependentModule.moduleName, let exports = dependentModule.exportedModuleNames, !exports.isEmpty {
+                result[moduleName] = exports
             }
         }
         // The current module's own `@_exported import`s should also propagate when source files re-import the current module under a different name in tests.

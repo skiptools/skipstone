@@ -97,32 +97,36 @@ final class ExportedImportTests: XCTestCase {
         @_exported import Inner
         """)
         let original = CodebaseInfo.ModuleExport(of: info)
-        XCTAssertEqual(["Inner"], original.exportedModuleNames)
+        XCTAssertEqual(["Inner"], original.exportedModuleNames ?? [])
 
         let data = try JSONEncoder().encode(original)
         let decoded = try JSONDecoder().decode(CodebaseInfo.ModuleExport.self, from: data)
-        XCTAssertEqual(["Inner"], decoded.exportedModuleNames)
+        XCTAssertEqual(["Inner"], decoded.exportedModuleNames ?? [])
     }
 
-    /// A `ModuleExport` without `exportedModuleNames` (older skipcode.json) decodes with an empty list,
-    /// preserving backwards compatibility.
+    /// A `ModuleExport` whose source JSON predates the `x` (exportedModuleNames) key — i.e. one
+    /// produced by an older skipstone version — decodes cleanly, with `exportedModuleNames` set
+    /// to `nil` via the synthesized optional decoder. Other long-standing keys are present.
     func testModuleExportBackwardsCompatibleDecoding() throws {
-        let legacyJSON = #"{"m":"Legacy","p":"legacy"}"#
+        // Mirror the shape of a real older skipcode.json: all of the original keys present, the new
+        // `x` key absent. This is the only difference between old and new encodings that we need to
+        // tolerate, since older skipstone always emitted the original keys.
+        let legacyJSON = #"{"m":"Legacy","p":"legacy","t":[],"a":[],"v":[],"f":[],"e":[],"stable":[]}"#
         let data = Data(legacyJSON.utf8)
         let decoded = try JSONDecoder().decode(CodebaseInfo.ModuleExport.self, from: data)
         XCTAssertEqual("Legacy", decoded.moduleName)
         XCTAssertEqual("legacy", decoded.packageName)
-        XCTAssertEqual([], decoded.exportedModuleNames)
+        XCTAssertNil(decoded.exportedModuleNames)
     }
 
-    /// A `ModuleExport` with no `@_exported import`s should omit the `x` key entirely,
-    /// matching skipcode.json files produced by older skipstone versions.
+    /// A `ModuleExport` with no `@_exported import`s stores `nil` and the synthesized encoder
+    /// omits the `x` key, matching skipcode.json files produced by older skipstone versions.
     func testModuleExportEncodingOmitsEmptyExportedModuleNames() throws {
         let info = try codebaseInfo(moduleName: "Plain", swift: """
         public class A {}
         """)
         let export = CodebaseInfo.ModuleExport(of: info)
-        XCTAssertEqual([], export.exportedModuleNames)
+        XCTAssertNil(export.exportedModuleNames)
 
         let data = try JSONEncoder().encode(export)
         let json = String(data: data, encoding: .utf8) ?? ""

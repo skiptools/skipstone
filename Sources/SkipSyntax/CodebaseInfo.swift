@@ -166,9 +166,9 @@ public final class CodebaseInfo {
         var queue = Array(moduleNames)
         // Build a name -> exports map, including the current module so source files that import it pick up its re-exports
         var exportsByModule: [String: [String]] = [:]
-        for dependentModule in dependentModules where !dependentModule.exportedModuleNames.isEmpty {
-            if let name = dependentModule.moduleName {
-                exportsByModule[name] = dependentModule.exportedModuleNames
+        for dependentModule in dependentModules {
+            if let name = dependentModule.moduleName, let exports = dependentModule.exportedModuleNames, !exports.isEmpty {
+                exportsByModule[name] = exports
             }
         }
         if let name = moduleName, !exportedModuleNames.isEmpty {
@@ -1454,9 +1454,11 @@ public final class CodebaseInfo {
 
         /// Names of modules this module re-exports via `@_exported import`.
         ///
-        /// Decoded as an optional field for backwards compatibility with `skipcode.json`
-        /// produced by older versions of skipstone that did not record this information.
-        public let exportedModuleNames: [String]
+        /// Declared optional so the auto-synthesized `Codable` conformance treats the field as a
+        /// backwards-compatible addition: `skipcode.json` files produced by older versions of
+        /// skipstone simply omit the key, and modules with no `@_exported import`s store `nil`
+        /// here so they also omit the key on encode.
+        public let exportedModuleNames: [String]?
 
         // Default visibility for testing
         var rootTypes: [TypeInfo] = []
@@ -1484,7 +1486,10 @@ public final class CodebaseInfo {
         public init(of codebaseInfo: CodebaseInfo) {
             self.moduleName = codebaseInfo.moduleName
             self.packageName = codebaseInfo.kotlin?.packageName
-            self.exportedModuleNames = codebaseInfo.exportedModuleNames
+            // Store `nil` (not an empty array) when the module has no `@_exported import`s so the
+            // synthesized encoder omits the key entirely, matching `skipcode.json` files produced
+            // by older skipstone versions byte-for-byte.
+            self.exportedModuleNames = codebaseInfo.exportedModuleNames.isEmpty ? nil : codebaseInfo.exportedModuleNames
 
             // We want to always produce the same encoded output for the same input, because new output from one module might be a signal
             // that modules depending on it have to re-transpile. Sort for stability. API within a file will always have been added in the
@@ -1498,36 +1503,6 @@ public final class CodebaseInfo {
             self.rootVariables = codebaseInfo.rootVariables.sorted(by: sortBy).filter(filter).map { replaceSourceFile(for: $0) }
             self.rootFunctions = codebaseInfo.rootFunctions.sorted(by: sortBy).filter(filter).map { replaceSourceFile(for: $0) }
             self.rootExtensions = codebaseInfo.rootExtensions.sorted(by: sortBy).compactMap { export(typeInfo: $0, filter: filter) }
-        }
-
-        public required init(from decoder: Decoder) throws {
-            let container = try decoder.container(keyedBy: CodingKeys.self)
-            self.moduleName = try container.decodeIfPresent(String.self, forKey: .moduleName)
-            self.packageName = try container.decodeIfPresent(String.self, forKey: .packageName)
-            // Backwards-compatible: older skipcode.json files predate `exportedModuleNames` and omit the key
-            self.exportedModuleNames = try container.decodeIfPresent([String].self, forKey: .exportedModuleNames) ?? []
-            self.rootTypes = try container.decodeIfPresent([TypeInfo].self, forKey: .rootTypes) ?? []
-            self.rootTypealiases = try container.decodeIfPresent([TypealiasInfo].self, forKey: .rootTypealiases) ?? []
-            self.rootVariables = try container.decodeIfPresent([VariableInfo].self, forKey: .rootVariables) ?? []
-            self.rootFunctions = try container.decodeIfPresent([FunctionInfo].self, forKey: .rootFunctions) ?? []
-            self.rootExtensions = try container.decodeIfPresent([TypeInfo].self, forKey: .rootExtensions) ?? []
-            self.sourceFileTable = try container.decodeIfPresent([String].self, forKey: .sourceFileTable) ?? []
-        }
-
-        public func encode(to encoder: Encoder) throws {
-            var container = encoder.container(keyedBy: CodingKeys.self)
-            try container.encodeIfPresent(moduleName, forKey: .moduleName)
-            try container.encodeIfPresent(packageName, forKey: .packageName)
-            try container.encode(rootTypes, forKey: .rootTypes)
-            try container.encode(rootTypealiases, forKey: .rootTypealiases)
-            try container.encode(rootVariables, forKey: .rootVariables)
-            try container.encode(rootFunctions, forKey: .rootFunctions)
-            try container.encode(rootExtensions, forKey: .rootExtensions)
-            try container.encode(sourceFileTable, forKey: .sourceFileTable)
-            // Omit the key entirely when empty to keep encoded output identical to older skipstone for modules without `@_exported` imports
-            if !exportedModuleNames.isEmpty {
-                try container.encode(exportedModuleNames, forKey: .exportedModuleNames)
-            }
         }
 
         private func export(typeInfo: TypeInfo, filter: (CodebaseInfoItem) -> Bool) -> TypeInfo? {
