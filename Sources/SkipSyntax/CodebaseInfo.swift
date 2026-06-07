@@ -1451,13 +1451,6 @@ public final class CodebaseInfo {
     public final class ModuleExport: Codable {
         public let moduleName: String?
         public let packageName: String?
-
-        /// Names of modules this module re-exports via `@_exported import`.
-        ///
-        /// Declared optional so the auto-synthesized `Codable` conformance treats the field as a
-        /// backwards-compatible addition: `skipcode.json` files produced by older versions of
-        /// skipstone simply omit the key, and modules with no `@_exported import`s store `nil`
-        /// here so they also omit the key on encode.
         public let exportedModuleNames: [String]?
 
         // Default visibility for testing
