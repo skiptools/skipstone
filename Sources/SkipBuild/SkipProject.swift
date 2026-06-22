@@ -1059,47 +1059,32 @@ public class \(moduleName)Module {
                 let rfolder = isNativeModule ? nil : resourceFolder
 
                 var testCaseCode: String
-                if options.testCaseMode == .testing {
+                // Native test modules run via the Swift Testing ABI harness (swt_abiv0), which cannot
+                // execute XCTest cases, so always scaffold Swift Testing for them regardless of the option.
+                if options.testCaseMode == .testing || isNativeModule {
+                    // OSLog is unavailable in the Android Swift SDK, so native test modules (whose Swift
+                    // Testing cases compile for Android) omit the OSLog import, the logger, and its use.
+                    let osLogImport = isNativeModule ? "" : "import OSLog\n"
+                    let loggerDecl = isNativeModule ? "" : "let logger: Logger = Logger(subsystem: \"\(moduleName)\", category: \"Tests\")\n\n"
+                    let logCall = isNativeModule ? "" : "        logger.log(\"running test\(moduleName)\")\n"
+
                     testCaseCode = """
 \(testSourceHeader)import Testing
-import OSLog
-import Foundation
+\(osLogImport)import Foundation
 
 """
-
-                    if isNativeModule {
-                        testCaseCode += """
-import SkipBridge
-
-"""
-                    }
 
                     testCaseCode += """
 @testable import \(moduleName)
 
-let logger: Logger = Logger(subsystem: "\(moduleName)", category: "Tests")
-
-@Suite struct \(moduleName)Tests {
+\(loggerDecl)@Suite struct \(moduleName)Tests {
 
 """
-
-                    if isNativeModule {
-                        testCaseCode += """
-    init() {
-        #if SKIP
-        // needed to load the compiled bridge when the tests are transpiled
-        loadPeerLibrary(packageName: "\(projectName)", moduleName: "\(moduleName)")
-        #endif
-    }
-
-"""
-                    }
 
                     testCaseCode += """
 
     @Test func \(moduleName.prefix(1).lowercased() + moduleName.dropFirst())() throws {
-        logger.log("running test\(moduleName)")
-        #expect(1 + 2 == 3, "basic test")
+\(logCall)        #expect(1 + 2 == 3, "basic test")
     }
 
 """
@@ -1186,13 +1171,6 @@ import Foundation
 
 """
 
-                    if isNativeModule {
-                        testCaseCode += """
-import SkipBridge
-
-"""
-                    }
-
                     testCaseCode += """
 @testable import \(moduleName)
 
@@ -1202,18 +1180,6 @@ let logger: Logger = Logger(subsystem: "\(moduleName)", category: "Tests")
 final class \(moduleName)Tests: XCTestCase {
 
 """
-
-                    if isNativeModule {
-                        testCaseCode += """
-    override func setUp() {
-        #if SKIP
-        // needed to load the compiled bridge when the tests are transpiled
-        loadPeerLibrary(packageName: "\(projectName)", moduleName: "\(moduleName)")
-        #endif
-    }
-
-"""
-                    }
 
                     testCaseCode += """
 
@@ -1311,14 +1277,14 @@ struct TestData : Codable, Hashable {
                 """
 
                 if moduleMode.isNative {
-                    // The test target for a natively-compiled Skip Fuse module must itself be transpiled: its
-                    // XCTest cases are transpiled to JUnit tests so the test harness can collect the results.
-                    // A native test target would have its test classes dropped during bridging, leaving no
-                    // tests to run, so it must explicitly opt into transpiled mode.
+                    // The test target for a natively-compiled Skip Fuse module is itself a native test module:
+                    // its Swift Testing cases run natively on Android (not transpiled to Kotlin/JUnit). The
+                    // skipstone plugin generates the JNI harness glue and drives the cases on the emulator /
+                    // Robolectric via the same testSkipModule → runGradleTests mechanism as transpiled tests.
                     testSkipYaml += """
 
                     skip:
-                      mode: 'transpiled'
+                      mode: 'native'
 
                     """
 
