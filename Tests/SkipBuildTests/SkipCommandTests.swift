@@ -191,16 +191,12 @@ final class SkipCommandTests: XCTestCase {
         let testCaseCode = try load("Tests/SomeModuleTests/SomeModuleTests.swift")
         XCTAssertEqual(testCaseCode, """
         import Testing
-        import OSLog
         import Foundation
         @testable import SomeModule
-
-        let logger: Logger = Logger(subsystem: "SomeModule", category: "Tests")
 
         @Suite struct SomeModuleTests {
 
             @Test func someModule() throws {
-                logger.log("running testSomeModule")
                 #expect(1 + 2 == 3, "basic test")
             }
 
@@ -2013,16 +2009,12 @@ final class SkipCommandTests: XCTestCase {
         let testCaseCode = try load("Tests/SomeModuleTests/SomeModuleTests.swift")
         XCTAssertEqual(testCaseCode, """
         import Testing
-        import OSLog
         import Foundation
         @testable import SomeModule
-
-        let logger: Logger = Logger(subsystem: "SomeModule", category: "Tests")
 
         @Suite struct SomeModuleTests {
 
             @Test func someModule() throws {
-                logger.log("running testSomeModule")
                 #expect(1 + 2 == 3, "basic test")
             }
 

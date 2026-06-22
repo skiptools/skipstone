@@ -1062,29 +1062,23 @@ public class \(moduleName)Module {
                 // Native test modules run via the Swift Testing ABI harness (swt_abiv0), which cannot
                 // execute XCTest cases, so always scaffold Swift Testing for them regardless of the option.
                 if options.testCaseMode == .testing || isNativeModule {
-                    // OSLog is unavailable in the Android Swift SDK, so native test modules (whose Swift
-                    // Testing cases compile for Android) omit the OSLog import, the logger, and its use.
-                    let osLogImport = isNativeModule ? "" : "import OSLog\n"
-                    let loggerDecl = isNativeModule ? "" : "let logger: Logger = Logger(subsystem: \"\(moduleName)\", category: \"Tests\")\n\n"
-                    let logCall = isNativeModule ? "" : "        logger.log(\"running test\(moduleName)\")\n"
-
                     testCaseCode = """
 \(testSourceHeader)import Testing
-\(osLogImport)import Foundation
+import Foundation
 
 """
 
                     testCaseCode += """
 @testable import \(moduleName)
 
-\(loggerDecl)@Suite struct \(moduleName)Tests {
+@Suite struct \(moduleName)Tests {
 
 """
 
                     testCaseCode += """
 
     @Test func \(moduleName.prefix(1).lowercased() + moduleName.dropFirst())() throws {
-\(logCall)        #expect(1 + 2 == 3, "basic test")
+        #expect(1 + 2 == 3, "basic test")
     }
 
 """
