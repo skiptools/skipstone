@@ -24,7 +24,7 @@ jobs:
           - 'macos-14'
     steps:
       - name: Checkout skipstone.git
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           # skip.git submodule needed for SkipDriveExternal
           submodules: true
@@ -126,6 +126,16 @@ jobs:
 
     steps:
       - uses: Homebrew/actions/setup-homebrew@main
+
+      # The transpiled (Lite) and Fuse framework `swift test` runs execute the Kotlin suite under
+      # Robolectric, and recent Android SDK levels (e.g. SDK 36) require Java 21. The runners default to
+      # Java 17, so without this the Robolectric run fails with:
+      #   "Failed to create a Robolectric sandbox: Android SDK 36 requires Java 21 (have Java 17)".
+      - name: "Set up Java 21 (required by Robolectric for recent Android SDKs)"
+        uses: actions/setup-java@v5
+        with:
+          distribution: 'temurin'
+          java-version: '21'
 
       - name: "Install Host Toolchain prerequisites"
         if: runner.os == 'Linux'
