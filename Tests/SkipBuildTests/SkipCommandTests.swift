@@ -736,23 +736,12 @@ final class SkipCommandTests: XCTestCase {
         let testCaseCode = try load("Tests/SomeModuleTests/SomeModuleTests.swift")
         XCTAssertEqual(testCaseCode, """
         import Testing
-        import OSLog
         import Foundation
-        import SkipBridge
         @testable import SomeModule
 
-        let logger: Logger = Logger(subsystem: "SomeModule", category: "Tests")
-
         @Suite struct SomeModuleTests {
-            init() {
-                #if SKIP
-                // needed to load the compiled bridge when the tests are transpiled
-                loadPeerLibrary(packageName: "basic-project", moduleName: "SomeModule")
-                #endif
-            }
 
             @Test func someModule() throws {
-                logger.log("running testSomeModule")
                 #expect(1 + 2 == 3, "basic test")
             }
 
@@ -794,7 +783,7 @@ final class SkipCommandTests: XCTestCase {
         #  contents:
 
         skip:
-          mode: 'transpiled'
+          mode: 'native'
 
         """)
 
@@ -835,13 +824,20 @@ final class SkipCommandTests: XCTestCase {
         .
         ├─ Package.swift
         ├─ README.md
-        └─ Sources
-           └─ SomeModule
+        ├─ Sources
+        │  └─ SomeModule
+        │     ├─ Resources
+        │     │  └─ Localizable.xcstrings
+        │     ├─ Skip
+        │     │  └─ skip.yml
+        │     └─ SomeModule.swift
+        └─ Tests
+           └─ SomeModuleTests
               ├─ Resources
-              │  └─ Localizable.xcstrings
+              │  └─ TestData.json
               ├─ Skip
               │  └─ skip.yml
-              └─ SomeModule.swift
+              └─ SomeModuleTests.swift
 
         """)
 
@@ -908,6 +904,10 @@ final class SkipCommandTests: XCTestCase {
             targets: [
                 .target(name: "SomeModule", dependencies: [
                     .product(name: "SkipFuse", package: "skip-fuse")
+                ], resources: [.process("Resources")], plugins: [.plugin(name: "skipstone", package: "skip")]),
+                .testTarget(name: "SomeModuleTests", dependencies: [
+                    "SomeModule",
+                    .product(name: "SkipTest", package: "skip")
                 ], resources: [.process("Resources")], plugins: [.plugin(name: "skipstone", package: "skip")]),
             ]
         )
@@ -1031,23 +1031,12 @@ final class SkipCommandTests: XCTestCase {
         let testCaseCode = try load("Tests/ModelModuleTests/ModelModuleTests.swift")
         XCTAssertEqual(testCaseCode, """
         import Testing
-        import OSLog
         import Foundation
-        import SkipBridge
         @testable import ModelModule
 
-        let logger: Logger = Logger(subsystem: "ModelModule", category: "Tests")
-
         @Suite struct ModelModuleTests {
-            init() {
-                #if SKIP
-                // needed to load the compiled bridge when the tests are transpiled
-                loadPeerLibrary(packageName: "cool-app", moduleName: "ModelModule")
-                #endif
-            }
 
             @Test func modelModule() throws {
-                logger.log("running testModelModule")
                 #expect(1 + 2 == 3, "basic test")
             }
 
@@ -1217,23 +1206,12 @@ final class SkipCommandTests: XCTestCase {
         let testCaseCode = try load("Tests/ModelModuleTests/ModelModuleTests.swift")
         XCTAssertEqual(testCaseCode, """
         import Testing
-        import OSLog
         import Foundation
-        import SkipBridge
         @testable import ModelModule
 
-        let logger: Logger = Logger(subsystem: "ModelModule", category: "Tests")
-
         @Suite struct ModelModuleTests {
-            init() {
-                #if SKIP
-                // needed to load the compiled bridge when the tests are transpiled
-                loadPeerLibrary(packageName: "cool-app", moduleName: "ModelModule")
-                #endif
-            }
 
             @Test func modelModule() throws {
-                logger.log("running testModelModule")
                 #expect(1 + 2 == 3, "basic test")
             }
 
