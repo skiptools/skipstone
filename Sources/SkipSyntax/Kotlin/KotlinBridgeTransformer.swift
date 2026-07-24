@@ -1118,6 +1118,14 @@ extension KotlinFunctionDeclaration {
         guard !(attributes.contains(.inlineAlways) && !generics.isEmpty) else {
             return nil
         }
+        // The same JVM-uncallable `inline fun <reified T>` can also be hand-authored via a
+        // `// SKIP DECLARE: ... inline fun <reified T> ...` override, which carries no structured
+        // attribute for the guard above to see (e.g. skip-firebase's FirestoreDecoder.decode(from:),
+        // reached through DocumentSnapshot.decoded() — so #91 is not fully closed by the attribute
+        // guard alone). Bail out for that override shape too.
+        if let declaration = extras?.declaration, declaration.contains("inline fun"), declaration.contains("reified") {
+            return nil
+        }
         if direction == .toKotlin {
             guard isEqualImplementation || isLessThanImplementation || checkNonStaticGenericTypeMember(self, in: parent, modifiers: modifiers, translator: translator) else {
                 return nil
