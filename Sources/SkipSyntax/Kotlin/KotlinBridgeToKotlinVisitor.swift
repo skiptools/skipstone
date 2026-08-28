@@ -1550,12 +1550,13 @@ final class KotlinBridgeToKotlinVisitor {
             swift.append(1, "\(target).islessthan = { [unowned \(target)] in (\(target).genericvalue as! Self) < $0 as! Self }")
         }
 
-        let swiftUIType = classDeclaration.swiftUIType
-        if swiftUIType == .view || swiftUIType == .toolbarContent {
-            swift.append("\(target).body = { [unowned \(target)] in (\(target).genericvalue as! Self).body }")
-        } else if swiftUIType != .none {
-            swift.append("\(target).body = { [unowned \(target)] in (\(target).genericvalue as! Self).body($0) }")
-        }
+		let bodySignature = switch classDeclaration.swiftUIType {
+			case .view, .toolbarContent: ""
+			case .viewModifier: "(content: $0)"
+			case .none: "($0)"
+		}
+		swift.append("\(target).body = { [unowned \(target)] in (\(target).genericvalue as! Self).body\(bodySignature) }")
+
         for (name, attributes, _) in stateVariables {
             if attributes.stateAttribute != nil || attributes.contains(.focusState) || attributes.contains(.gestureState) || attributes.contains(.appStorage) {
                 swift.append("\(target).Java_initState_\(name) = { [unowned \(target)] in (\(target).genericvalue as! Self).Java_initState_\(name)() }")
