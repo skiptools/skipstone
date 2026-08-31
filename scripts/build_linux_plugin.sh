@@ -94,14 +94,16 @@ chmod +x ${BINDIR}/${TOOLNAME}
 VARIANTS=""
 for ARCH in "${ARCHS[@]}"; do
     SDK="${ARCH}-swift-linux-musl"
-    TRIPLE="${ARCH}-unknown-linux-gnu"
+    # the static-MUSL binary also runs on Android (bionic) hosts, so
+    # declare the Android host triples as well (os(Android) != os(Linux))
+    TRIPLES="\"${ARCH}-unknown-linux-gnu\", \"${ARCH}-unknown-linux-android\", \"${ARCH}-unknown-linux-android24\""
     if [[ -n "${VARIANTS}" ]]; then
         VARIANTS="${VARIANTS},"
     fi
     VARIANTS="${VARIANTS}
             {
                 \"path\": \"${SDK}/${SKIPCMD}\",
-                \"supportedTriples\": [\"${TRIPLE}\"]
+                \"supportedTriples\": [${TRIPLES}]
             }"
 done
 
