@@ -13,6 +13,7 @@ final class KotlinBridgeToKotlinVisitor {
     private let includesUI: Bool
     private var swiftDefinitions: [SwiftDefinition] = []
     private var cdeclFunctions: [CDeclFunction] = []
+    private var needsObservationImport = false
 
     init?(for syntaxTree: KotlinSyntaxTree, options: KotlinBridgeOptions, translator: KotlinTranslator) {
         guard syntaxTree.isBridgeFile, !syntaxTree.root.isInIfSkipBlock, let codebaseInfo = translator.codebaseInfo else {
@@ -121,8 +122,12 @@ final class KotlinBridgeToKotlinVisitor {
         }
         let swiftDefinitions = self.swiftDefinitions
         let cdeclFunctions = self.cdeclFunctions
+        let needsObservationImport = self.needsObservationImport
         let outputNode = SwiftDefinition { output, indentation, _ in
             output.append("import SkipBridge\n\n")
+            if needsObservationImport, !importDeclarations.contains(where: { $0.modulePath == ["Observation"] }) {
+                output.append("import Observation\n")
+            }
             for importDeclaration in importDeclarations {
                 let path = importDeclaration.modulePath.joined(separator: ".")
                 output.append(indentation).append("import ").append(path).append("\n")
@@ -1047,6 +1052,9 @@ final class KotlinBridgeToKotlinVisitor {
         }
 
         classDeclaration.inherits = mappedInherits
+        if swiftUIType == .view {
+            classDeclaration.inherits.append(.named("skip.ui.Renderable", []))
+        }
         classDeclaration.extras = Self.bridgeExtras(classDeclaration.extras)
         if clearSuperclassCall {
             classDeclaration.superclassCall = nil
@@ -1757,10 +1765,34 @@ final class KotlinBridgeToKotlinVisitor {
     private func swiftUIBodyImplementation(_ swiftUIType: TypeSignature.SwiftUIType, for classDeclaration: KotlinClassDeclaration, visibility: Modifiers.Visibility) -> (statements: [KotlinStatement], swift: [String], cdeclFunctions: [CDeclFunction]) {
         let classType = ClassType(classDeclaration)
         let externalName = "Swift_composableBody"
-        let externalParameters = swiftUIType == .view || swiftUIType == .toolbarContent ? classType.peerExternalParameter : "\(classType.peerExternalParameter), content: skip.ui.View"
+        var externalParameters = swiftUIType == .view || swiftUIType == .toolbarContent ? classType.peerExternalParameter : "\(classType.peerExternalParameter), content: skip.ui.View"
+        externalParameters += ", onChange: () -> Unit"
         let externalArguments = swiftUIType == .view || swiftUIType == .toolbarContent ? classType.peerExternalArgument : "\(classType.peerExternalArgument), content"
         let externalSourceCode = "private external fun \(externalName)(\(externalParameters)): skip.ui.View?"
-        let functionSourceCode = "return skip.ui.ComposeBuilder { composectx: skip.ui.ComposeContext -> \(externalName)(\(externalArguments))?.Compose(composectx) ?: skip.ui.ComposeResult.ok }"
+        let bodyFunctionSourceCode: [String]
+        let renderFunctionSourceCode: [String]?
+        if swiftUIType == .view {
+            bodyFunctionSourceCode = [
+                "return skip.ui.ComposeBuilder { composectx: skip.ui.ComposeContext ->",
+                "    Render(composectx)",
+                "    skip.ui.ComposeResult.ok",
+                "}",
+            ]
+            renderFunctionSourceCode = [
+                "val observationInvalidation = androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(0) }",
+                "observationInvalidation.value",
+                "\(externalName)(\(externalArguments), onChange = { observationInvalidation.value += 1 })?.Compose(context)",
+            ]
+        } else {
+            bodyFunctionSourceCode = [
+                "return skip.ui.ComposeBuilder { composectx: skip.ui.ComposeContext ->",
+                "    val observationInvalidation = androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(0) }",
+                "    observationInvalidation.value",
+                "    \(externalName)(\(externalArguments), onChange = { observationInvalidation.value += 1 })?.Compose(composectx) ?: skip.ui.ComposeResult.ok",
+                "}",
+            ]
+            renderFunctionSourceCode = nil
+        }
         let externalFunctionDeclaration = KotlinRawStatement(sourceCode: externalSourceCode)
 
         let functionDeclaration = KotlinFunctionDeclaration(name: "body")
@@ -1770,9 +1802,24 @@ final class KotlinBridgeToKotlinVisitor {
         functionDeclaration.returnType = .skipUIView
         functionDeclaration.modifiers = Modifiers(visibility: .public, isOverride: true)
         functionDeclaration.extras = .singleNewline
-        functionDeclaration.body = KotlinCodeBlock(statements: [KotlinRawStatement(sourceCode: functionSourceCode)])
+        functionDeclaration.body = KotlinCodeBlock(statements: bodyFunctionSourceCode.map { KotlinRawStatement(sourceCode: $0) })
         functionDeclaration.body?.disallowSingleStatementAppend = true
         functionDeclaration.parent = classDeclaration
+
+        let renderFunctionDeclaration: KotlinFunctionDeclaration?
+        if let renderFunctionSourceCode {
+            let declaration = KotlinFunctionDeclaration(name: "Render")
+            declaration.parameters = [Parameter<KotlinExpression>(externalLabel: "context", declaredType: .named("skip.ui.ComposeContext", []))]
+            declaration.modifiers = Modifiers(visibility: .public, isOverride: true)
+            declaration.attributes.attributes.append(Attribute(signature: .named("androidx.compose.runtime.Composable", [])))
+            declaration.extras = .singleNewline
+            declaration.body = KotlinCodeBlock(statements: renderFunctionSourceCode.map { KotlinRawStatement(sourceCode: $0) })
+            declaration.body?.disallowSingleStatementAppend = true
+            declaration.parent = classDeclaration
+            renderFunctionDeclaration = declaration
+        } else {
+            renderFunctionDeclaration = nil
+        }
 
         var swift: [String] = []
         let visibilityString = visibility.swift(suffix: " ")
@@ -1789,30 +1836,38 @@ final class KotlinBridgeToKotlinVisitor {
         if swiftUIType != .view && swiftUIType != .toolbarContent {
             cdeclParameters.append(TypeSignature.Parameter(label: "content", type: .javaObjectPointer))
         }
+        cdeclParameters.append(TypeSignature.Parameter(label: "onChange", type: .javaObjectPointer))
         let cdeclSignature: TypeSignature = .function(cdeclParameters, .optional(.javaObjectPointer), APIFlags(), nil)
         var cdeclSource = classType.peerSwiftAssignment(to: classDeclaration, optionsString: "[]")
-        let bodyInvocation: String
+        let bodyExpression: String
         if swiftUIType == .view || swiftUIType == .toolbarContent {
             if classType == .generic {
-                bodyInvocation = "let body = \(classType.peerSwiftTarget).body()"
+                bodyExpression = "\(classType.peerSwiftTarget).body()"
             } else {
-                bodyInvocation = "let body = \(classType.peerSwiftTarget).body"
+                bodyExpression = "\(classType.peerSwiftTarget).body"
             }
         } else {
             cdeclSource.append("let content_swift = JavaBackedView(content)!")
             if classType == .generic {
-                bodyInvocation = "let body = \(classType.peerSwiftTarget).body(content_swift)"
+                bodyExpression = "\(classType.peerSwiftTarget).body(content_swift)"
             } else {
-                bodyInvocation = "let body = \(classType.peerSwiftTarget).body(content: content_swift)"
+                bodyExpression = "\(classType.peerSwiftTarget).body(content: content_swift)"
             }
         }
+        needsObservationImport = true
+        cdeclSource.append("let onChange_swift = SwiftClosure0.closure(forJavaObject: onChange, options: [])! as @Sendable () -> Void")
         cdeclSource.append("return SkipBridge.assumeMainActorUnchecked {")
-        cdeclSource.append(1, bodyInvocation)
+        cdeclSource.append(1, "let body = withObservationTracking {")
+        cdeclSource.append(2, "return \(bodyExpression)")
+        cdeclSource.append(1, "} onChange: {")
+        cdeclSource.append(2, "onChange_swift()")
+        cdeclSource.append(1, "}")
         cdeclSource.append(1, "return ((body as? SkipUIBridging)?.Java_view as? JConvertible)?.toJavaObject(options: [])")
         cdeclSource.append("}")
         let cdeclFunction = CDeclFunction(name: cdeclName, cdecl: cdecl, signature: cdeclSignature, body: cdeclSource)
 
-        return ([functionDeclaration, externalFunctionDeclaration], swift, [cdeclFunction])
+        let declarations = [functionDeclaration] + (renderFunctionDeclaration.map { [$0] } ?? []) + [externalFunctionDeclaration]
+        return (declarations, swift, [cdeclFunction])
     }
 }
 
