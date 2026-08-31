@@ -129,7 +129,21 @@ extension ToolOptionsCommand where Self : StreamingCommand {
 
         //await checkVersion(title: "ECHO2 VERSION", cmd: ["sh", "-c", "echo ONE ; sleep 1; echo TWO ; sleep 1; echo THREE ; sleep 1; echo 3.2.1"], min: Version("1.2.3"), pattern: "([0-9.]+)", watch: true)
 
-        try await checkVersion(title: "Skip version", cmd: [skipcmd, "version"], min: Version(skipVersion), pattern: "Skip version ([0-9.]+)")
+        // Skip version: special-case debug builds to show .warn (yellow !) instead of .pass
+        if isDebug {
+            try await run(with: out, "Skip version", [skipcmd, "version"], watch: false, resultHandler: { result in
+                guard let skipVersion = try? result?.get().stdout.trimmingCharacters(in: .newlines) else {
+                    return (result, MessageBlock(status: .fail, "Skip version: error executing \(skipcmd)"))
+                }
+                if skipVersion.contains("debug") {
+                    return (result, MessageBlock(status: .warn, skipVersion))
+                } else {
+                    return (result, MessageBlock(status: .pass, "Skip version \(skipVersion) [debug]"))
+                }
+            })
+        } else {
+            try await checkVersion(title: "Skip version", cmd: [skipcmd, "version"], min: Version(skipVersion), pattern: "Skip version ([0-9.]+)")
+        }
         #if os(macOS)
         try await checkVersion(title: "macOS version", cmd: ["sw_vers", "--productVersion"], min: Version("13.5.0"), pattern: "([0-9.]+)")
         #endif

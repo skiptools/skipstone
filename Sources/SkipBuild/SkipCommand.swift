@@ -14,6 +14,12 @@ import struct Universal.JSON
 /// The version of Skip, via `SkipSyntax`
 public let skipVersion = SkipSyntax.skipVersion // we don't want to have to import SkipSyntax just to get the version, so re-export it
 
+#if DEBUG
+public let isDebug = true
+#else
+public let isDebug = false
+#endif
+
 struct Options {
     var preprocessorSymbols: [String] = []
 }
@@ -62,7 +68,7 @@ public func skipstone(_ args: [String]) async throws -> (out: String, err: Strin
 public struct SkipRunnerExecutor: SkipCommandExecutor {
     public static var configuration = CommandConfiguration(
         commandName: "skip",
-        abstract: "skip \(skipVersion)",
+        abstract: "skip \(skipVersion)\(isDebug ? " (debug)" : "")",
         //version: skipVersion,
         shouldDisplay: true,
         subcommands: [
