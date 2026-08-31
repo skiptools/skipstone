@@ -2466,6 +2466,7 @@ private typealias AppDelegate = \(primaryModuleName)AppDelegate
 @main struct AppMain: App {
     @AppDelegateAdaptor(AppMainDelegate.self) var appDelegate
     @Environment(\\.scenePhase) private var scenePhase
+    @State private var started = false
 
     var body: some Scene {
         WindowGroup {
@@ -2474,10 +2475,15 @@ private typealias AppDelegate = \(primaryModuleName)AppDelegate
         .onChange(of: scenePhase) { oldPhase, newPhase in
             switch newPhase {
             case .active:
+                if !started {
+                    started = true
+                    AppDelegate.shared.onStart()
+                }
                 AppDelegate.shared.onResume()
             case .inactive:
                 AppDelegate.shared.onPause()
             case .background:
+                started = false
                 AppDelegate.shared.onStop()
             @unknown default:
                 print("unknown app phase: \\(newPhase)")
@@ -2593,6 +2599,10 @@ let logger: Logger = Logger(subsystem: "\(appid)", category: "\(primaryModuleNam
 
     \(skipBridge)public func onPause() {
         logger.debug("onPause")
+    }
+
+    \(skipBridge)public func onStart() {
+        logger.debug("onStart")
     }
 
     \(skipBridge)public func onStop() {
@@ -3771,8 +3781,8 @@ open class MainActivity: AppCompatActivity {
     }
 
     override fun onStart() {
-        logger.info("onStart")
         super.onStart()
+        AppDelegate.shared.onStart()
     }
 
     override fun onResume() {
