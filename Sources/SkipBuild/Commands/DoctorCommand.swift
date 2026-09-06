@@ -22,6 +22,9 @@ struct DoctorCommand: SkipCommand, StreamingCommand, ToolOptionsCommand {
 
         # Run checks including native Swift-on-Android support
         skip doctor --native
+
+        # Run checks for the experimental browser/Wasm host
+        skip doctor --web
         """,
         discussion: """
         Checks system configuration and prerequisites for Skip development: Xcode, \
@@ -39,6 +42,9 @@ struct DoctorCommand: SkipCommand, StreamingCommand, ToolOptionsCommand {
     @Flag(inversion: .prefixedNo, help: ArgumentHelp("Check for native SDK", valueName: "native"))
     var native: Bool = false
 
+    @Flag(inversion: .prefixedNo, help: ArgumentHelp("Check for a Swift Wasm SDK", valueName: "web"))
+    var web: Bool = false
+
     // we do not fail fast by default for doctor since it is useful to see all the parts that failed
     @Flag(inversion: .prefixedNo, help: ArgumentHelp("Fail immediately when an error occurs"))
     var failFast: Bool = false
@@ -47,7 +53,7 @@ struct DoctorCommand: SkipCommand, StreamingCommand, ToolOptionsCommand {
         await withLogStream(with: out) {
             await out.yield(MessageBlock(status: nil, "Skip Doctor"))
 
-            try await runDoctor(checkNative: self.native, with: out)
+            try await runDoctor(checkNative: self.native, checkWeb: self.web, with: out)
             let latestVersion = await checkSkipUpdates(with: out)
             if let latestVersion = latestVersion, latestVersion != skipVersion {
                 await out.yield(MessageBlock(status: .warn, "A new version is Skip (\(latestVersion)) is available to update with: skip upgrade"))
@@ -60,7 +66,7 @@ extension ToolOptionsCommand where Self : StreamingCommand {
     // TODO: check license validity: https://github.com/skiptools/skip/issues/388
 
     /// Runs the `skip doctor` command and stream the results to the messenger
-    func runDoctor(checkNative: Bool, with out: MessageQueue) async throws {
+    func runDoctor(checkNative: Bool, checkWeb: Bool = false, with out: MessageQueue) async throws {
         /// Invokes the given command and attempts to parse the output against the given regular expression pattern to validate that it is a semantic version string
         func checkVersion(title: String, cmd: [String], min: Version? = nil, pattern: String, watch: Bool = false, hint: String? = nil) async throws {
 
@@ -138,6 +144,9 @@ extension ToolOptionsCommand where Self : StreamingCommand {
             try await checkRosetta()
         }
         try await checkVersion(title: "Swift version", cmd: ["swift", "-version"], min: Version("5.9.0"), pattern: "Swift version ([0-9.]+)")
+        if checkWeb {
+            try await checkWebSDK(with: out)
+        }
         try await checkVersion(title: "Swiftly version", cmd: ["swiftly", "--version"], min: Version("1.0.0"), pattern: "([0-9.]+)")
         if checkNative {
             try await checkVersion(title: "Swift Android SDK version", cmd: [skipcmd, "android", "toolchain", "version"], min: Version("6.1.0"), pattern: "Swift Package Manager - Swift ([0-9.]+)", hint: " (install with: skip android sdk install)")
@@ -170,6 +179,23 @@ extension ToolOptionsCommand where Self : StreamingCommand {
         // we no longer require that Android Studio be installed with the advent of `skip android emulator create`
         //await checkAndroidStudioVersion(with: out)
         #endif
+    }
+
+    /// Reports whether the current Swift installation exposes a Wasm SDK that can build the
+    /// bootstrap module consumed by `skip web`.
+    private func checkWebSDK(with out: MessageQueue) async throws {
+        func checkResult(_ result: Result<ProcessOutput, Error>?) -> (result: Result<ProcessOutput, Error>?, message: MessageBlock?) {
+            guard let res = try? result?.get() else {
+                return (result: result, message: MessageBlock(status: .fail, "Swift Wasm SDK: error executing swift sdk list"))
+            }
+            let output = (res.stdout + res.stderr).lowercased()
+            if output.contains("wasm") || output.contains("wasi") {
+                return (result: result, message: MessageBlock(status: .pass, "Swift Wasm SDK: available"))
+            }
+            return (result: result, message: MessageBlock(status: .fail, "Swift Wasm SDK: not found (install a Swift Wasm SDK before building the browser bootstrap module)"))
+        }
+
+        try await run(with: out, "Swift Wasm SDK", ["swift", "sdk", "list"], watch: false, resultHandler: checkResult)
     }
 
     func checkXcodeCommandLineTools(with out: MessageQueue) async {
