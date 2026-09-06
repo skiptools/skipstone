@@ -63,11 +63,33 @@ enum WebHostTemplate {
         <html lang="en">
         <head>
           <meta charset="utf-8">
-          <meta name="viewport" content="width=device-width, initial-scale=1">
+          <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+          <meta name="theme-color" content="#ffffff">
           <title>\(escapeHTML(title))</title>
           <style>
+            :root { color-scheme: light dark; }
+            *, *::before, *::after { box-sizing: border-box; }
             html, body, #skip-root { margin: 0; min-height: 100%; width: 100%; }
-            body { min-height: 100vh; }
+            body {
+              min-height: 100vh;
+              min-height: 100dvh;
+              overflow-x: hidden;
+              padding: env(safe-area-inset-top) env(safe-area-inset-right)
+                       env(safe-area-inset-bottom) env(safe-area-inset-left);
+              background: Canvas;
+              color: CanvasText;
+              font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+            }
+            #skip-root { min-height: calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom)); }
+            @media (min-width: 600px) {
+              #skip-root { padding-inline: clamp(16px, 4vw, 48px); }
+            }
+            @media (min-width: 840px) {
+              #skip-root { margin-inline: auto; max-width: 1280px; padding-inline: clamp(24px, 5vw, 80px); }
+            }
+            @media (prefers-reduced-motion: reduce) {
+              *, *::before, *::after { scroll-behavior: auto !important; animation-duration: 0.01ms !important; }
+            }
           </style>
         </head>
         <body>
@@ -89,7 +111,8 @@ enum WebHostTemplate {
           "version": 1,
           "title": "\(escapeJSON(title))",
           "bootstrap": "\(escapeJSON(bootstrapModule))",
-          "mount": "#skip-root"
+          "mount": "#skip-root",
+          "breakpoints": { "compact": 600, "medium": 840 }
         }
         """
     }

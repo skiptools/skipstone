@@ -13,6 +13,11 @@ final class WebCommandTests: XCTestCase {
         XCTAssertTrue(html.contains("<title>My &lt;Skip&gt; App</title>"))
         XCTAssertTrue(html.contains("import * as app from \"./bootstrap/app.js\""))
         XCTAssertTrue(html.contains("app.start(document.getElementById(\"skip-root\"))"))
+        XCTAssertTrue(html.contains("viewport-fit=cover"))
+        XCTAssertTrue(html.contains("min-height: 100dvh"))
+        XCTAssertTrue(html.contains("@media (min-width: 600px)"))
+        XCTAssertTrue(html.contains("@media (min-width: 840px)"))
+        XCTAssertTrue(html.contains("safe-area-inset-bottom"))
 
         let escapedModule = WebHostTemplate.html(title: "App", bootstrapModule: "bootstrap/\"app.js")
         XCTAssertTrue(escapedModule.contains("import * as app from \"./bootstrap/\\\"app.js\""))
@@ -24,5 +29,7 @@ final class WebCommandTests: XCTestCase {
         XCTAssertTrue(manifest.contains("\"title\": \"A \\\"web\\\" app\""))
         XCTAssertTrue(manifest.contains("\"bootstrap\": \"main\\\\app.js\""))
         XCTAssertTrue(manifest.contains("\"mount\": \"#skip-root\""))
+        XCTAssertTrue(manifest.contains("\"compact\": 600"))
+        XCTAssertTrue(manifest.contains("\"medium\": 840"))
     }
 }
