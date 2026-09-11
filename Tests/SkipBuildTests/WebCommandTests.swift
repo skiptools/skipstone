@@ -7,12 +7,13 @@ import XCTest
 
 final class WebCommandTests: XCTestCase {
     func testHTMLTemplateProvidesMountPointAndBootstrap() {
-        let html = WebHostTemplate.html(title: "My <Skip> App", bootstrapModule: "bootstrap/app.js")
+        let html = WebHostTemplate.html(title: "My <Skip> App", bootstrapModule: "bootstrap/index.js")
 
         XCTAssertTrue(html.contains("<main id=\"skip-root\""))
         XCTAssertTrue(html.contains("<title>My &lt;Skip&gt; App</title>"))
-        XCTAssertTrue(html.contains("import * as app from \"./bootstrap/app.js\""))
-        XCTAssertTrue(html.contains("app.start(document.getElementById(\"skip-root\"))"))
+        XCTAssertTrue(html.contains("await import(\"./bootstrap/index.js\")"))
+        XCTAssertTrue(html.contains("await bootstrap.init()"))
+        XCTAssertTrue(html.contains("await bootstrap.start(document.getElementById(\"skip-root\"))"))
         XCTAssertTrue(html.contains("viewport-fit=cover"))
         XCTAssertTrue(html.contains("min-height: 100dvh"))
         XCTAssertTrue(html.contains("@media (min-width: 600px)"))
