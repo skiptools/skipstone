@@ -233,6 +233,28 @@ jobs:
           export ANDROID_USER_HOME=$HOME/.android
           export ANDROID_EMULATOR_HOME=$ANDROID_USER_HOME
           export ANDROID_AVD_HOME=$ANDROID_EMULATOR_HOME/avd
+          adb="${ANDROID_HOME}/platform-tools/adb"
+
+          wait_for_android_services() {
+            local attempt=1
+            while (( attempt <= 60 )); do
+              boot_completed="$("$adb" shell getprop sys.boot_completed 2>/dev/null | tr -d '\r' || true)"
+              package_service="$("$adb" shell cmd package path android 2>/dev/null || true)"
+              if [[ "$boot_completed" == "1" && "$package_service" == package:* ]]; then
+                return 0
+              fi
+              "$adb" wait-for-device >/dev/null 2>&1 || true
+              sleep 5
+              ((attempt += 1))
+            done
+
+            echo "Android emulator services did not become ready"
+            "$adb" devices || true
+            "$adb" shell getprop sys.boot_completed || true
+            "$adb" shell cmd package path android || true
+            return 1
+          }
+
           skip android emulator create --verbose
           skip android emulator list --verbose
           # watch the logs for errors
@@ -241,13 +263,12 @@ jobs:
           skip android emulator launch --background --android-connect-timeout=300 --verbose
 
           echo "Waiting for device"
-          ${ANDROID_HOME}/platform-tools/adb wait-for-device
-          sleep 30
+          wait_for_android_services
           date
           echo "echoing PING"
-          ${ANDROID_HOME}/platform-tools/adb shell echo PING
+          "$adb" shell echo PING
           echo "running shell getprop sys.boot_completed"
-          ${ANDROID_HOME}/platform-tools/adb shell getprop sys.boot_completed
+          "$adb" shell getprop sys.boot_completed
           date
 
       - name: "Test new Swift package on emulator"
@@ -260,8 +281,39 @@ jobs:
           # test on host OS
           swift test
 
+          adb="${ANDROID_HOME}/platform-tools/adb"
+          wait_for_android_services() {
+            local attempt=1
+            while (( attempt <= 12 )); do
+              boot_completed="$("$adb" shell getprop sys.boot_completed 2>/dev/null | tr -d '\r' || true)"
+              package_service="$("$adb" shell cmd package path android 2>/dev/null || true)"
+              if [[ "$boot_completed" == "1" && "$package_service" == package:* ]]; then
+                return 0
+              fi
+              "$adb" wait-for-device >/dev/null 2>&1 || true
+              sleep 5
+              ((attempt += 1))
+            done
+            return 1
+          }
+
+          run_apk_test() {
+            local attempt=1
+            while (( attempt <= 3 )); do
+              if wait_for_android_services && skip android test --verbose --apk --arch ${{ matrix.android-arch }} --android-connect-timeout 60; then
+                return 0
+              fi
+              echo "Android APK test attempt ${attempt} failed; refreshing ADB and retrying"
+              "$adb" reconnect offline >/dev/null 2>&1 || true
+              "$adb" wait-for-device >/dev/null 2>&1 || true
+              sleep 5
+              ((attempt += 1))
+            done
+            return 1
+          }
+
           # test using shared object file loaded from .apk
-          skip android test --verbose --apk --arch ${{ matrix.android-arch }} --android-connect-timeout 60
+          run_apk_test
 
           # test using xcrunner binary
           skip android test --verbose --arch ${{ matrix.android-arch }}
@@ -271,7 +323,7 @@ jobs:
 
           swift build --build-tests
           ! swift test
-          ! skip android test --apk --arch ${{ matrix.android-arch }}
+          ! run_apk_test
 
       - name: "Test new Skip Lite framework on emulator"
         working-directory: ${{ runner.temp }}
@@ -305,4 +357,3 @@ jobs:
           swift test
           # Emulator test should fail
           ! ANDROID_SERIAL=emulator-5554 swift test
-
