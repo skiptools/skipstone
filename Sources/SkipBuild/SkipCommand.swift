@@ -70,6 +70,7 @@ public struct SkipRunnerExecutor: SkipCommandExecutor {
             VersionCommand.self,
 
             DoctorCommand.self,
+            WebCommand.self,
             CheckupCommand.self,
             UpgradeCommand.self,
             LicenseCommand.self,
