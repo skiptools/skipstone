@@ -22,7 +22,7 @@ final class WebCommandTests: XCTestCase {
         XCTAssertTrue(html.contains("safe-area-inset-bottom"))
 
         let escapedModule = WebHostTemplate.html(title: "App", bootstrapModule: "bootstrap/\"app.js")
-        XCTAssertTrue(escapedModule.contains("import * as app from \"./bootstrap/\\\"app.js\""))
+        XCTAssertTrue(escapedModule.contains("await import(\"./bootstrap/\\\"app.js\")"))
     }
 
     func testManifestEscapesJSONValues() {
