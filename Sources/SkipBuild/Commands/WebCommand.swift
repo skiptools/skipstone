@@ -96,13 +96,7 @@ enum WebHostTemplate {
           <main id="skip-root" aria-label="Skip Web application"></main>
           <script type="module">
             const bootstrap = await import("./\(escapeJavaScriptString(bootstrapModule))");
-            if (typeof bootstrap.init === "function") {
-              await bootstrap.init();
-            } else if (typeof bootstrap.start === "function") {
-              await bootstrap.start(document.getElementById("skip-root"));
-            } else {
-              throw new Error("Skip Web bootstrap must export init() or start()");
-            }
+            await bootstrap.init();
           </script>
         </body>
         </html>

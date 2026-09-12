@@ -7,6 +7,10 @@ import ArgumentParser
 import SkipSyntax
 import TSCUtility
 
+private enum RosettaTranslationState: String {
+    case native = "0"
+}
+
 // MARK: DoctorCommand
 
 @available(macOS 13, iOS 16, tvOS 16, watchOS 8, *)
@@ -120,10 +124,11 @@ extension ToolOptionsCommand where Self : StreamingCommand {
                     return (result: result, message: MessageBlock(status: .warn, "Error running sysctl (\(arch))"))
                 }
                 let stdout = res.stdout.trimmingCharacters(in: .whitespacesAndNewlines)
-                if stdout != "0" {
-                    return (result: result, message: MessageBlock(status: .warn, "macOS architecture: wrong architecture \(stdout), Rosetta must not be enabled for process on (\(arch))"))
-                } else {
+                switch RosettaTranslationState(rawValue: stdout) {
+                case .native:
                     return (result: result, message: MessageBlock(status: .pass, "macOS architecture: \(arch)"))
+                case nil:
+                    return (result: result, message: MessageBlock(status: .warn, "macOS architecture: wrong architecture \(stdout), Rosetta must not be enabled for process on (\(arch))"))
                 }
             }
 
@@ -188,8 +193,8 @@ extension ToolOptionsCommand where Self : StreamingCommand {
             guard let res = try? result?.get() else {
                 return (result: result, message: MessageBlock(status: .fail, "Swift Wasm SDK: error executing swift sdk list"))
             }
-            let output = (res.stdout + res.stderr).lowercased()
-            if output.contains("wasm") || output.contains("wasi") {
+            let inventory = SwiftSDKInventory(output: res.stdout + res.stderr)
+            if inventory.supports(.webAssembly) {
                 return (result: result, message: MessageBlock(status: .pass, "Swift Wasm SDK: available"))
             }
             return (result: result, message: MessageBlock(status: .fail, "Swift Wasm SDK: not found (install a Swift Wasm SDK before building the browser bootstrap module)"))
