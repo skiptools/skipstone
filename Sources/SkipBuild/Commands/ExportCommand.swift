@@ -137,12 +137,34 @@ Build and export the Skip modules defined in the Package.swift, with libraries e
                 return try await run(with: out, "Getting SDK Path", "xcrun --sdk iphoneos --show-sdk-path".split(separator: " ").map(\.description), watch: false).get().stdout.trimmingCharacters(in: .whitespacesAndNewlines)
             }
 
+            // A bridging (Skip Fuse) package graph embeds shared library products such as
+            // SkipLib and SkipFoundation into several dynamic products at once. SwiftPM's
+            // `swiftbuild` engine — the default from Swift 6.4 — rejects that outright
+            // ("is linked as a static library by … This will result in duplication of library
+            // code"), whereas `native` only warned. Two things keep this build working across
+            // both Swift 6.3 and 6.4:
+            //   1. SKIP_DYNAMIC_LIBRARIES makes those products dynamic, so the graph is valid
+            //      under either engine. Note that SKIP_BRIDGE must NOT be used for this: it also
+            //      switches the skipstone plugin into bridge-generation mode, and the generated
+            //      JNI bridge sources do not compile for Darwin.
+            //   2. `native` is pinned while the toolchain still offers it, so packages that
+            //      resolve to framework versions predating (1) keep building.
+            // See https://github.com/skiptools/skip/issues/714
+            let buildEnvironment = ["SKIP_DYNAMIC_LIBRARIES": "1"]
             if let sdk = try? await fetchSDKPath(), sdk != "legacy" {
-                try await run(with: out, "Build project \(packageName)", ["xcrun", "swift", "build", "-v", "--package-path", project, "--triple", "arm64-apple-ios", "--sdk", sdk])
+                var buildCommand = ["xcrun", "swift", "build", "-v", "--package-path", project, "--triple", "arm64-apple-ios", "--sdk", sdk]
+                if let buildSystem = await SwiftBuildSystem.auto.resolved(swiftCommand: ["xcrun", "swift"]).argumentValue {
+                    buildCommand += ["--build-system", buildSystem]
+                }
+                try await run(with: out, "Build project \(packageName)", buildCommand, additionalEnvironment: buildEnvironment)
             } else {
                 // fallback to plain "swift build" for legacy build, which has the down-side that it will build against macOS (and thereby fail when there are iOS-only API calls): "Basics/Triple+Basics.swift:149: Fatal error: Cannot create dynamic libraries for os "ios".", also @availability annotations are required for everything
                 // however, it permits us to build and export against macOS-13/Xcode 15.2 (which is the OS version needed for GitHub CI to be able to run tests against the Android Emulator using the reactivecircus/android-emulator-runner action),
-                try await run(with: out, "Build project \(packageName)", ["swift", "build", "-v", "--package-path", project])
+                var buildCommand = ["swift", "build", "-v", "--package-path", project]
+                if let buildSystem = await SwiftBuildSystem.auto.resolved(swiftCommand: ["swift"]).argumentValue {
+                    buildCommand += ["--build-system", buildSystem]
+                }
+                try await run(with: out, "Build project \(packageName)", buildCommand, additionalEnvironment: buildEnvironment)
             }
         } else {
             try await run(with: out, "Resolve dependencies", ["swift", "package", "resolve", "-v", "--package-path", project])

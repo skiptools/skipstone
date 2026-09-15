@@ -22,6 +22,9 @@ skip checkup
 
 # Perform a system checkup for native app support
 skip checkup --native
+
+# Check the native app build against a specific SwiftPM build system
+skip checkup --native --build-system swiftbuild
 """,
         discussion: """
 This command performs a full system checkup to ensure that Skip can create and build a sample project. It runs all the checks performed by skip doctor, and also creates and builds a conventional Skip app project.
@@ -51,6 +54,9 @@ This command performs a full system checkup to ensure that Skip can create and b
 
     @Flag(inversion: .prefixedNo, help: ArgumentHelp("Fail immediately when an error occurs"))
     var failFast: Bool = true
+
+    @Option(help: ArgumentHelp("SwiftPM build system for the Android cross-compile (Darwin builds always use native)", valueName: "auto|native|swiftbuild"))
+    var buildSystem: SwiftBuildSystem = .fromEnvironment()
 
     @Option(name: [.long], help: ArgumentHelp("Name of checkup project", valueName: "name"))
     var projectName: String = "hello-skip"
@@ -100,6 +106,19 @@ This command performs a full system checkup to ensure that Skip can create and b
 
     func runCheckup(with out: MessageQueue) async throws {
         try await runDoctor(checkNative: isNative, with: out)
+
+        // The sample project's Android libraries are cross-compiled by a nested `skip android build`
+        // that the generated gradle project launches, so the engine choice is handed down through the
+        // environment (see SwiftBuildSystem.environmentKey) rather than as a command argument.
+        //
+        // This applies to the Android cross-compile only. The sample project's Darwin build stays on
+        // `native` regardless (see SwiftBuildSystem.hostBuildArguments), because a Skip Fuse graph
+        // built from released framework versions is rejected by the swiftbuild engine on Apple
+        // platforms.
+        if let buildSystemArgument = buildSystem.argumentValue {
+            setenv(SwiftBuildSystem.environmentKey, buildSystemArgument, 1)
+            await out.write(status: .pass, "Using SwiftPM build system: \(buildSystemArgument)")
+        }
 
         @Sendable func buildSampleProject(packageResolvedURL: URL? = nil) async throws -> (projectURL: URL, project: AppProjectLayout, artifacts: [URL: String?]) {
             let primary = packageResolvedURL == nil

@@ -442,7 +442,9 @@ extension ToolOptionsCommand where Self : StreamingCommand {
             try await run(with: out, "\(re)Resolve dependencies", ["swift", "package", "resolve", "-v", "--package-path", projectURL.path])
 
             // we need to build regardless of preference in order to build the apk
-            try await run(with: out, "\(re)Build \(projectName)", ["swift", "build", "-v", "-c", debugConfiguration, "--package-path", projectURL.path])
+            // pin the build engine; see SwiftBuildSystem.hostBuildArguments
+            let buildSystemArgs = await SwiftBuildSystem.hostBuildArguments()
+            try await run(with: out, "\(re)Build \(projectName)", ["swift", "build", "-v", "-c", debugConfiguration, "--package-path", projectURL.path] + buildSystemArgs)
         }
 
         if test == true {

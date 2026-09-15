@@ -124,6 +124,37 @@ jobs:
           #- 'r28c'
           #- 'r29'
 
+        include:
+          # Swift 6.4 preview. The Swift SDK for Android and the host toolchain that
+          # cross-compiles with it must be the same snapshot, so this variant pins both instead
+          # of crossing the `swift` and `android-sdk` lists above, which would also generate
+          # invalid pairings such as a 6.3 host toolchain with a 6.4 SDK.
+          #
+          # Neither swiftly nor the skiptools Homebrew cask carries the 6.4.x branch yet, so the
+          # "Install Swift 6.4 preview toolchain and Swift SDK for Android" step below fetches
+          # both directly from download.swift.org. Bump `swift-snapshot` to move to a newer one.
+          #
+          # Swift 6.4 changed the default SwiftPM build system from `native` to `swiftbuild`,
+          # and the two lay out their build products differently, so both are exercised.
+          - os: 'macos-15-intel'
+            swift: '6.4-preview'
+            swift-snapshot-branch: 'swift-6.4.x-branch'
+            swift-snapshot: 'swift-6.4.x-DEVELOPMENT-SNAPSHOT-2026-09-04-a'
+            android-api: '28'
+            android-arch: 'x86_64'
+            android-sdk: ''
+            android-ndk: ''
+            build-system: 'native'
+          - os: 'macos-15-intel'
+            swift: '6.4-preview'
+            swift-snapshot-branch: 'swift-6.4.x-branch'
+            swift-snapshot: 'swift-6.4.x-DEVELOPMENT-SNAPSHOT-2026-09-04-a'
+            android-api: '28'
+            android-arch: 'x86_64'
+            android-sdk: ''
+            android-ndk: ''
+            build-system: 'swiftbuild'
+
     steps:
       - uses: Homebrew/actions/setup-homebrew@main
 
@@ -144,11 +175,18 @@ jobs:
 
       - run: brew install swiftly
 
+      # `init --skip-install` only sets swiftly up; it installs no toolchain, and it must run for
+      # every variant because `skip doctor` checks swiftly and fails on an uninitialized install
+      # with "Swiftly version: error executing swiftly".
       - run: swiftly init --skip-install --assume-yes --quiet-shell-followup
 
+      # Variants that pin a snapshot install their toolchain from download.swift.org instead,
+      # since swiftly cannot resolve the 6.4.x branch.
       - run: swiftly install --assume-yes --use ${{ matrix.swift }}
+        if: matrix.swift-snapshot == ''
 
       - run: swiftly run swift --version
+        if: matrix.swift-snapshot == ''
 
       - run: swift --version
 
@@ -185,7 +223,44 @@ jobs:
           # perform an export of the app
           skip export --appindex --validate-export --show-tree --project some-app
 
+      - name: "Install Swift 6.4 preview toolchain and Swift SDK for Android"
+        if: matrix.swift-snapshot != ''
+        run: |
+          BRANCH="${{ matrix.swift-snapshot-branch }}"
+          SNAPSHOT="${{ matrix.swift-snapshot }}"
+
+          # The host toolchain installs into ~/Library/Developer/Toolchains, which is where
+          # `skip android build` looks for the toolchain matching the Swift SDK's version.
+          # Xcode's own toolchain cannot cross-compile for Android: it ships no
+          # swift-autolink-extract, so linking fails with "swift-autolink-extract: No such file".
+          curl -fsSL --retry 5 -o swift-toolchain.pkg \
+            "https://download.swift.org/${BRANCH}/xcode/${SNAPSHOT}/${SNAPSHOT}-osx.pkg"
+          installer -pkg swift-toolchain.pkg -target CurrentUserHomeDirectory
+          ls ~/Library/Developer/Toolchains/
+
+          # the Android NDK that the SDK's sysroot is linked against
+          brew install --cask android-ndk
+
+          # Install the SDK with the snapshot's own swift rather than Xcode's: the runner's Xcode
+          # can be several releases behind (Xcode 16.4 ships Swift 6.1.2), and an older SwiftPM may
+          # not understand the bundle's swift-sdk.json schema. The install location
+          # (~/Library/org.swift.swiftpm/swift-sdks) is the same either way.
+          SWIFT_6_4="${HOME}/Library/Developer/Toolchains/${SNAPSHOT}.xctoolchain/usr/bin/swift"
+          "${SWIFT_6_4}" --version
+
+          curl -fsSL --retry 5 -o swift-android-sdk.tar.gz \
+            "https://download.swift.org/${BRANCH}/android-sdk/${SNAPSHOT}/${SNAPSHOT}_android.artifactbundle.tar.gz"
+          "${SWIFT_6_4}" sdk install swift-android-sdk.tar.gz
+
+          # Unlike the Homebrew cask (whose postflight does this), the downloaded bundle ships
+          # without an `ndk-sysroot`; its setup script links one against the local NDK.
+          SDK_DIR="${HOME}/Library/org.swift.swiftpm/swift-sdks/${SNAPSHOT}_android.artifactbundle/swift-android"
+          ANDROID_NDK_HOME="$(brew --prefix)/share/android-ndk" "${SDK_DIR}/scripts/setup-android-sdk.sh"
+
+          "${SWIFT_6_4}" sdk list
+
       - name: "Install Swift SDK for Android"
+        if: matrix.swift-snapshot == ''
         run: |
           sdk_arg=""
           if [[ "${{ matrix.android-sdk }}" != "" ]]; then
@@ -212,11 +287,16 @@ jobs:
       #    cd demo-skip-appfuse
       #    skip export --debug --ios-sim
 
-      - run: skip checkup --native
+      # `--build-system` selects the SwiftPM build engine used for the sample app's Android
+      # libraries; unset matrix entries get "auto", which prefers `native` while it exists.
+      - name: "Run checkup"
         if: runner.os != 'Linux'
         # needs to not be in a directory named "skipstone"
         # https://github.com/skiptools/skipstone/issues/216
         working-directory: ${{ runner.temp }}
+        env:
+          BUILD_SYSTEM: ${{ matrix.build-system }}
+        run: skip checkup --native --build-system "${BUILD_SYSTEM:-auto}"
 
       - name: "Prepare Android emulator environment"
         if: runner.os == 'Linux'

@@ -197,7 +197,7 @@ tasks.register("buildAndroidSwiftTestLibs") {
     doLast {
         project.objects.newInstance<SkipBridgeExecOps>().execOps.exec {
             workingDir(layout.projectDirectory)
-            commandLine("sh", "-cx", "\\"${skipcmd}\\" android test --build-test-libs \\"${swiftBuildFolder()}/test-jni-libs\\" --package-path \\"${swiftSourceFolder()}\\" --configuration debug --scratch-path \\"${swiftBuildFolder()}/swift-test\\" --arch automatic --build-system native")
+            commandLine("sh", "-cx", "\\"${skipcmd}\\" android test --build-test-libs \\"${swiftBuildFolder()}/test-jni-libs\\" --package-path \\"${swiftSourceFolder()}\\" --configuration debug --scratch-path \\"${swiftBuildFolder()}/swift-test\\" --arch automatic")
             environment("SKIP_BRIDGE", "1")
             environment("TARGET_OS_ANDROID", "1")
             environment("DEVELOPER_DIR", "")

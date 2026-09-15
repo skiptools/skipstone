@@ -167,6 +167,7 @@ extension TestCommand {
         var testResult: Result<ProcessOutput, Error>? = nil
         if test == true {
             var testArgs = ["swift", "test", "--parallel", "-c", configuration, "--enable-code-coverage", "--xunit-output", xunit, "--package-path", project]
+            testArgs += await SwiftBuildSystem.hostBuildArguments()
             for pattern in filter {
                 testArgs += ["--filter", pattern]
             }
@@ -648,13 +649,15 @@ extension ToolOptionsCommand where Self : OutputOptionsCommand & StreamingComman
 
     func runSkipTests(in projectFolderURL: URL, configuration: String, swift: Bool, kotlin: Bool, separateModule: String? = "testSkipModule", with out: MessageQueue) async throws {
         let env = ProcessInfo.processInfo.environmentWithDefaultToolPaths // an environment with a default ANDROID_HOME
+        // pin the build engine; see SwiftBuildSystem.hostBuildArguments
+        let bs = await SwiftBuildSystem.hostBuildArguments()
         if let separateModule = separateModule {
-            try await run(with: out, "Test Swift", ["swift", "test", "--verbose", "--configuration", configuration, "--skip", separateModule, "--package-path", projectFolderURL.path], environment: env)
+            try await run(with: out, "Test Swift", ["swift", "test", "--verbose", "--configuration", configuration, "--skip", separateModule, "--package-path", projectFolderURL.path] + bs, environment: env)
 
-            try await run(with: out, "Test Kotlin", ["swift", "test", "--verbose", "--configuration", configuration, "--filter", "testSkipModule", "--package-path", projectFolderURL.path], environment: env)
+            try await run(with: out, "Test Kotlin", ["swift", "test", "--verbose", "--configuration", configuration, "--filter", "testSkipModule", "--package-path", projectFolderURL.path] + bs, environment: env)
         } else {
             // run Swift and Kotlin tests at the same time
-            try await run(with: out, "Test Project", ["swift", "test", "--verbose", "--configuration", configuration, "--package-path", projectFolderURL.path], environment: env)
+            try await run(with: out, "Test Project", ["swift", "test", "--verbose", "--configuration", configuration, "--package-path", projectFolderURL.path] + bs, environment: env)
         }
     }
 }

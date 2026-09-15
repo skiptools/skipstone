@@ -250,23 +250,16 @@ fileprivate extension AndroidOperationCommand {
         let toolchainBin = tc.toolchainPath.appendingPathComponent("usr/bin", isDirectory: true)
         let swiftCmd = toolchainBin.appendingPathComponent("swift", isDirectory: false).path
 
-        var (_, env, binPath) = try await runToolchainCommand(tc, executable: nil, testMode: .sharedObject, with: out)
+        var (_, env, binPath, buildOutputFallback) = try await runToolchainCommand(tc, executable: nil, testMode: .sharedObject, with: out)
 
         // Resolve the target Android device/emulator for adb commands
         if let serial = try await resolveAndroidSerial(with: out) {
             env["ANDROID_SERIAL"] = serial
         }
 
-        let buildOutputFolder: String
-        if let binPath = binPath, !binPath.isEmpty {
-            buildOutputFolder = binPath
-        } else {
-            buildOutputFolder = [
-                toolchainOptions.scratchPath ?? (packageDir + "/.build"),
-                arch.tripleKey(api: apiLevel, sdkVersion: tc.swiftSDKVersion),
-                buildConfig.rawValue,
-            ].joined(separator: "/")
-        }
+        // `--show-bin-path` is authoritative because it accounts for the build engine's layout;
+        // the fallback mirrors the layout of whichever engine was selected
+        let buildOutputFolder: String = (binPath?.isEmpty == false ? binPath : nil) ?? buildOutputFallback
         let buildOutputFolderURL = URL(fileURLWithPath: buildOutputFolder)
 
         let packageManifest = try await parseSwiftPackage(with: out, at: packageDir, swift: swiftCmd)
@@ -360,29 +353,25 @@ fileprivate extension AndroidOperationCommand {
         try testHarnessSwiftSource(testLibName: "lib\(packageName)Test.so").write(to: testHarnessSourceDir.appendingPathComponent("TestRunner.swift", isDirectory: false), atomically: true, encoding: .utf8)
 
         // Build the harness package for Android
+        let harnessBuildSystem = await resolvedBuildSystem(swift: swiftCmd)
         var harnessCmd: [String] = [swiftCmd, "build"]
         if let sdkName = tc.sdkName {
-            harnessCmd += ["--swift-sdk", sdkName]
+            harnessCmd += swiftSDKArguments(bundlePath: tc.sdkBundlePath, triple: sdkName, scratchPath: toolchainOptions.scratchPath)
         }
         harnessCmd += ["--package-path", harnessDir.path, "--configuration", buildConfig.rawValue]
         if outputOptions.verbose {
             harnessCmd += ["--verbose"]
         }
-        // Forward --build-system if specified
-        if let bsIdx = args.firstIndex(of: "--build-system"), bsIdx + 1 < args.count {
-            harnessCmd += ["--build-system", args[bsIdx + 1]]
-        }
+        harnessCmd += ["--build-system", harnessBuildSystem.rawValue]
         try await runCommand(command: harnessCmd, env: env, with: out)
 
-        // Locate the built .so using --show-bin-path
+        // Locate the built .so using --show-bin-path, querying the same engine that built it
         var harnessBinPathCmd: [String] = [swiftCmd, "build", "--show-bin-path"]
         if let sdkName = tc.sdkName {
-            harnessBinPathCmd += ["--swift-sdk", sdkName]
+            harnessBinPathCmd += swiftSDKArguments(bundlePath: tc.sdkBundlePath, triple: sdkName, scratchPath: toolchainOptions.scratchPath)
         }
         harnessBinPathCmd += ["--package-path", harnessDir.path, "--configuration", buildConfig.rawValue]
-        if let bsIdx = args.firstIndex(of: "--build-system"), bsIdx + 1 < args.count {
-            harnessBinPathCmd += ["--build-system", args[bsIdx + 1]]
-        }
+        harnessBinPathCmd += ["--build-system", harnessBuildSystem.rawValue]
 
         var harnessBuildOutput: String
         if let stream = try? await launchTool(swiftCmd, arguments: Array(harnessBinPathCmd.dropFirst()), env: env) {
@@ -736,7 +725,6 @@ fileprivate extension AndroidOperationCommand {
     /// with the Swift-runtime / NDK `.so` dependencies the androidTest APK must carry.
     func androidTestLibsTarget(with out: MessageQueue) async throws -> TestLibsTarget {
         let buildConfig = toolchainOptions.configuration ?? BuildConfiguration.fromEnvironment() ?? .debug
-        let packageDir = toolchainOptions.packagePath ?? "."
         let archs = !toolchainOptions.arch.isEmpty ? toolchainOptions.arch : [AndroidArchArgument.current]
         let architectures = archs.flatMap({ $0.architectures(configuration: buildConfig) }).uniqueElements()
         guard let arch = architectures.first else {
@@ -745,25 +733,18 @@ fileprivate extension AndroidOperationCommand {
         let apiLevel = toolchainOptions.androidAPILevel
         let tc = try buildToolchainConfiguration(for: arch)
         let swiftCmd = tc.toolchainPath.appendingPathComponent("usr/bin/swift", isDirectory: false).path
-        let scratch = toolchainOptions.scratchPath ?? (packageDir + "/.build")
-        let buildSystemArgs = args
 
         return TestLibsTarget(
             swiftCommand: swiftCmd,
             dylibExtension: "so",
             buildTestBundle: {
-                let (_, env, binPath) = try await self.runToolchainCommand(tc, executable: nil, testMode: .sharedObject, with: out)
-                let binDir: String
-                if let binPath = binPath, !binPath.isEmpty {
-                    binDir = binPath
-                } else {
-                    binDir = [scratch, arch.tripleKey(api: apiLevel, sdkVersion: tc.swiftSDKVersion), buildConfig.rawValue].joined(separator: "/")
-                }
+                let (_, env, binPath, buildOutputFallback) = try await self.runToolchainCommand(tc, executable: nil, testMode: .sharedObject, with: out)
+                // `--show-bin-path` is authoritative because it accounts for the build engine's layout;
+                // the fallback mirrors the layout of whichever engine was selected
+                let binDir: String = (binPath?.isEmpty == false ? binPath : nil) ?? buildOutputFallback
                 var harnessExtra: [String] = []
-                if let sdkName = tc.sdkName { harnessExtra += ["--swift-sdk", sdkName] }
-                if let bsIndex = buildSystemArgs.firstIndex(of: "--build-system"), bsIndex + 1 < buildSystemArgs.count {
-                    harnessExtra += ["--build-system", buildSystemArgs[bsIndex + 1]]
-                }
+                if let sdkName = tc.sdkName { harnessExtra += self.swiftSDKArguments(bundlePath: tc.sdkBundlePath, triple: sdkName, scratchPath: self.toolchainOptions.scratchPath) }
+                harnessExtra += ["--build-system", (await self.resolvedBuildSystem(swift: swiftCmd)).rawValue]
                 return (URL(fileURLWithPath: binDir), env, harnessExtra)
             },
             loadableTestBundle: { binDir, packageName in
@@ -809,14 +790,19 @@ fileprivate extension AndroidOperationCommand {
         // -DROBOLECTRIC selects the host bridge code paths; -DSKIP_BRIDGE + SKIP_BRIDGE=1 keep bridged
         // library products dynamic so they resolve at load time.
         let testFlags = ["-Xcc", "-fPIC", "-Xswiftc", "-DSKIP_BRIDGE", "-Xswiftc", "-DROBOLECTRIC"]
-        let pkgArgs = ["--package-path", packageDir, "--scratch-path", scratch, "-c", buildConfig.rawValue]
+        // pin the build engine rather than inheriting the toolchain default, which flipped from
+        // `native` to `swiftbuild` in Swift 6.4 and moves the host build products; both the build
+        // and the `--show-bin-path` query must agree on it
+        var pkgArgs = ["--package-path", packageDir, "--scratch-path", scratch, "-c", buildConfig.rawValue]
+        pkgArgs += ["--build-system", (await toolchainOptions.buildSystem.resolved(swift: swift)).rawValue]
+        let buildArgs = pkgArgs
 
         return TestLibsTarget(
             swiftCommand: swift,
             dylibExtension: dylibSuffix,
             buildTestBundle: {
-                try await self.runCommand(command: [swift, "build", "--build-tests"] + pkgArgs + testFlags, env: env, with: out)
-                let binPath = try await self.captureLine(swift, ["build", "--show-bin-path", "--build-tests"] + pkgArgs + testFlags, env: env)
+                try await self.runCommand(command: [swift, "build", "--build-tests"] + buildArgs + testFlags, env: env, with: out)
+                let binPath = try await self.captureLine(swift, ["build", "--show-bin-path", "--build-tests"] + buildArgs + testFlags, env: env)
                 guard !binPath.isEmpty else {
                     throw AndroidError(errorDescription: "Could not resolve host test build bin path")
                 }

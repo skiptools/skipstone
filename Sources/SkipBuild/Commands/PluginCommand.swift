@@ -69,9 +69,17 @@ struct PluginCommand: MessageCommand, ToolOptionsCommand {
             if let packagePath = packagePath {
                 prebuildCommand += ["--package-path", packagePath]
             }
+            // pin the build engine rather than inheriting the toolchain default, which flipped
+            // from `native` to `swiftbuild` in Swift 6.4 (see SwiftBuildSystem and issue #714)
+            if let buildSystem = await SwiftBuildSystem.auto.resolved(swiftCommand: ["xcrun", "swift"]).argumentValue {
+                prebuildCommand += ["--build-system", buildSystem]
+            }
 
             try outputOptions.writeOutput(PluginOutput(line: "running pre-build command: \(prebuildCommand.joined(separator: " "))"), error: false)
-            let buildOutput = try await launchTool("xcrun", arguments: prebuildCommand)
+            // bridging graphs embed shared library products into multiple dynamic products, which
+            // the swiftbuild engine rejects; SKIP_DYNAMIC_LIBRARIES makes them dynamic without
+            // switching the skipstone plugin into (Darwin-incompatible) bridge-generation mode
+            let buildOutput = try await launchTool("xcrun", arguments: prebuildCommand, env: ["SKIP_DYNAMIC_LIBRARIES": "1"])
 
             for try await element in buildOutput {
                 try outputOptions.writeOutput(PluginOutput(line: element.line), error: element.err)
