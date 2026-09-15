@@ -104,8 +104,10 @@ jobs:
         os:
           - 'ubuntu-24.04'
           - 'macos-15-intel'
+          - 'macos-26-intel'
         swift:
           - '6.3'
+          - '6.4'
         android-api:
           - '28'
           #- '34'
@@ -116,7 +118,7 @@ jobs:
           - ''
           #- '6.3'
           #- 'nightly-6.3'
-          - 'nightly-main'
+          #- 'nightly-main'
         android-ndk:
           # blank will use the default
           - ''
