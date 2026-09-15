@@ -19,7 +19,12 @@ ARTIFACTBUNDLE="${ARTIFACT}.artifactbundle"
 PLUGIN_ZIP="${ARTIFACT}-linux.zip"
 ARTIFACT_BUILD_DIR=.build/artifactbundle-linux
 
-SWIFT_VERSION=${SWIFT_VERSION:-"6.3.1"}
+# The compiler has to match the Linux static SDK that is installed, or the build fails with
+# "module compiled with Swift X cannot be imported by the Swift Y compiler". Leave SWIFT_VERSION
+# unset to build with whatever toolchain swiftly currently has selected — CI installs the
+# toolchain and the matching SDK together (`swiftly install --use <version>`), so following its
+# selection keeps the two in step. A hard-coded default silently drifts out of date instead.
+SWIFT_VERSION=${SWIFT_VERSION:-""}
 USE_SWIFTLY=${USE_SWIFTLY:-"1"}
 
 # Parse --arch flags; defaults to both x86_64 and aarch64
@@ -41,7 +46,11 @@ if [[ ${#ARCHS[@]} -eq 0 ]]; then
 fi
 
 if [[ "${USE_SWIFTLY}" == "1" ]]; then
-    swiftly install "${SWIFT_VERSION}"
+    if [[ -n "${SWIFT_VERSION}" ]]; then
+        swiftly install "${SWIFT_VERSION}"
+    fi
+    # report the compiler that will be used, so any mismatch with the installed SDK is visible
+    swiftly run swift --version ${SWIFT_VERSION:+"+${SWIFT_VERSION}"}
 fi
 
 mv -vf "${ARTIFACT_BUILD_DIR}/${ARTIFACTBUNDLE}" "${ARTIFACT_BUILD_DIR}/${ARTIFACTBUNDLE}.bk.$(date +%s)" || true
@@ -50,7 +59,8 @@ for ARCH in "${ARCHS[@]}"; do
     SDK="${ARCH}-swift-linux-musl"
 
     if [[ "${USE_SWIFTLY}" == "1" ]]; then
-        swiftly run swift build --swift-sdk "${SDK}" --configuration "${CONFIGURATION}" --product "${PRODUCT}" "+${SWIFT_VERSION}"
+        # only pin a toolchain when one was explicitly requested; otherwise use swiftly's selection
+        swiftly run swift build --swift-sdk "${SDK}" --configuration "${CONFIGURATION}" --product "${PRODUCT}" ${SWIFT_VERSION:+"+${SWIFT_VERSION}"}
     else
         # if swiftly is disabled, just build with the current `swift` version
         swift build --swift-sdk "${SDK}" --configuration "${CONFIGURATION}" --product "${PRODUCT}"
