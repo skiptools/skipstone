@@ -122,6 +122,9 @@ final class BridgeSendabilityTests: XCTestCase {
     }
 
     func testGeneratedContinuationCompilesWithoutWarnings() async throws {
+        #if compiler(<6.0)
+        throw XCTSkip("This regression check requires Swift 6 language mode.")
+        #else
         // Compile the generated continuation and callback verbatim. JNI dispatch is replaced
         // with a use of the callback so this test does not require an Android SDK or JVM.
         for sendable in [false, true] {
@@ -167,6 +170,7 @@ final class BridgeSendabilityTests: XCTestCase {
                 }
             }
         }
+        #endif
     }
 
     private func assertReturnIsolation(_ bridge: String, unsafe: Bool, file: StaticString = #filePath, line: UInt = #line) {
