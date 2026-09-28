@@ -107,7 +107,20 @@ public final class KotlinBundleTransformer: KotlinTransformer {
                     }
                 }
             }
-            
+
+            #if os(Android)
+            // Interceptor for the Bundle(for:) probe in the synthesized Bundle.module property of the swiftbuild
+            // build system, which registers this module's bundle so that the subsequent Bundle(url:) probe for
+            // <package-name>_<module-name>.bundle forwards the bundle access up to the Android asset manager
+            extension AndroidBundle {
+                convenience init(for aClass: AnyClass, unusedp_0: Void? = nil) {
+                    self.init(for: aClass, moduleName: "\(moduleName)") {
+                        try! AnyDynamicObject(className: "\(packageName).\(className)").moduleBundle!
+                    }
+                }
+            }
+            #endif
+
             let NSLocalizedString = AndroidLocalizedString()
             """)
         }
