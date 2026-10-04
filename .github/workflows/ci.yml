@@ -246,7 +246,7 @@ jobs:
           # watch the logs for errors
           (sleep 20; ${ANDROID_HOME}/platform-tools/adb logcat) &
 
-          skip android emulator launch --background --android-connect-timeout=300 --verbose
+          skip android emulator launch --background --android-connect-timeout=900 --verbose
 
           echo "Waiting for device"
           ${ANDROID_HOME}/platform-tools/adb wait-for-device
