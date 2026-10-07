@@ -1267,6 +1267,9 @@ final class SkipCommandTests: XCTestCase {
     /// A single-module native app
     func testLibInitAppNativeAppCommand() async throws {
         let (projectURL, projectTree) = try await skipInit(projectName: "cool-app", zero: false, mode: [.nativeApp], tests: nil, fastlane: false, appid: "some.cool.app", swiftPackageVersion: "6.2", moduleNames: "AppModule")
+        let proguardRules = try String(contentsOf: projectURL.appendingPathComponent("Android/app/proguard-rules.pro"))
+        XCTAssertTrue(proguardRules.split(separator: "\n").contains("-keep interface kotlinx.coroutines.Job"),
+            "Native apps must preserve the Job return type used in async bridge JNI signatures")
         XCTAssertEqual(projectTree ?? "", """
         .
         ├─ Android
