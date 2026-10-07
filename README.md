@@ -96,26 +96,6 @@ This will download and install the `skip` tool itself, as well as the `gradle` a
 - `skip android emulator launch`: Launch an Android emulator
 - `skip android sdk list`: List the installed Swift Android SDKs
 
-## R8 rules for existing Android apps
-
-When upgrading an existing app to Skip 1.9.13, ensure that its
-`Android/app/proguard-rules.pro` includes the following rule alongside the
-other Skip bridge rules:
-
-```proguard
-# Async bridge JNI signatures reference kotlinx.coroutines.Job by name.
--keep interface kotlinx.coroutines.Job
-```
-
-Generated async bridges look up Kotlin methods using JNI signatures that include
-`kotlinx.coroutines.Job` as the return type. If R8 renames that interface, the
-native lookup can fail and crash the app. Non-minified debug builds do not expose
-this issue, so verify the affected async calls in a minified release build.
-
-The rule is included in newly generated ProGuard files, but upgrading Skip does
-not update an existing app's checked-in rules. For a separately maintained Android
-host app, add it to the ProGuard file configured for that app's minified builds.
-
 ## Local Skip Development
 
 Run `./scripts/skip` to build and run the Skip CLI tool from source. (It runs `swift run SkipRunner`, passing in a `$SKIP_COMMAND_OVERRIDE` environment variable.)
