@@ -3848,7 +3848,6 @@ internal fun PresentationRootView(context: ComposeContext) {
         -keep class skip.** { *; }
         -keep class tools.skip.** { *; }
         -keep class kotlin.jvm.functions.** {*;}
-        # Async bridge JNI signatures reference kotlinx.coroutines.Job by name.
         -keep interface kotlinx.coroutines.Job
         -keep class com.sun.jna.** { *; }
         -dontwarn java.awt.**
