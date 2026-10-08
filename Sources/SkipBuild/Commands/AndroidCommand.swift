@@ -895,6 +895,15 @@ extension AndroidOperationCommand {
             cmd += ["--configuration", configuration.rawValue]
         }
 
+        // `skip export --line-tables-only` builds debug native libraries with line tables instead of full debug info (type DWARF, plus every module's AST embedded for a Swift-aware LLDB),
+        // which makes them faster to build and package while keeping files and lines for breakpoints and crash backtraces.
+        // Release builds keep full debug info, since crash reporters use it to name inlined frames.
+        if ProcessInfo.processInfo.environment[ToolchainOptions.exportLineTablesOnlyEnvironment] == "1" && toolchainOptions.configuration != .release {
+            cmd += ["-debug-info-format", "none"]
+            xswiftc += ["-gline-tables-only"]
+            xcc += ["-gline-tables-only"]
+        }
+
         if toolchainOptions.bridge {
             xswiftc += ["-DSKIP_BRIDGE"]
             // set the SKIP_BRIDGE flag, which is transferred through to a build #define in SkipBridge and can be used to check whether the current build mode is targetting JNI
@@ -1922,6 +1931,9 @@ struct AndroidEmulatorListCommand: MessageCommand, ToolOptionsCommand {
 
 
 struct ToolchainOptions: ParsableArguments {
+    /// Set by `skip export --line-tables-only` for the gradle process, whose SkipBridge build of the native libraries runs `skip android build`
+    static let exportLineTablesOnlyEnvironment = "SKIP_EXPORT_LINE_TABLES_ONLY"
+
     @Option(help: ArgumentHelp("Swift version to use", valueName: "v"))
     var swiftVersion: String? = nil
 
