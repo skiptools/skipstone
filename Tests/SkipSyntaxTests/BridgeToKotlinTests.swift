@@ -8385,6 +8385,891 @@ final class BridgeToKotlinTests: XCTestCase {
         """, transformers: transformers)
     }
 
+    func testPrivateState() async throws {
+        try await check(swiftBridge: """
+        import SkipFuseUI
+        struct V: View {
+            @State private var count = 0
+            var body: some View {
+                Text("Hello")
+            }
+        }
+        """, kotlin: """
+        internal class V: skip.ui.View, skip.bridge.SwiftPeerBridged, skip.lib.SwiftProjecting {
+            var Swift_peer: skip.bridge.SwiftObjectPointer = skip.bridge.SwiftObjectNil
+
+            constructor(Swift_peer: skip.bridge.SwiftObjectPointer, marker: skip.bridge.SwiftPeerMarker?) {
+                this.Swift_peer = Swift_peer
+            }
+
+            fun finalize() {
+                Swift_release(Swift_peer)
+                Swift_peer = skip.bridge.SwiftObjectNil
+            }
+            private external fun Swift_release(Swift_peer: skip.bridge.SwiftObjectPointer)
+
+            override fun Swift_peer(): skip.bridge.SwiftObjectPointer = Swift_peer
+
+            override fun equals(other: Any?): Boolean {
+                if (other !is skip.bridge.SwiftPeerBridged) return false
+                return Swift_peer == other.Swift_peer()
+            }
+
+            override fun hashCode(): Int = Swift_peer.hashCode()
+
+            @androidx.compose.runtime.Composable
+            override fun Evaluate(context: skip.ui.ComposeContext, options: Int): kotlin.collections.List<Renderable> {
+                val dynamicPropertyKinds = Swift_dynamicPropertyKinds(Swift_peer)
+                for (i in 0 until dynamicPropertyKinds.length) {
+                    androidx.compose.runtime.key(i) {
+                        when (dynamicPropertyKinds[i]) {
+                            '0' -> {
+                                val remembered = androidx.compose.runtime.saveable.rememberSaveable(stateSaver = context.stateSaver as androidx.compose.runtime.saveable.Saver<skip.ui.StateSupport, Any>) { androidx.compose.runtime.mutableStateOf(Swift_initDynamicState(Swift_peer, i)) }
+                                Swift_syncDynamicState(Swift_peer, i, remembered.value)
+                            }
+                            '1' -> {
+                                val remembered = androidx.compose.runtime.saveable.rememberSaveable(stateSaver = context.stateSaver as androidx.compose.runtime.saveable.Saver<skip.ui.AppStorageSupport, Any>) { androidx.compose.runtime.mutableStateOf(Swift_initDynamicAppStorage(Swift_peer, i)) }
+                                Swift_syncDynamicAppStorage(Swift_peer, i, remembered.value)
+                            }
+                            else -> Swift_syncDynamicEnvironment(Swift_peer, i, skip.ui.EnvironmentValues.shared.bridged(Swift_dynamicEnvironmentKey(Swift_peer, i)))
+                        }
+                    }
+                }
+                return super.Evaluate(context, options)
+            }
+            private external fun Swift_dynamicPropertyKinds(Swift_peer: skip.bridge.SwiftObjectPointer): String
+            private external fun Swift_initDynamicState(Swift_peer: skip.bridge.SwiftObjectPointer, index: Int): skip.ui.StateSupport
+            private external fun Swift_syncDynamicState(Swift_peer: skip.bridge.SwiftObjectPointer, index: Int, support: skip.ui.StateSupport)
+            private external fun Swift_initDynamicAppStorage(Swift_peer: skip.bridge.SwiftObjectPointer, index: Int): skip.ui.AppStorageSupport
+            private external fun Swift_syncDynamicAppStorage(Swift_peer: skip.bridge.SwiftObjectPointer, index: Int, support: skip.ui.AppStorageSupport)
+            private external fun Swift_dynamicEnvironmentKey(Swift_peer: skip.bridge.SwiftObjectPointer, index: Int): String
+            private external fun Swift_syncDynamicEnvironment(Swift_peer: skip.bridge.SwiftObjectPointer, index: Int, support: skip.ui.EnvironmentSupport?)
+
+            override fun body(): skip.ui.View {
+                return skip.ui.ComposeBuilder { composectx: skip.ui.ComposeContext -> Swift_composableBody(Swift_peer)?.Compose(composectx) ?: skip.ui.ComposeResult.ok }
+            }
+            private external fun Swift_composableBody(Swift_peer: skip.bridge.SwiftObjectPointer): skip.ui.View?
+
+            override fun Swift_projection(options: Int): () -> Any = Swift_projectionImpl(options)
+            private external fun Swift_projectionImpl(options: Int): () -> Any
+        }
+        """, swiftBridgeSupport: """
+
+        import SkipFuseUI
+        extension V: BridgedToKotlin, SkipUIBridging, SkipUI.View {
+            nonisolated private static let Java_class = try! JClass(name: "V")
+            nonisolated static func fromJavaObject(_ obj: JavaObjectPointer?, options: JConvertibleOptions) -> Self {
+                let ptr = SwiftObjectPointer.peer(of: obj!, options: options)
+                let box: SwiftValueTypeBox<Self> = ptr.pointee()!
+                return box.value
+            }
+            nonisolated func toJavaObject(options: JConvertibleOptions) -> JavaObjectPointer? {
+                let box = SwiftValueTypeBox(self)
+                let Swift_peer = SwiftObjectPointer.pointer(to: box, retain: true)
+                return try! Self.Java_class.create(ctor: Self.Java_constructor_methodID, options: options, args: [Swift_peer.toJavaParameter(options: options), (nil as JavaObjectPointer?).toJavaParameter(options: options)])
+            }
+            nonisolated private static let Java_constructor_methodID = Java_class.getMethodID(name: "<init>", sig: "(JLskip/bridge/SwiftPeerMarker;)V")!
+            nonisolated var Java_view: any SkipUI.View {
+                return self
+            }
+        }
+        @_cdecl("Java_V_Swift_1release")
+        public func V_Swift_release(_ Java_env: JNIEnvPointer, _ Java_target: JavaObjectPointer, _ Swift_peer: SwiftObjectPointer) {
+            Swift_peer.release(as: SwiftValueTypeBox<V>.self)
+        }
+        @_cdecl("Java_V_Swift_1projectionImpl")
+        public func V_Swift_projectionImpl(_ Java_env: JNIEnvPointer, _ Java_target: JavaObjectPointer, _ options: Int32) -> JavaObjectPointer {
+            let projection = V.fromJavaObject(Java_target, options: JConvertibleOptions(rawValue: Int(options)))
+            let factory: () -> Any = { projection }
+            return SwiftClosure0.javaObject(for: factory, options: [])!
+        }
+        @_cdecl("Java_V_Swift_1dynamicPropertyKinds")
+        public func V_Swift_dynamicPropertyKinds(_ Java_env: JNIEnvPointer, _ Java_target: JavaObjectPointer, _ Swift_peer: SwiftObjectPointer) -> JavaString {
+            let peer_swift: SwiftValueTypeBox<V> = Swift_peer.pointee()!
+            return Java_dynamicPropertyKinds(peer_swift.value).toJavaObject(options: [])!
+        }
+        @_cdecl("Java_V_Swift_1initDynamicState")
+        public func V_Swift_initDynamicState(_ Java_env: JNIEnvPointer, _ Java_target: JavaObjectPointer, _ Swift_peer: SwiftObjectPointer, _ index: Int32) -> JavaObjectPointer {
+            let peer_swift: SwiftValueTypeBox<V> = Swift_peer.pointee()!
+            return Java_initDynamicState(peer_swift.value, Int(index)).toJavaObject(options: [])!
+        }
+        @_cdecl("Java_V_Swift_1syncDynamicState")
+        public func V_Swift_syncDynamicState(_ Java_env: JNIEnvPointer, _ Java_target: JavaObjectPointer, _ Swift_peer: SwiftObjectPointer, _ index: Int32, _ support: JavaObjectPointer) {
+            let peer_swift: SwiftValueTypeBox<V> = Swift_peer.pointee()!
+            Java_syncDynamicState(peer_swift.value, Int(index), SkipUI.StateSupport.fromJavaObject(support, options: []))
+        }
+        @_cdecl("Java_V_Swift_1initDynamicAppStorage")
+        public func V_Swift_initDynamicAppStorage(_ Java_env: JNIEnvPointer, _ Java_target: JavaObjectPointer, _ Swift_peer: SwiftObjectPointer, _ index: Int32) -> JavaObjectPointer {
+            let peer_swift: SwiftValueTypeBox<V> = Swift_peer.pointee()!
+            return Java_initDynamicAppStorage(peer_swift.value, Int(index)).toJavaObject(options: [])!
+        }
+        @_cdecl("Java_V_Swift_1syncDynamicAppStorage")
+        public func V_Swift_syncDynamicAppStorage(_ Java_env: JNIEnvPointer, _ Java_target: JavaObjectPointer, _ Swift_peer: SwiftObjectPointer, _ index: Int32, _ support: JavaObjectPointer) {
+            let peer_swift: SwiftValueTypeBox<V> = Swift_peer.pointee()!
+            Java_syncDynamicAppStorage(peer_swift.value, Int(index), SkipUI.AppStorageSupport.fromJavaObject(support, options: []))
+        }
+        @_cdecl("Java_V_Swift_1dynamicEnvironmentKey")
+        public func V_Swift_dynamicEnvironmentKey(_ Java_env: JNIEnvPointer, _ Java_target: JavaObjectPointer, _ Swift_peer: SwiftObjectPointer, _ index: Int32) -> JavaString {
+            let peer_swift: SwiftValueTypeBox<V> = Swift_peer.pointee()!
+            return Java_dynamicEnvironmentKey(peer_swift.value, Int(index)).toJavaObject(options: [])!
+        }
+        @_cdecl("Java_V_Swift_1syncDynamicEnvironment")
+        public func V_Swift_syncDynamicEnvironment(_ Java_env: JNIEnvPointer, _ Java_target: JavaObjectPointer, _ Swift_peer: SwiftObjectPointer, _ index: Int32, _ support: JavaObjectPointer?) {
+            let peer_swift: SwiftValueTypeBox<V> = Swift_peer.pointee()!
+            Java_syncDynamicEnvironment(peer_swift.value, Int(index), SkipUI.EnvironmentSupport?.fromJavaObject(support, options: []))
+        }
+        @_cdecl("Java_V_Swift_1composableBody")
+        public func V_Swift_composableBody(_ Java_env: JNIEnvPointer, _ Java_target: JavaObjectPointer, _ Swift_peer: SwiftObjectPointer) -> JavaObjectPointer? {
+            let peer_swift: SwiftValueTypeBox<V> = Swift_peer.pointee()!
+            return SkipBridge.assumeMainActorUnchecked {
+                let body = peer_swift.value.body
+                return ((body as? SkipUIBridging)?.Java_view as? JConvertible)?.toJavaObject(options: [])
+            }
+        }
+        """, transformers: transformers)
+    }
+
+    func testPrivateAppStorageFocusStateAndGestureState() async throws {
+        try await check(swiftBridge: """
+        import SkipFuseUI
+        struct V: View {
+            @AppStorage("flag") private var flag = false
+            @FocusState private var focused: Bool
+            @GestureState fileprivate var offset = 0.0
+            var body: some View {
+                Text("Hello")
+            }
+        }
+        """, kotlin: """
+        internal class V: skip.ui.View, skip.bridge.SwiftPeerBridged, skip.lib.SwiftProjecting {
+            var Swift_peer: skip.bridge.SwiftObjectPointer = skip.bridge.SwiftObjectNil
+
+            constructor(Swift_peer: skip.bridge.SwiftObjectPointer, marker: skip.bridge.SwiftPeerMarker?) {
+                this.Swift_peer = Swift_peer
+            }
+
+            fun finalize() {
+                Swift_release(Swift_peer)
+                Swift_peer = skip.bridge.SwiftObjectNil
+            }
+            private external fun Swift_release(Swift_peer: skip.bridge.SwiftObjectPointer)
+
+            override fun Swift_peer(): skip.bridge.SwiftObjectPointer = Swift_peer
+
+            override fun equals(other: Any?): Boolean {
+                if (other !is skip.bridge.SwiftPeerBridged) return false
+                return Swift_peer == other.Swift_peer()
+            }
+
+            override fun hashCode(): Int = Swift_peer.hashCode()
+
+            @androidx.compose.runtime.Composable
+            override fun Evaluate(context: skip.ui.ComposeContext, options: Int): kotlin.collections.List<Renderable> {
+                val dynamicPropertyKinds = Swift_dynamicPropertyKinds(Swift_peer)
+                for (i in 0 until dynamicPropertyKinds.length) {
+                    androidx.compose.runtime.key(i) {
+                        when (dynamicPropertyKinds[i]) {
+                            '0' -> {
+                                val remembered = androidx.compose.runtime.saveable.rememberSaveable(stateSaver = context.stateSaver as androidx.compose.runtime.saveable.Saver<skip.ui.StateSupport, Any>) { androidx.compose.runtime.mutableStateOf(Swift_initDynamicState(Swift_peer, i)) }
+                                Swift_syncDynamicState(Swift_peer, i, remembered.value)
+                            }
+                            '1' -> {
+                                val remembered = androidx.compose.runtime.saveable.rememberSaveable(stateSaver = context.stateSaver as androidx.compose.runtime.saveable.Saver<skip.ui.AppStorageSupport, Any>) { androidx.compose.runtime.mutableStateOf(Swift_initDynamicAppStorage(Swift_peer, i)) }
+                                Swift_syncDynamicAppStorage(Swift_peer, i, remembered.value)
+                            }
+                            else -> Swift_syncDynamicEnvironment(Swift_peer, i, skip.ui.EnvironmentValues.shared.bridged(Swift_dynamicEnvironmentKey(Swift_peer, i)))
+                        }
+                    }
+                }
+                return super.Evaluate(context, options)
+            }
+            private external fun Swift_dynamicPropertyKinds(Swift_peer: skip.bridge.SwiftObjectPointer): String
+            private external fun Swift_initDynamicState(Swift_peer: skip.bridge.SwiftObjectPointer, index: Int): skip.ui.StateSupport
+            private external fun Swift_syncDynamicState(Swift_peer: skip.bridge.SwiftObjectPointer, index: Int, support: skip.ui.StateSupport)
+            private external fun Swift_initDynamicAppStorage(Swift_peer: skip.bridge.SwiftObjectPointer, index: Int): skip.ui.AppStorageSupport
+            private external fun Swift_syncDynamicAppStorage(Swift_peer: skip.bridge.SwiftObjectPointer, index: Int, support: skip.ui.AppStorageSupport)
+            private external fun Swift_dynamicEnvironmentKey(Swift_peer: skip.bridge.SwiftObjectPointer, index: Int): String
+            private external fun Swift_syncDynamicEnvironment(Swift_peer: skip.bridge.SwiftObjectPointer, index: Int, support: skip.ui.EnvironmentSupport?)
+
+            override fun body(): skip.ui.View {
+                return skip.ui.ComposeBuilder { composectx: skip.ui.ComposeContext -> Swift_composableBody(Swift_peer)?.Compose(composectx) ?: skip.ui.ComposeResult.ok }
+            }
+            private external fun Swift_composableBody(Swift_peer: skip.bridge.SwiftObjectPointer): skip.ui.View?
+
+            override fun Swift_projection(options: Int): () -> Any = Swift_projectionImpl(options)
+            private external fun Swift_projectionImpl(options: Int): () -> Any
+        }
+        """, swiftBridgeSupport: """
+
+        import SkipFuseUI
+        extension V: BridgedToKotlin, SkipUIBridging, SkipUI.View {
+            nonisolated private static let Java_class = try! JClass(name: "V")
+            nonisolated static func fromJavaObject(_ obj: JavaObjectPointer?, options: JConvertibleOptions) -> Self {
+                let ptr = SwiftObjectPointer.peer(of: obj!, options: options)
+                let box: SwiftValueTypeBox<Self> = ptr.pointee()!
+                return box.value
+            }
+            nonisolated func toJavaObject(options: JConvertibleOptions) -> JavaObjectPointer? {
+                let box = SwiftValueTypeBox(self)
+                let Swift_peer = SwiftObjectPointer.pointer(to: box, retain: true)
+                return try! Self.Java_class.create(ctor: Self.Java_constructor_methodID, options: options, args: [Swift_peer.toJavaParameter(options: options), (nil as JavaObjectPointer?).toJavaParameter(options: options)])
+            }
+            nonisolated private static let Java_constructor_methodID = Java_class.getMethodID(name: "<init>", sig: "(JLskip/bridge/SwiftPeerMarker;)V")!
+            nonisolated var Java_view: any SkipUI.View {
+                return self
+            }
+        }
+        @_cdecl("Java_V_Swift_1release")
+        public func V_Swift_release(_ Java_env: JNIEnvPointer, _ Java_target: JavaObjectPointer, _ Swift_peer: SwiftObjectPointer) {
+            Swift_peer.release(as: SwiftValueTypeBox<V>.self)
+        }
+        @_cdecl("Java_V_Swift_1projectionImpl")
+        public func V_Swift_projectionImpl(_ Java_env: JNIEnvPointer, _ Java_target: JavaObjectPointer, _ options: Int32) -> JavaObjectPointer {
+            let projection = V.fromJavaObject(Java_target, options: JConvertibleOptions(rawValue: Int(options)))
+            let factory: () -> Any = { projection }
+            return SwiftClosure0.javaObject(for: factory, options: [])!
+        }
+        @_cdecl("Java_V_Swift_1dynamicPropertyKinds")
+        public func V_Swift_dynamicPropertyKinds(_ Java_env: JNIEnvPointer, _ Java_target: JavaObjectPointer, _ Swift_peer: SwiftObjectPointer) -> JavaString {
+            let peer_swift: SwiftValueTypeBox<V> = Swift_peer.pointee()!
+            return Java_dynamicPropertyKinds(peer_swift.value).toJavaObject(options: [])!
+        }
+        @_cdecl("Java_V_Swift_1initDynamicState")
+        public func V_Swift_initDynamicState(_ Java_env: JNIEnvPointer, _ Java_target: JavaObjectPointer, _ Swift_peer: SwiftObjectPointer, _ index: Int32) -> JavaObjectPointer {
+            let peer_swift: SwiftValueTypeBox<V> = Swift_peer.pointee()!
+            return Java_initDynamicState(peer_swift.value, Int(index)).toJavaObject(options: [])!
+        }
+        @_cdecl("Java_V_Swift_1syncDynamicState")
+        public func V_Swift_syncDynamicState(_ Java_env: JNIEnvPointer, _ Java_target: JavaObjectPointer, _ Swift_peer: SwiftObjectPointer, _ index: Int32, _ support: JavaObjectPointer) {
+            let peer_swift: SwiftValueTypeBox<V> = Swift_peer.pointee()!
+            Java_syncDynamicState(peer_swift.value, Int(index), SkipUI.StateSupport.fromJavaObject(support, options: []))
+        }
+        @_cdecl("Java_V_Swift_1initDynamicAppStorage")
+        public func V_Swift_initDynamicAppStorage(_ Java_env: JNIEnvPointer, _ Java_target: JavaObjectPointer, _ Swift_peer: SwiftObjectPointer, _ index: Int32) -> JavaObjectPointer {
+            let peer_swift: SwiftValueTypeBox<V> = Swift_peer.pointee()!
+            return Java_initDynamicAppStorage(peer_swift.value, Int(index)).toJavaObject(options: [])!
+        }
+        @_cdecl("Java_V_Swift_1syncDynamicAppStorage")
+        public func V_Swift_syncDynamicAppStorage(_ Java_env: JNIEnvPointer, _ Java_target: JavaObjectPointer, _ Swift_peer: SwiftObjectPointer, _ index: Int32, _ support: JavaObjectPointer) {
+            let peer_swift: SwiftValueTypeBox<V> = Swift_peer.pointee()!
+            Java_syncDynamicAppStorage(peer_swift.value, Int(index), SkipUI.AppStorageSupport.fromJavaObject(support, options: []))
+        }
+        @_cdecl("Java_V_Swift_1dynamicEnvironmentKey")
+        public func V_Swift_dynamicEnvironmentKey(_ Java_env: JNIEnvPointer, _ Java_target: JavaObjectPointer, _ Swift_peer: SwiftObjectPointer, _ index: Int32) -> JavaString {
+            let peer_swift: SwiftValueTypeBox<V> = Swift_peer.pointee()!
+            return Java_dynamicEnvironmentKey(peer_swift.value, Int(index)).toJavaObject(options: [])!
+        }
+        @_cdecl("Java_V_Swift_1syncDynamicEnvironment")
+        public func V_Swift_syncDynamicEnvironment(_ Java_env: JNIEnvPointer, _ Java_target: JavaObjectPointer, _ Swift_peer: SwiftObjectPointer, _ index: Int32, _ support: JavaObjectPointer?) {
+            let peer_swift: SwiftValueTypeBox<V> = Swift_peer.pointee()!
+            Java_syncDynamicEnvironment(peer_swift.value, Int(index), SkipUI.EnvironmentSupport?.fromJavaObject(support, options: []))
+        }
+        @_cdecl("Java_V_Swift_1composableBody")
+        public func V_Swift_composableBody(_ Java_env: JNIEnvPointer, _ Java_target: JavaObjectPointer, _ Swift_peer: SwiftObjectPointer) -> JavaObjectPointer? {
+            let peer_swift: SwiftValueTypeBox<V> = Swift_peer.pointee()!
+            return SkipBridge.assumeMainActorUnchecked {
+                let body = peer_swift.value.body
+                return ((body as? SkipUIBridging)?.Java_view as? JConvertible)?.toJavaObject(options: [])
+            }
+        }
+        """, transformers: transformers)
+    }
+
+    func testFileprivateEnvironment() async throws {
+        try await check(swiftBridge: """
+        import SkipFuseUI
+        struct V: View {
+            @Environment(\\.layoutDirection) fileprivate var layoutDirection
+            var body: some View {
+                Text("Hello")
+            }
+        }
+        """, kotlin: """
+        internal class V: skip.ui.View, skip.bridge.SwiftPeerBridged, skip.lib.SwiftProjecting {
+            var Swift_peer: skip.bridge.SwiftObjectPointer = skip.bridge.SwiftObjectNil
+
+            constructor(Swift_peer: skip.bridge.SwiftObjectPointer, marker: skip.bridge.SwiftPeerMarker?) {
+                this.Swift_peer = Swift_peer
+            }
+
+            fun finalize() {
+                Swift_release(Swift_peer)
+                Swift_peer = skip.bridge.SwiftObjectNil
+            }
+            private external fun Swift_release(Swift_peer: skip.bridge.SwiftObjectPointer)
+
+            override fun Swift_peer(): skip.bridge.SwiftObjectPointer = Swift_peer
+
+            override fun equals(other: Any?): Boolean {
+                if (other !is skip.bridge.SwiftPeerBridged) return false
+                return Swift_peer == other.Swift_peer()
+            }
+
+            override fun hashCode(): Int = Swift_peer.hashCode()
+
+            @androidx.compose.runtime.Composable
+            override fun Evaluate(context: skip.ui.ComposeContext, options: Int): kotlin.collections.List<Renderable> {
+                val dynamicPropertyKinds = Swift_dynamicPropertyKinds(Swift_peer)
+                for (i in 0 until dynamicPropertyKinds.length) {
+                    androidx.compose.runtime.key(i) {
+                        when (dynamicPropertyKinds[i]) {
+                            '0' -> {
+                                val remembered = androidx.compose.runtime.saveable.rememberSaveable(stateSaver = context.stateSaver as androidx.compose.runtime.saveable.Saver<skip.ui.StateSupport, Any>) { androidx.compose.runtime.mutableStateOf(Swift_initDynamicState(Swift_peer, i)) }
+                                Swift_syncDynamicState(Swift_peer, i, remembered.value)
+                            }
+                            '1' -> {
+                                val remembered = androidx.compose.runtime.saveable.rememberSaveable(stateSaver = context.stateSaver as androidx.compose.runtime.saveable.Saver<skip.ui.AppStorageSupport, Any>) { androidx.compose.runtime.mutableStateOf(Swift_initDynamicAppStorage(Swift_peer, i)) }
+                                Swift_syncDynamicAppStorage(Swift_peer, i, remembered.value)
+                            }
+                            else -> Swift_syncDynamicEnvironment(Swift_peer, i, skip.ui.EnvironmentValues.shared.bridged(Swift_dynamicEnvironmentKey(Swift_peer, i)))
+                        }
+                    }
+                }
+                return super.Evaluate(context, options)
+            }
+            private external fun Swift_dynamicPropertyKinds(Swift_peer: skip.bridge.SwiftObjectPointer): String
+            private external fun Swift_initDynamicState(Swift_peer: skip.bridge.SwiftObjectPointer, index: Int): skip.ui.StateSupport
+            private external fun Swift_syncDynamicState(Swift_peer: skip.bridge.SwiftObjectPointer, index: Int, support: skip.ui.StateSupport)
+            private external fun Swift_initDynamicAppStorage(Swift_peer: skip.bridge.SwiftObjectPointer, index: Int): skip.ui.AppStorageSupport
+            private external fun Swift_syncDynamicAppStorage(Swift_peer: skip.bridge.SwiftObjectPointer, index: Int, support: skip.ui.AppStorageSupport)
+            private external fun Swift_dynamicEnvironmentKey(Swift_peer: skip.bridge.SwiftObjectPointer, index: Int): String
+            private external fun Swift_syncDynamicEnvironment(Swift_peer: skip.bridge.SwiftObjectPointer, index: Int, support: skip.ui.EnvironmentSupport?)
+
+            override fun body(): skip.ui.View {
+                return skip.ui.ComposeBuilder { composectx: skip.ui.ComposeContext -> Swift_composableBody(Swift_peer)?.Compose(composectx) ?: skip.ui.ComposeResult.ok }
+            }
+            private external fun Swift_composableBody(Swift_peer: skip.bridge.SwiftObjectPointer): skip.ui.View?
+
+            override fun Swift_projection(options: Int): () -> Any = Swift_projectionImpl(options)
+            private external fun Swift_projectionImpl(options: Int): () -> Any
+        }
+        """, swiftBridgeSupport: """
+
+        import SkipFuseUI
+        extension V: BridgedToKotlin, SkipUIBridging, SkipUI.View {
+            nonisolated private static let Java_class = try! JClass(name: "V")
+            nonisolated static func fromJavaObject(_ obj: JavaObjectPointer?, options: JConvertibleOptions) -> Self {
+                let ptr = SwiftObjectPointer.peer(of: obj!, options: options)
+                let box: SwiftValueTypeBox<Self> = ptr.pointee()!
+                return box.value
+            }
+            nonisolated func toJavaObject(options: JConvertibleOptions) -> JavaObjectPointer? {
+                let box = SwiftValueTypeBox(self)
+                let Swift_peer = SwiftObjectPointer.pointer(to: box, retain: true)
+                return try! Self.Java_class.create(ctor: Self.Java_constructor_methodID, options: options, args: [Swift_peer.toJavaParameter(options: options), (nil as JavaObjectPointer?).toJavaParameter(options: options)])
+            }
+            nonisolated private static let Java_constructor_methodID = Java_class.getMethodID(name: "<init>", sig: "(JLskip/bridge/SwiftPeerMarker;)V")!
+            nonisolated var Java_view: any SkipUI.View {
+                return self
+            }
+        }
+        @_cdecl("Java_V_Swift_1release")
+        public func V_Swift_release(_ Java_env: JNIEnvPointer, _ Java_target: JavaObjectPointer, _ Swift_peer: SwiftObjectPointer) {
+            Swift_peer.release(as: SwiftValueTypeBox<V>.self)
+        }
+        @_cdecl("Java_V_Swift_1projectionImpl")
+        public func V_Swift_projectionImpl(_ Java_env: JNIEnvPointer, _ Java_target: JavaObjectPointer, _ options: Int32) -> JavaObjectPointer {
+            let projection = V.fromJavaObject(Java_target, options: JConvertibleOptions(rawValue: Int(options)))
+            let factory: () -> Any = { projection }
+            return SwiftClosure0.javaObject(for: factory, options: [])!
+        }
+        @_cdecl("Java_V_Swift_1dynamicPropertyKinds")
+        public func V_Swift_dynamicPropertyKinds(_ Java_env: JNIEnvPointer, _ Java_target: JavaObjectPointer, _ Swift_peer: SwiftObjectPointer) -> JavaString {
+            let peer_swift: SwiftValueTypeBox<V> = Swift_peer.pointee()!
+            return Java_dynamicPropertyKinds(peer_swift.value).toJavaObject(options: [])!
+        }
+        @_cdecl("Java_V_Swift_1initDynamicState")
+        public func V_Swift_initDynamicState(_ Java_env: JNIEnvPointer, _ Java_target: JavaObjectPointer, _ Swift_peer: SwiftObjectPointer, _ index: Int32) -> JavaObjectPointer {
+            let peer_swift: SwiftValueTypeBox<V> = Swift_peer.pointee()!
+            return Java_initDynamicState(peer_swift.value, Int(index)).toJavaObject(options: [])!
+        }
+        @_cdecl("Java_V_Swift_1syncDynamicState")
+        public func V_Swift_syncDynamicState(_ Java_env: JNIEnvPointer, _ Java_target: JavaObjectPointer, _ Swift_peer: SwiftObjectPointer, _ index: Int32, _ support: JavaObjectPointer) {
+            let peer_swift: SwiftValueTypeBox<V> = Swift_peer.pointee()!
+            Java_syncDynamicState(peer_swift.value, Int(index), SkipUI.StateSupport.fromJavaObject(support, options: []))
+        }
+        @_cdecl("Java_V_Swift_1initDynamicAppStorage")
+        public func V_Swift_initDynamicAppStorage(_ Java_env: JNIEnvPointer, _ Java_target: JavaObjectPointer, _ Swift_peer: SwiftObjectPointer, _ index: Int32) -> JavaObjectPointer {
+            let peer_swift: SwiftValueTypeBox<V> = Swift_peer.pointee()!
+            return Java_initDynamicAppStorage(peer_swift.value, Int(index)).toJavaObject(options: [])!
+        }
+        @_cdecl("Java_V_Swift_1syncDynamicAppStorage")
+        public func V_Swift_syncDynamicAppStorage(_ Java_env: JNIEnvPointer, _ Java_target: JavaObjectPointer, _ Swift_peer: SwiftObjectPointer, _ index: Int32, _ support: JavaObjectPointer) {
+            let peer_swift: SwiftValueTypeBox<V> = Swift_peer.pointee()!
+            Java_syncDynamicAppStorage(peer_swift.value, Int(index), SkipUI.AppStorageSupport.fromJavaObject(support, options: []))
+        }
+        @_cdecl("Java_V_Swift_1dynamicEnvironmentKey")
+        public func V_Swift_dynamicEnvironmentKey(_ Java_env: JNIEnvPointer, _ Java_target: JavaObjectPointer, _ Swift_peer: SwiftObjectPointer, _ index: Int32) -> JavaString {
+            let peer_swift: SwiftValueTypeBox<V> = Swift_peer.pointee()!
+            return Java_dynamicEnvironmentKey(peer_swift.value, Int(index)).toJavaObject(options: [])!
+        }
+        @_cdecl("Java_V_Swift_1syncDynamicEnvironment")
+        public func V_Swift_syncDynamicEnvironment(_ Java_env: JNIEnvPointer, _ Java_target: JavaObjectPointer, _ Swift_peer: SwiftObjectPointer, _ index: Int32, _ support: JavaObjectPointer?) {
+            let peer_swift: SwiftValueTypeBox<V> = Swift_peer.pointee()!
+            Java_syncDynamicEnvironment(peer_swift.value, Int(index), SkipUI.EnvironmentSupport?.fromJavaObject(support, options: []))
+        }
+        @_cdecl("Java_V_Swift_1composableBody")
+        public func V_Swift_composableBody(_ Java_env: JNIEnvPointer, _ Java_target: JavaObjectPointer, _ Swift_peer: SwiftObjectPointer) -> JavaObjectPointer? {
+            let peer_swift: SwiftValueTypeBox<V> = Swift_peer.pointee()!
+            return SkipBridge.assumeMainActorUnchecked {
+                let body = peer_swift.value.body
+                return ((body as? SkipUIBridging)?.Java_view as? JConvertible)?.toJavaObject(options: [])
+            }
+        }
+        """, transformers: transformers)
+    }
+
+    func testMixedInternalAndPrivateState() async throws {
+        try await check(swiftBridge: """
+        import SkipFuseUI
+        struct V: View {
+            @State var count = 0
+            @State private var hidden = 0
+            var body: some View {
+                Text("Hello")
+            }
+        }
+        """, kotlin: """
+        internal class V: skip.ui.View, skip.bridge.SwiftPeerBridged, skip.lib.SwiftProjecting {
+            var Swift_peer: skip.bridge.SwiftObjectPointer = skip.bridge.SwiftObjectNil
+
+            constructor(Swift_peer: skip.bridge.SwiftObjectPointer, marker: skip.bridge.SwiftPeerMarker?) {
+                this.Swift_peer = Swift_peer
+            }
+
+            fun finalize() {
+                Swift_release(Swift_peer)
+                Swift_peer = skip.bridge.SwiftObjectNil
+            }
+            private external fun Swift_release(Swift_peer: skip.bridge.SwiftObjectPointer)
+
+            override fun Swift_peer(): skip.bridge.SwiftObjectPointer = Swift_peer
+
+            override fun equals(other: Any?): Boolean {
+                if (other !is skip.bridge.SwiftPeerBridged) return false
+                return Swift_peer == other.Swift_peer()
+            }
+
+            override fun hashCode(): Int = Swift_peer.hashCode()
+
+            @androidx.compose.runtime.Composable
+            override fun Evaluate(context: skip.ui.ComposeContext, options: Int): kotlin.collections.List<Renderable> {
+                val dynamicPropertyKinds = Swift_dynamicPropertyKinds(Swift_peer)
+                for (i in 0 until dynamicPropertyKinds.length) {
+                    androidx.compose.runtime.key(i) {
+                        when (dynamicPropertyKinds[i]) {
+                            '0' -> {
+                                val remembered = androidx.compose.runtime.saveable.rememberSaveable(stateSaver = context.stateSaver as androidx.compose.runtime.saveable.Saver<skip.ui.StateSupport, Any>) { androidx.compose.runtime.mutableStateOf(Swift_initDynamicState(Swift_peer, i)) }
+                                Swift_syncDynamicState(Swift_peer, i, remembered.value)
+                            }
+                            '1' -> {
+                                val remembered = androidx.compose.runtime.saveable.rememberSaveable(stateSaver = context.stateSaver as androidx.compose.runtime.saveable.Saver<skip.ui.AppStorageSupport, Any>) { androidx.compose.runtime.mutableStateOf(Swift_initDynamicAppStorage(Swift_peer, i)) }
+                                Swift_syncDynamicAppStorage(Swift_peer, i, remembered.value)
+                            }
+                            else -> Swift_syncDynamicEnvironment(Swift_peer, i, skip.ui.EnvironmentValues.shared.bridged(Swift_dynamicEnvironmentKey(Swift_peer, i)))
+                        }
+                    }
+                }
+                return super.Evaluate(context, options)
+            }
+            private external fun Swift_dynamicPropertyKinds(Swift_peer: skip.bridge.SwiftObjectPointer): String
+            private external fun Swift_initDynamicState(Swift_peer: skip.bridge.SwiftObjectPointer, index: Int): skip.ui.StateSupport
+            private external fun Swift_syncDynamicState(Swift_peer: skip.bridge.SwiftObjectPointer, index: Int, support: skip.ui.StateSupport)
+            private external fun Swift_initDynamicAppStorage(Swift_peer: skip.bridge.SwiftObjectPointer, index: Int): skip.ui.AppStorageSupport
+            private external fun Swift_syncDynamicAppStorage(Swift_peer: skip.bridge.SwiftObjectPointer, index: Int, support: skip.ui.AppStorageSupport)
+            private external fun Swift_dynamicEnvironmentKey(Swift_peer: skip.bridge.SwiftObjectPointer, index: Int): String
+            private external fun Swift_syncDynamicEnvironment(Swift_peer: skip.bridge.SwiftObjectPointer, index: Int, support: skip.ui.EnvironmentSupport?)
+
+            override fun body(): skip.ui.View {
+                return skip.ui.ComposeBuilder { composectx: skip.ui.ComposeContext -> Swift_composableBody(Swift_peer)?.Compose(composectx) ?: skip.ui.ComposeResult.ok }
+            }
+            private external fun Swift_composableBody(Swift_peer: skip.bridge.SwiftObjectPointer): skip.ui.View?
+
+            override fun Swift_projection(options: Int): () -> Any = Swift_projectionImpl(options)
+            private external fun Swift_projectionImpl(options: Int): () -> Any
+        }
+        """, swiftBridgeSupport: """
+
+        import SkipFuseUI
+        extension V: BridgedToKotlin, SkipUIBridging, SkipUI.View {
+            nonisolated private static let Java_class = try! JClass(name: "V")
+            nonisolated static func fromJavaObject(_ obj: JavaObjectPointer?, options: JConvertibleOptions) -> Self {
+                let ptr = SwiftObjectPointer.peer(of: obj!, options: options)
+                let box: SwiftValueTypeBox<Self> = ptr.pointee()!
+                return box.value
+            }
+            nonisolated func toJavaObject(options: JConvertibleOptions) -> JavaObjectPointer? {
+                let box = SwiftValueTypeBox(self)
+                let Swift_peer = SwiftObjectPointer.pointer(to: box, retain: true)
+                return try! Self.Java_class.create(ctor: Self.Java_constructor_methodID, options: options, args: [Swift_peer.toJavaParameter(options: options), (nil as JavaObjectPointer?).toJavaParameter(options: options)])
+            }
+            nonisolated private static let Java_constructor_methodID = Java_class.getMethodID(name: "<init>", sig: "(JLskip/bridge/SwiftPeerMarker;)V")!
+            nonisolated var Java_view: any SkipUI.View {
+                return self
+            }
+        }
+        @_cdecl("Java_V_Swift_1release")
+        public func V_Swift_release(_ Java_env: JNIEnvPointer, _ Java_target: JavaObjectPointer, _ Swift_peer: SwiftObjectPointer) {
+            Swift_peer.release(as: SwiftValueTypeBox<V>.self)
+        }
+        @_cdecl("Java_V_Swift_1projectionImpl")
+        public func V_Swift_projectionImpl(_ Java_env: JNIEnvPointer, _ Java_target: JavaObjectPointer, _ options: Int32) -> JavaObjectPointer {
+            let projection = V.fromJavaObject(Java_target, options: JConvertibleOptions(rawValue: Int(options)))
+            let factory: () -> Any = { projection }
+            return SwiftClosure0.javaObject(for: factory, options: [])!
+        }
+        @_cdecl("Java_V_Swift_1dynamicPropertyKinds")
+        public func V_Swift_dynamicPropertyKinds(_ Java_env: JNIEnvPointer, _ Java_target: JavaObjectPointer, _ Swift_peer: SwiftObjectPointer) -> JavaString {
+            let peer_swift: SwiftValueTypeBox<V> = Swift_peer.pointee()!
+            return Java_dynamicPropertyKinds(peer_swift.value).toJavaObject(options: [])!
+        }
+        @_cdecl("Java_V_Swift_1initDynamicState")
+        public func V_Swift_initDynamicState(_ Java_env: JNIEnvPointer, _ Java_target: JavaObjectPointer, _ Swift_peer: SwiftObjectPointer, _ index: Int32) -> JavaObjectPointer {
+            let peer_swift: SwiftValueTypeBox<V> = Swift_peer.pointee()!
+            return Java_initDynamicState(peer_swift.value, Int(index)).toJavaObject(options: [])!
+        }
+        @_cdecl("Java_V_Swift_1syncDynamicState")
+        public func V_Swift_syncDynamicState(_ Java_env: JNIEnvPointer, _ Java_target: JavaObjectPointer, _ Swift_peer: SwiftObjectPointer, _ index: Int32, _ support: JavaObjectPointer) {
+            let peer_swift: SwiftValueTypeBox<V> = Swift_peer.pointee()!
+            Java_syncDynamicState(peer_swift.value, Int(index), SkipUI.StateSupport.fromJavaObject(support, options: []))
+        }
+        @_cdecl("Java_V_Swift_1initDynamicAppStorage")
+        public func V_Swift_initDynamicAppStorage(_ Java_env: JNIEnvPointer, _ Java_target: JavaObjectPointer, _ Swift_peer: SwiftObjectPointer, _ index: Int32) -> JavaObjectPointer {
+            let peer_swift: SwiftValueTypeBox<V> = Swift_peer.pointee()!
+            return Java_initDynamicAppStorage(peer_swift.value, Int(index)).toJavaObject(options: [])!
+        }
+        @_cdecl("Java_V_Swift_1syncDynamicAppStorage")
+        public func V_Swift_syncDynamicAppStorage(_ Java_env: JNIEnvPointer, _ Java_target: JavaObjectPointer, _ Swift_peer: SwiftObjectPointer, _ index: Int32, _ support: JavaObjectPointer) {
+            let peer_swift: SwiftValueTypeBox<V> = Swift_peer.pointee()!
+            Java_syncDynamicAppStorage(peer_swift.value, Int(index), SkipUI.AppStorageSupport.fromJavaObject(support, options: []))
+        }
+        @_cdecl("Java_V_Swift_1dynamicEnvironmentKey")
+        public func V_Swift_dynamicEnvironmentKey(_ Java_env: JNIEnvPointer, _ Java_target: JavaObjectPointer, _ Swift_peer: SwiftObjectPointer, _ index: Int32) -> JavaString {
+            let peer_swift: SwiftValueTypeBox<V> = Swift_peer.pointee()!
+            return Java_dynamicEnvironmentKey(peer_swift.value, Int(index)).toJavaObject(options: [])!
+        }
+        @_cdecl("Java_V_Swift_1syncDynamicEnvironment")
+        public func V_Swift_syncDynamicEnvironment(_ Java_env: JNIEnvPointer, _ Java_target: JavaObjectPointer, _ Swift_peer: SwiftObjectPointer, _ index: Int32, _ support: JavaObjectPointer?) {
+            let peer_swift: SwiftValueTypeBox<V> = Swift_peer.pointee()!
+            Java_syncDynamicEnvironment(peer_swift.value, Int(index), SkipUI.EnvironmentSupport?.fromJavaObject(support, options: []))
+        }
+        @_cdecl("Java_V_Swift_1composableBody")
+        public func V_Swift_composableBody(_ Java_env: JNIEnvPointer, _ Java_target: JavaObjectPointer, _ Swift_peer: SwiftObjectPointer) -> JavaObjectPointer? {
+            let peer_swift: SwiftValueTypeBox<V> = Swift_peer.pointee()!
+            return SkipBridge.assumeMainActorUnchecked {
+                let body = peer_swift.value.body
+                return ((body as? SkipUIBridging)?.Java_view as? JConvertible)?.toJavaObject(options: [])
+            }
+        }
+        """, transformers: transformers)
+    }
+
+    func testGenericPrivateState() async throws {
+        try await check(swiftBridge: """
+        import SkipFuseUI
+        struct V<T>: View where T: Equatable {
+            @State private var count = 0
+            var t: T
+            var body: some View {
+                Text("Hello")
+            }
+        }
+        """, kotlin: """
+        internal class V<T>: skip.ui.View, skip.bridge.SwiftPeerBridged, skip.lib.SwiftProjecting {
+            var Swift_peer: skip.bridge.SwiftObjectPointer = skip.bridge.SwiftObjectNil
+
+            constructor(Swift_peer: skip.bridge.SwiftObjectPointer, marker: skip.bridge.SwiftPeerMarker?) {
+                this.Swift_peer = Swift_peer
+            }
+
+            fun finalize() {
+                Swift_release(Swift_peer)
+                Swift_peer = skip.bridge.SwiftObjectNil
+            }
+            private external fun Swift_release(Swift_peer: skip.bridge.SwiftObjectPointer)
+
+            override fun Swift_peer(): skip.bridge.SwiftObjectPointer = Swift_peer
+
+            override fun equals(other: Any?): Boolean {
+                if (other !is skip.bridge.SwiftPeerBridged) return false
+                return Swift_peer == other.Swift_peer()
+            }
+
+            override fun hashCode(): Int = Swift_peer.hashCode()
+
+            @androidx.compose.runtime.Composable
+            override fun Evaluate(context: skip.ui.ComposeContext, options: Int): kotlin.collections.List<Renderable> {
+                val dynamicPropertyKinds = Swift_dynamicPropertyKinds(Swift_peer)
+                for (i in 0 until dynamicPropertyKinds.length) {
+                    androidx.compose.runtime.key(i) {
+                        when (dynamicPropertyKinds[i]) {
+                            '0' -> {
+                                val remembered = androidx.compose.runtime.saveable.rememberSaveable(stateSaver = context.stateSaver as androidx.compose.runtime.saveable.Saver<skip.ui.StateSupport, Any>) { androidx.compose.runtime.mutableStateOf(Swift_initDynamicState(Swift_peer, i)) }
+                                Swift_syncDynamicState(Swift_peer, i, remembered.value)
+                            }
+                            '1' -> {
+                                val remembered = androidx.compose.runtime.saveable.rememberSaveable(stateSaver = context.stateSaver as androidx.compose.runtime.saveable.Saver<skip.ui.AppStorageSupport, Any>) { androidx.compose.runtime.mutableStateOf(Swift_initDynamicAppStorage(Swift_peer, i)) }
+                                Swift_syncDynamicAppStorage(Swift_peer, i, remembered.value)
+                            }
+                            else -> Swift_syncDynamicEnvironment(Swift_peer, i, skip.ui.EnvironmentValues.shared.bridged(Swift_dynamicEnvironmentKey(Swift_peer, i)))
+                        }
+                    }
+                }
+                return super.Evaluate(context, options)
+            }
+            private external fun Swift_dynamicPropertyKinds(Swift_peer: skip.bridge.SwiftObjectPointer): String
+            private external fun Swift_initDynamicState(Swift_peer: skip.bridge.SwiftObjectPointer, index: Int): skip.ui.StateSupport
+            private external fun Swift_syncDynamicState(Swift_peer: skip.bridge.SwiftObjectPointer, index: Int, support: skip.ui.StateSupport)
+            private external fun Swift_initDynamicAppStorage(Swift_peer: skip.bridge.SwiftObjectPointer, index: Int): skip.ui.AppStorageSupport
+            private external fun Swift_syncDynamicAppStorage(Swift_peer: skip.bridge.SwiftObjectPointer, index: Int, support: skip.ui.AppStorageSupport)
+            private external fun Swift_dynamicEnvironmentKey(Swift_peer: skip.bridge.SwiftObjectPointer, index: Int): String
+            private external fun Swift_syncDynamicEnvironment(Swift_peer: skip.bridge.SwiftObjectPointer, index: Int, support: skip.ui.EnvironmentSupport?)
+
+            override fun body(): skip.ui.View {
+                return skip.ui.ComposeBuilder { composectx: skip.ui.ComposeContext -> Swift_composableBody(Swift_peer)?.Compose(composectx) ?: skip.ui.ComposeResult.ok }
+            }
+            private external fun Swift_composableBody(Swift_peer: skip.bridge.SwiftObjectPointer): skip.ui.View?
+
+            override fun Swift_projection(options: Int): () -> Any = Swift_projectionImpl(options)
+            private external fun Swift_projectionImpl(options: Int): () -> Any
+        }
+        """, swiftBridgeSupport: """
+
+        import SkipFuseUI
+        extension V: BridgedToKotlin, SkipUIBridging, SkipUI.View {
+            nonisolated private static var Java_class: JClass { try! JClass(name: "V") }
+            nonisolated static func fromJavaObject(_ obj: JavaObjectPointer?, options: JConvertibleOptions) -> Self {
+                let ptr = SwiftObjectPointer.peer(of: obj!, options: options)
+                let typeErased: V_TypeErased = ptr.pointee()!
+                return typeErased.genericvalue as! Self
+            }
+            nonisolated func toJavaObject(options: JConvertibleOptions) -> JavaObjectPointer? {
+                let typeErased = toTypeErased()
+                let Swift_peer = SwiftObjectPointer.pointer(to: typeErased, retain: true)
+                return try! Self.Java_class.create(ctor: Self.Java_constructor_methodID, options: options, args: [Swift_peer.toJavaParameter(options: options), (nil as JavaObjectPointer?).toJavaParameter(options: options)])
+            }
+            nonisolated private static var Java_constructor_methodID: JavaMethodID { Java_class.getMethodID(name: "<init>", sig: "(JLskip/bridge/SwiftPeerMarker;)V")! }
+            nonisolated var Java_view: any SkipUI.View {
+                return self
+            }
+        }
+        extension V: TypeErasedConvertible {
+            nonisolated func toTypeErased() -> AnyObject {
+                let typeErased = V_TypeErased(self)
+                typeErased.body = { [unowned typeErased] in (typeErased.genericvalue as! Self).body }
+                return typeErased
+            }
+        }
+        private final class V_TypeErased : @unchecked Sendable {
+            let genericvalue: Any
+            init(_ value: Any) {
+                self.genericvalue = value
+            }
+            var body: (@MainActor () -> Any)!
+        }
+        @_cdecl("Java_V_Swift_1release")
+        public func V_Swift_release(_ Java_env: JNIEnvPointer, _ Java_target: JavaObjectPointer, _ Swift_peer: SwiftObjectPointer) {
+            Swift_peer.release(as: V_TypeErased.self)
+        }
+        @_cdecl("Java_V_Swift_1projectionImpl")
+        public func V_Swift_projectionImpl(_ Java_env: JNIEnvPointer, _ Java_target: JavaObjectPointer, _ options: Int32) -> JavaObjectPointer {
+            let ptr = SwiftObjectPointer.peer(of: Java_target, options: JConvertibleOptions(rawValue: Int(options)))
+            let peer_swift: V_TypeErased = ptr.pointee()!
+            let projection = peer_swift.genericvalue
+            let factory: () -> Any = { projection }
+            return SwiftClosure0.javaObject(for: factory, options: [])!
+        }
+        @_cdecl("Java_V_Swift_1dynamicPropertyKinds")
+        public func V_Swift_dynamicPropertyKinds(_ Java_env: JNIEnvPointer, _ Java_target: JavaObjectPointer, _ Swift_peer: SwiftObjectPointer) -> JavaString {
+            let peer_swift: V_TypeErased = Swift_peer.pointee()!
+            return Java_dynamicPropertyKinds(peer_swift.genericvalue).toJavaObject(options: [])!
+        }
+        @_cdecl("Java_V_Swift_1initDynamicState")
+        public func V_Swift_initDynamicState(_ Java_env: JNIEnvPointer, _ Java_target: JavaObjectPointer, _ Swift_peer: SwiftObjectPointer, _ index: Int32) -> JavaObjectPointer {
+            let peer_swift: V_TypeErased = Swift_peer.pointee()!
+            return Java_initDynamicState(peer_swift.genericvalue, Int(index)).toJavaObject(options: [])!
+        }
+        @_cdecl("Java_V_Swift_1syncDynamicState")
+        public func V_Swift_syncDynamicState(_ Java_env: JNIEnvPointer, _ Java_target: JavaObjectPointer, _ Swift_peer: SwiftObjectPointer, _ index: Int32, _ support: JavaObjectPointer) {
+            let peer_swift: V_TypeErased = Swift_peer.pointee()!
+            Java_syncDynamicState(peer_swift.genericvalue, Int(index), SkipUI.StateSupport.fromJavaObject(support, options: []))
+        }
+        @_cdecl("Java_V_Swift_1initDynamicAppStorage")
+        public func V_Swift_initDynamicAppStorage(_ Java_env: JNIEnvPointer, _ Java_target: JavaObjectPointer, _ Swift_peer: SwiftObjectPointer, _ index: Int32) -> JavaObjectPointer {
+            let peer_swift: V_TypeErased = Swift_peer.pointee()!
+            return Java_initDynamicAppStorage(peer_swift.genericvalue, Int(index)).toJavaObject(options: [])!
+        }
+        @_cdecl("Java_V_Swift_1syncDynamicAppStorage")
+        public func V_Swift_syncDynamicAppStorage(_ Java_env: JNIEnvPointer, _ Java_target: JavaObjectPointer, _ Swift_peer: SwiftObjectPointer, _ index: Int32, _ support: JavaObjectPointer) {
+            let peer_swift: V_TypeErased = Swift_peer.pointee()!
+            Java_syncDynamicAppStorage(peer_swift.genericvalue, Int(index), SkipUI.AppStorageSupport.fromJavaObject(support, options: []))
+        }
+        @_cdecl("Java_V_Swift_1dynamicEnvironmentKey")
+        public func V_Swift_dynamicEnvironmentKey(_ Java_env: JNIEnvPointer, _ Java_target: JavaObjectPointer, _ Swift_peer: SwiftObjectPointer, _ index: Int32) -> JavaString {
+            let peer_swift: V_TypeErased = Swift_peer.pointee()!
+            return Java_dynamicEnvironmentKey(peer_swift.genericvalue, Int(index)).toJavaObject(options: [])!
+        }
+        @_cdecl("Java_V_Swift_1syncDynamicEnvironment")
+        public func V_Swift_syncDynamicEnvironment(_ Java_env: JNIEnvPointer, _ Java_target: JavaObjectPointer, _ Swift_peer: SwiftObjectPointer, _ index: Int32, _ support: JavaObjectPointer?) {
+            let peer_swift: V_TypeErased = Swift_peer.pointee()!
+            Java_syncDynamicEnvironment(peer_swift.genericvalue, Int(index), SkipUI.EnvironmentSupport?.fromJavaObject(support, options: []))
+        }
+        @_cdecl("Java_V_Swift_1composableBody")
+        public func V_Swift_composableBody(_ Java_env: JNIEnvPointer, _ Java_target: JavaObjectPointer, _ Swift_peer: SwiftObjectPointer) -> JavaObjectPointer? {
+            let peer_swift: V_TypeErased = Swift_peer.pointee()!
+            return SkipBridge.assumeMainActorUnchecked {
+                let body = peer_swift.body()
+                return ((body as? SkipUIBridging)?.Java_view as? JConvertible)?.toJavaObject(options: [])
+            }
+        }
+        """, transformers: transformers)
+    }
+
+    func testPrivateStateViewModifier() async throws {
+        try await check(swiftBridge: """
+        import SkipFuseUI
+        struct M: ViewModifier {
+            @State private var count = 0
+            func body(content: Content) -> some View {
+                content
+            }
+        }
+        """, kotlin: """
+        internal class M: skip.ui.ViewModifier, skip.bridge.SwiftPeerBridged, skip.lib.SwiftProjecting {
+            var Swift_peer: skip.bridge.SwiftObjectPointer = skip.bridge.SwiftObjectNil
+
+            constructor(Swift_peer: skip.bridge.SwiftObjectPointer, marker: skip.bridge.SwiftPeerMarker?) {
+                this.Swift_peer = Swift_peer
+            }
+
+            fun finalize() {
+                Swift_release(Swift_peer)
+                Swift_peer = skip.bridge.SwiftObjectNil
+            }
+            private external fun Swift_release(Swift_peer: skip.bridge.SwiftObjectPointer)
+
+            override fun Swift_peer(): skip.bridge.SwiftObjectPointer = Swift_peer
+
+            override fun equals(other: Any?): Boolean {
+                if (other !is skip.bridge.SwiftPeerBridged) return false
+                return Swift_peer == other.Swift_peer()
+            }
+
+            override fun hashCode(): Int = Swift_peer.hashCode()
+
+            @androidx.compose.runtime.Composable
+            override fun Evaluate(content: skip.ui.View, context: skip.ui.ComposeContext, options: Int): kotlin.collections.List<Renderable> {
+                val dynamicPropertyKinds = Swift_dynamicPropertyKinds(Swift_peer)
+                for (i in 0 until dynamicPropertyKinds.length) {
+                    androidx.compose.runtime.key(i) {
+                        when (dynamicPropertyKinds[i]) {
+                            '0' -> {
+                                val remembered = androidx.compose.runtime.saveable.rememberSaveable(stateSaver = context.stateSaver as androidx.compose.runtime.saveable.Saver<skip.ui.StateSupport, Any>) { androidx.compose.runtime.mutableStateOf(Swift_initDynamicState(Swift_peer, i)) }
+                                Swift_syncDynamicState(Swift_peer, i, remembered.value)
+                            }
+                            '1' -> {
+                                val remembered = androidx.compose.runtime.saveable.rememberSaveable(stateSaver = context.stateSaver as androidx.compose.runtime.saveable.Saver<skip.ui.AppStorageSupport, Any>) { androidx.compose.runtime.mutableStateOf(Swift_initDynamicAppStorage(Swift_peer, i)) }
+                                Swift_syncDynamicAppStorage(Swift_peer, i, remembered.value)
+                            }
+                            else -> Swift_syncDynamicEnvironment(Swift_peer, i, skip.ui.EnvironmentValues.shared.bridged(Swift_dynamicEnvironmentKey(Swift_peer, i)))
+                        }
+                    }
+                }
+                return super.Evaluate(content, context, options)
+            }
+            private external fun Swift_dynamicPropertyKinds(Swift_peer: skip.bridge.SwiftObjectPointer): String
+            private external fun Swift_initDynamicState(Swift_peer: skip.bridge.SwiftObjectPointer, index: Int): skip.ui.StateSupport
+            private external fun Swift_syncDynamicState(Swift_peer: skip.bridge.SwiftObjectPointer, index: Int, support: skip.ui.StateSupport)
+            private external fun Swift_initDynamicAppStorage(Swift_peer: skip.bridge.SwiftObjectPointer, index: Int): skip.ui.AppStorageSupport
+            private external fun Swift_syncDynamicAppStorage(Swift_peer: skip.bridge.SwiftObjectPointer, index: Int, support: skip.ui.AppStorageSupport)
+            private external fun Swift_dynamicEnvironmentKey(Swift_peer: skip.bridge.SwiftObjectPointer, index: Int): String
+            private external fun Swift_syncDynamicEnvironment(Swift_peer: skip.bridge.SwiftObjectPointer, index: Int, support: skip.ui.EnvironmentSupport?)
+
+            override fun body(content: skip.ui.View): skip.ui.View {
+                return skip.ui.ComposeBuilder { composectx: skip.ui.ComposeContext -> Swift_composableBody(Swift_peer, content)?.Compose(composectx) ?: skip.ui.ComposeResult.ok }
+            }
+            private external fun Swift_composableBody(Swift_peer: skip.bridge.SwiftObjectPointer, content: skip.ui.View): skip.ui.View?
+
+            override fun Swift_projection(options: Int): () -> Any = Swift_projectionImpl(options)
+            private external fun Swift_projectionImpl(options: Int): () -> Any
+        }
+        """, swiftBridgeSupport: """
+
+        import SkipFuseUI
+        extension M: BridgedToKotlin, SkipUI.ViewModifier {
+            nonisolated private static let Java_class = try! JClass(name: "M")
+            nonisolated static func fromJavaObject(_ obj: JavaObjectPointer?, options: JConvertibleOptions) -> Self {
+                let ptr = SwiftObjectPointer.peer(of: obj!, options: options)
+                let box: SwiftValueTypeBox<Self> = ptr.pointee()!
+                return box.value
+            }
+            nonisolated func toJavaObject(options: JConvertibleOptions) -> JavaObjectPointer? {
+                let box = SwiftValueTypeBox(self)
+                let Swift_peer = SwiftObjectPointer.pointer(to: box, retain: true)
+                return try! Self.Java_class.create(ctor: Self.Java_constructor_methodID, options: options, args: [Swift_peer.toJavaParameter(options: options), (nil as JavaObjectPointer?).toJavaParameter(options: options)])
+            }
+            nonisolated private static let Java_constructor_methodID = Java_class.getMethodID(name: "<init>", sig: "(JLskip/bridge/SwiftPeerMarker;)V")!
+            nonisolated var Java_modifier: any SkipUI.ViewModifier {
+                return self
+            }
+        }
+        @_cdecl("Java_M_Swift_1release")
+        public func M_Swift_release(_ Java_env: JNIEnvPointer, _ Java_target: JavaObjectPointer, _ Swift_peer: SwiftObjectPointer) {
+            Swift_peer.release(as: SwiftValueTypeBox<M>.self)
+        }
+        @_cdecl("Java_M_Swift_1projectionImpl")
+        public func M_Swift_projectionImpl(_ Java_env: JNIEnvPointer, _ Java_target: JavaObjectPointer, _ options: Int32) -> JavaObjectPointer {
+            let projection = M.fromJavaObject(Java_target, options: JConvertibleOptions(rawValue: Int(options)))
+            let factory: () -> Any = { projection }
+            return SwiftClosure0.javaObject(for: factory, options: [])!
+        }
+        @_cdecl("Java_M_Swift_1dynamicPropertyKinds")
+        public func M_Swift_dynamicPropertyKinds(_ Java_env: JNIEnvPointer, _ Java_target: JavaObjectPointer, _ Swift_peer: SwiftObjectPointer) -> JavaString {
+            let peer_swift: SwiftValueTypeBox<M> = Swift_peer.pointee()!
+            return Java_dynamicPropertyKinds(peer_swift.value).toJavaObject(options: [])!
+        }
+        @_cdecl("Java_M_Swift_1initDynamicState")
+        public func M_Swift_initDynamicState(_ Java_env: JNIEnvPointer, _ Java_target: JavaObjectPointer, _ Swift_peer: SwiftObjectPointer, _ index: Int32) -> JavaObjectPointer {
+            let peer_swift: SwiftValueTypeBox<M> = Swift_peer.pointee()!
+            return Java_initDynamicState(peer_swift.value, Int(index)).toJavaObject(options: [])!
+        }
+        @_cdecl("Java_M_Swift_1syncDynamicState")
+        public func M_Swift_syncDynamicState(_ Java_env: JNIEnvPointer, _ Java_target: JavaObjectPointer, _ Swift_peer: SwiftObjectPointer, _ index: Int32, _ support: JavaObjectPointer) {
+            let peer_swift: SwiftValueTypeBox<M> = Swift_peer.pointee()!
+            Java_syncDynamicState(peer_swift.value, Int(index), SkipUI.StateSupport.fromJavaObject(support, options: []))
+        }
+        @_cdecl("Java_M_Swift_1initDynamicAppStorage")
+        public func M_Swift_initDynamicAppStorage(_ Java_env: JNIEnvPointer, _ Java_target: JavaObjectPointer, _ Swift_peer: SwiftObjectPointer, _ index: Int32) -> JavaObjectPointer {
+            let peer_swift: SwiftValueTypeBox<M> = Swift_peer.pointee()!
+            return Java_initDynamicAppStorage(peer_swift.value, Int(index)).toJavaObject(options: [])!
+        }
+        @_cdecl("Java_M_Swift_1syncDynamicAppStorage")
+        public func M_Swift_syncDynamicAppStorage(_ Java_env: JNIEnvPointer, _ Java_target: JavaObjectPointer, _ Swift_peer: SwiftObjectPointer, _ index: Int32, _ support: JavaObjectPointer) {
+            let peer_swift: SwiftValueTypeBox<M> = Swift_peer.pointee()!
+            Java_syncDynamicAppStorage(peer_swift.value, Int(index), SkipUI.AppStorageSupport.fromJavaObject(support, options: []))
+        }
+        @_cdecl("Java_M_Swift_1dynamicEnvironmentKey")
+        public func M_Swift_dynamicEnvironmentKey(_ Java_env: JNIEnvPointer, _ Java_target: JavaObjectPointer, _ Swift_peer: SwiftObjectPointer, _ index: Int32) -> JavaString {
+            let peer_swift: SwiftValueTypeBox<M> = Swift_peer.pointee()!
+            return Java_dynamicEnvironmentKey(peer_swift.value, Int(index)).toJavaObject(options: [])!
+        }
+        @_cdecl("Java_M_Swift_1syncDynamicEnvironment")
+        public func M_Swift_syncDynamicEnvironment(_ Java_env: JNIEnvPointer, _ Java_target: JavaObjectPointer, _ Swift_peer: SwiftObjectPointer, _ index: Int32, _ support: JavaObjectPointer?) {
+            let peer_swift: SwiftValueTypeBox<M> = Swift_peer.pointee()!
+            Java_syncDynamicEnvironment(peer_swift.value, Int(index), SkipUI.EnvironmentSupport?.fromJavaObject(support, options: []))
+        }
+        @_cdecl("Java_M_Swift_1composableBody")
+        public func M_Swift_composableBody(_ Java_env: JNIEnvPointer, _ Java_target: JavaObjectPointer, _ Swift_peer: SwiftObjectPointer, _ content: JavaObjectPointer) -> JavaObjectPointer? {
+            let peer_swift: SwiftValueTypeBox<M> = Swift_peer.pointee()!
+            let content_swift = JavaBackedView(content)!
+            return SkipBridge.assumeMainActorUnchecked {
+                let body = peer_swift.value.body(content: content_swift)
+                return ((body as? SkipUIBridging)?.Java_view as? JConvertible)?.toJavaObject(options: [])
+            }
+        }
+        """, transformers: transformers)
+    }
+
     func testAppStorage() async throws {
         try await check(swiftBridge: """
         import SkipFuseUI
