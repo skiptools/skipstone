@@ -1186,7 +1186,7 @@ final class KotlinBridgeToKotlinVisitor {
                 default:
                     releaseBody.append("Swift_peer.release(as: SwiftValueTypeBox<\(classDeclaration.signature)>.self)")
                 }
-                cdeclFunctions.append(CDeclFunction(name: releaseCdecl.cdeclFunctionName, cdecl: releaseCdecl.cdecl, signature: .function([classType.peerSwiftParameter], .void, APIFlags(), nil), body: releaseBody))
+                cdeclFunctions.append(CDeclFunction(name: releaseCdecl.cdeclFunctionName, cdecl: releaseCdecl.cdecl, signature: .function([classType.peerSwiftParameter], .void, APIFlags(), nil), body: releaseBody, isNonisolated: true))
             }
         }
 
@@ -1414,7 +1414,9 @@ final class KotlinBridgeToKotlinVisitor {
         swift.append(1, "}")
         swift.append("}")
 
-        swift.append("private final class \(classDeclaration.signature.typeErasedClass) : @unchecked Sendable {")
+        // Explicitly nonisolated: under `.defaultIsolation(MainActor.self)` a bare class here would be
+        // main-actor-bound, and `toTypeErased()` above constructs it from a nonisolated context.
+        swift.append("nonisolated private final class \(classDeclaration.signature.typeErasedClass) : @unchecked Sendable {")
         if classDeclaration.inherits.contains(.named("MutableStruct", [])) {
             swift.append(1, "var genericvalue: Any")
         } else {
@@ -1499,8 +1501,10 @@ final class KotlinBridgeToKotlinVisitor {
         for (name, attributes, modifiers) in stateVariables {
             let mainActorString = isMainActorIsolated(in: classDeclaration, attributes: attributes, modifiers: modifiers) ? "@MainActor " : ""
             if attributes.stateAttribute != nil || attributes.contains(.focusState) || attributes.contains(.gestureState) || attributes.contains(.appStorage) {
-                swift.append(1, "var Java_initState_\(name): (\(mainActorString)() -> SkipUI.StateSupport)!")
-                swift.append(1, "var Java_syncState_\(name): (\(mainActorString)(SkipUI.StateSupport) -> Void)!")
+                // The support type the view's own accessors use (see swiftUIInitState below).
+                let supportTypeName = attributes.contains(.appStorage) ? "AppStorageSupport" : "StateSupport"
+                swift.append(1, "var Java_initState_\(name): (\(mainActorString)() -> SkipUI.\(supportTypeName))!")
+                swift.append(1, "var Java_syncState_\(name): (\(mainActorString)(SkipUI.\(supportTypeName)) -> Void)!")
             } else if attributes.environmentAttribute != nil {
                 swift.append(1, "var Java_initEnvironment_\(name): (\(mainActorString)() -> String)!")
                 swift.append(1, "var Java_syncEnvironment_\(name): (\(mainActorString)(SkipUI.EnvironmentSupport?) -> Void)!")
