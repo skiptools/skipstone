@@ -8278,7 +8278,7 @@ final class BridgeToKotlinTests: XCTestCase {
             }
         }
         """, kotlin: """
-        class V: skip.ui.View, skip.bridge.SwiftPeerBridged, skip.lib.SwiftProjecting {
+        class V: skip.ui.View, skip.ui.Renderable, skip.bridge.SwiftPeerBridged, skip.lib.SwiftProjecting {
             var Swift_peer: skip.bridge.SwiftObjectPointer = skip.bridge.SwiftObjectNil
 
             constructor(Swift_peer: skip.bridge.SwiftObjectPointer, marker: skip.bridge.SwiftPeerMarker?) {
@@ -8301,9 +8301,19 @@ final class BridgeToKotlinTests: XCTestCase {
             override fun hashCode(): Int = Swift_peer.hashCode()
 
             override fun body(): skip.ui.View {
-                return skip.ui.ComposeBuilder { composectx: skip.ui.ComposeContext -> Swift_composableBody(Swift_peer)?.Compose(composectx) ?: skip.ui.ComposeResult.ok }
+                return skip.ui.ComposeBuilder { composectx: skip.ui.ComposeContext ->
+                    Render(composectx)
+                    skip.ui.ComposeResult.ok
+                }
             }
-            private external fun Swift_composableBody(Swift_peer: skip.bridge.SwiftObjectPointer): skip.ui.View?
+
+            @androidx.compose.runtime.Composable
+            override fun Render(context: skip.ui.ComposeContext) {
+                val observationInvalidation = androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(0) }
+                observationInvalidation.value
+                Swift_composableBody(Swift_peer, onChange = { observationInvalidation.value += 1 })?.Compose(context)
+            }
+            private external fun Swift_composableBody(Swift_peer: skip.bridge.SwiftObjectPointer, onChange: () -> Unit): skip.ui.View?
 
             val i: Int
                 get() = Swift_i(Swift_peer)
@@ -8321,6 +8331,7 @@ final class BridgeToKotlinTests: XCTestCase {
         }
         """, swiftBridgeSupport: """
 
+        import Observation
         import SkipFuseUI
         extension V: BridgedToKotlin, SkipUIBridging, SkipUI.View {
             nonisolated private static let Java_class = try! JClass(name: "V")
@@ -8365,10 +8376,15 @@ final class BridgeToKotlinTests: XCTestCase {
             return SwiftClosure0.javaObject(for: factory, options: [])!
         }
         @_cdecl("Java_V_Swift_1composableBody")
-        public func V_Swift_composableBody(_ Java_env: JNIEnvPointer, _ Java_target: JavaObjectPointer, _ Swift_peer: SwiftObjectPointer) -> JavaObjectPointer? {
+        public func V_Swift_composableBody(_ Java_env: JNIEnvPointer, _ Java_target: JavaObjectPointer, _ Swift_peer: SwiftObjectPointer, _ onChange: JavaObjectPointer) -> JavaObjectPointer? {
             let peer_swift: SwiftValueTypeBox<V> = Swift_peer.pointee()!
+            let onChange_swift = SwiftClosure0.closure(forJavaObject: onChange, options: [])! as @Sendable () -> Void
             return SkipBridge.assumeMainActorUnchecked {
-                let body = peer_swift.value.body
+                let body = withObservationTracking {
+                    return peer_swift.value.body
+                } onChange: {
+                    onChange_swift()
+                }
                 return ((body as? SkipUIBridging)?.Java_view as? JConvertible)?.toJavaObject(options: [])
             }
         }
@@ -8391,7 +8407,7 @@ final class BridgeToKotlinTests: XCTestCase {
             }
         }
         """, kotlin: """
-        internal class V: skip.ui.View, skip.bridge.SwiftPeerBridged, skip.lib.SwiftProjecting {
+        internal class V: skip.ui.View, skip.ui.Renderable, skip.bridge.SwiftPeerBridged, skip.lib.SwiftProjecting {
             var Swift_peer: skip.bridge.SwiftObjectPointer = skip.bridge.SwiftObjectNil
 
             constructor(Swift_peer: skip.bridge.SwiftObjectPointer, marker: skip.bridge.SwiftPeerMarker?) {
@@ -8423,15 +8439,26 @@ final class BridgeToKotlinTests: XCTestCase {
             private external fun Swift_syncState_count(Swift_peer: skip.bridge.SwiftObjectPointer, support: skip.ui.StateSupport)
 
             override fun body(): skip.ui.View {
-                return skip.ui.ComposeBuilder { composectx: skip.ui.ComposeContext -> Swift_composableBody(Swift_peer)?.Compose(composectx) ?: skip.ui.ComposeResult.ok }
+                return skip.ui.ComposeBuilder { composectx: skip.ui.ComposeContext ->
+                    Render(composectx)
+                    skip.ui.ComposeResult.ok
+                }
             }
-            private external fun Swift_composableBody(Swift_peer: skip.bridge.SwiftObjectPointer): skip.ui.View?
+
+            @androidx.compose.runtime.Composable
+            override fun Render(context: skip.ui.ComposeContext) {
+                val observationInvalidation = androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(0) }
+                observationInvalidation.value
+                Swift_composableBody(Swift_peer, onChange = { observationInvalidation.value += 1 })?.Compose(context)
+            }
+            private external fun Swift_composableBody(Swift_peer: skip.bridge.SwiftObjectPointer, onChange: () -> Unit): skip.ui.View?
 
             override fun Swift_projection(options: Int): () -> Any = Swift_projectionImpl(options)
             private external fun Swift_projectionImpl(options: Int): () -> Any
         }
         """, swiftBridgeSupport: """
 
+        import Observation
         import SkipFuseUI
         extension V: BridgedToKotlin, SkipUIBridging, SkipUI.View {
             nonisolated private static let Java_class = try! JClass(name: "V")
@@ -8484,10 +8511,15 @@ final class BridgeToKotlinTests: XCTestCase {
             }
         }
         @_cdecl("Java_V_Swift_1composableBody")
-        public func V_Swift_composableBody(_ Java_env: JNIEnvPointer, _ Java_target: JavaObjectPointer, _ Swift_peer: SwiftObjectPointer) -> JavaObjectPointer? {
+        public func V_Swift_composableBody(_ Java_env: JNIEnvPointer, _ Java_target: JavaObjectPointer, _ Swift_peer: SwiftObjectPointer, _ onChange: JavaObjectPointer) -> JavaObjectPointer? {
             let peer_swift: SwiftValueTypeBox<V> = Swift_peer.pointee()!
+            let onChange_swift = SwiftClosure0.closure(forJavaObject: onChange, options: [])! as @Sendable () -> Void
             return SkipBridge.assumeMainActorUnchecked {
-                let body = peer_swift.value.body
+                let body = withObservationTracking {
+                    return peer_swift.value.body
+                } onChange: {
+                    onChange_swift()
+                }
                 return ((body as? SkipUIBridging)?.Java_view as? JConvertible)?.toJavaObject(options: [])
             }
         }
@@ -8552,7 +8584,7 @@ final class BridgeToKotlinTests: XCTestCase {
             }
         }
         """, kotlin: """
-        internal class V<T>: skip.ui.View, skip.bridge.SwiftPeerBridged, skip.lib.SwiftProjecting {
+        internal class V<T>: skip.ui.View, skip.ui.Renderable, skip.bridge.SwiftPeerBridged, skip.lib.SwiftProjecting {
             var Swift_peer: skip.bridge.SwiftObjectPointer = skip.bridge.SwiftObjectNil
 
             constructor(Swift_peer: skip.bridge.SwiftObjectPointer, marker: skip.bridge.SwiftPeerMarker?) {
@@ -8584,15 +8616,26 @@ final class BridgeToKotlinTests: XCTestCase {
             private external fun Swift_syncState_t(Swift_peer: skip.bridge.SwiftObjectPointer, support: skip.ui.StateSupport)
 
             override fun body(): skip.ui.View {
-                return skip.ui.ComposeBuilder { composectx: skip.ui.ComposeContext -> Swift_composableBody(Swift_peer)?.Compose(composectx) ?: skip.ui.ComposeResult.ok }
+                return skip.ui.ComposeBuilder { composectx: skip.ui.ComposeContext ->
+                    Render(composectx)
+                    skip.ui.ComposeResult.ok
+                }
             }
-            private external fun Swift_composableBody(Swift_peer: skip.bridge.SwiftObjectPointer): skip.ui.View?
+
+            @androidx.compose.runtime.Composable
+            override fun Render(context: skip.ui.ComposeContext) {
+                val observationInvalidation = androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(0) }
+                observationInvalidation.value
+                Swift_composableBody(Swift_peer, onChange = { observationInvalidation.value += 1 })?.Compose(context)
+            }
+            private external fun Swift_composableBody(Swift_peer: skip.bridge.SwiftObjectPointer, onChange: () -> Unit): skip.ui.View?
 
             override fun Swift_projection(options: Int): () -> Any = Swift_projectionImpl(options)
             private external fun Swift_projectionImpl(options: Int): () -> Any
         }
         """, swiftBridgeSupport: """
 
+        import Observation
         import SkipFuseUI
         extension V: BridgedToKotlin, SkipUIBridging, SkipUI.View {
             nonisolated private static var Java_class: JClass { try! JClass(name: "V") }
@@ -8665,10 +8708,15 @@ final class BridgeToKotlinTests: XCTestCase {
             }
         }
         @_cdecl("Java_V_Swift_1composableBody")
-        public func V_Swift_composableBody(_ Java_env: JNIEnvPointer, _ Java_target: JavaObjectPointer, _ Swift_peer: SwiftObjectPointer) -> JavaObjectPointer? {
+        public func V_Swift_composableBody(_ Java_env: JNIEnvPointer, _ Java_target: JavaObjectPointer, _ Swift_peer: SwiftObjectPointer, _ onChange: JavaObjectPointer) -> JavaObjectPointer? {
             let peer_swift: V_TypeErased = Swift_peer.pointee()!
+            let onChange_swift = SwiftClosure0.closure(forJavaObject: onChange, options: [])! as @Sendable () -> Void
             return SkipBridge.assumeMainActorUnchecked {
-                let body = peer_swift.body()
+                let body = withObservationTracking {
+                    return peer_swift.body()
+                } onChange: {
+                    onChange_swift()
+                }
                 return ((body as? SkipUIBridging)?.Java_view as? JConvertible)?.toJavaObject(options: [])
             }
         }
@@ -8685,7 +8733,7 @@ final class BridgeToKotlinTests: XCTestCase {
             }
         }
         """, kotlin: """
-        internal class V: skip.ui.View, skip.bridge.SwiftPeerBridged, skip.lib.SwiftProjecting {
+        internal class V: skip.ui.View, skip.ui.Renderable, skip.bridge.SwiftPeerBridged, skip.lib.SwiftProjecting {
             var Swift_peer: skip.bridge.SwiftObjectPointer = skip.bridge.SwiftObjectNil
 
             constructor(Swift_peer: skip.bridge.SwiftObjectPointer, marker: skip.bridge.SwiftPeerMarker?) {
@@ -8717,15 +8765,26 @@ final class BridgeToKotlinTests: XCTestCase {
             private external fun Swift_syncState_i(Swift_peer: skip.bridge.SwiftObjectPointer, support: skip.ui.StateSupport)
 
             override fun body(): skip.ui.View {
-                return skip.ui.ComposeBuilder { composectx: skip.ui.ComposeContext -> Swift_composableBody(Swift_peer)?.Compose(composectx) ?: skip.ui.ComposeResult.ok }
+                return skip.ui.ComposeBuilder { composectx: skip.ui.ComposeContext ->
+                    Render(composectx)
+                    skip.ui.ComposeResult.ok
+                }
             }
-            private external fun Swift_composableBody(Swift_peer: skip.bridge.SwiftObjectPointer): skip.ui.View?
+
+            @androidx.compose.runtime.Composable
+            override fun Render(context: skip.ui.ComposeContext) {
+                val observationInvalidation = androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(0) }
+                observationInvalidation.value
+                Swift_composableBody(Swift_peer, onChange = { observationInvalidation.value += 1 })?.Compose(context)
+            }
+            private external fun Swift_composableBody(Swift_peer: skip.bridge.SwiftObjectPointer, onChange: () -> Unit): skip.ui.View?
 
             override fun Swift_projection(options: Int): () -> Any = Swift_projectionImpl(options)
             private external fun Swift_projectionImpl(options: Int): () -> Any
         }
         """, swiftBridgeSupport: """
 
+        import Observation
         import SkipFuseUI
         extension V: BridgedToKotlin, SkipUIBridging, SkipUI.View {
             nonisolated private static let Java_class = try! JClass(name: "V")
@@ -8778,10 +8837,15 @@ final class BridgeToKotlinTests: XCTestCase {
             }
         }
         @_cdecl("Java_V_Swift_1composableBody")
-        public func V_Swift_composableBody(_ Java_env: JNIEnvPointer, _ Java_target: JavaObjectPointer, _ Swift_peer: SwiftObjectPointer) -> JavaObjectPointer? {
+        public func V_Swift_composableBody(_ Java_env: JNIEnvPointer, _ Java_target: JavaObjectPointer, _ Swift_peer: SwiftObjectPointer, _ onChange: JavaObjectPointer) -> JavaObjectPointer? {
             let peer_swift: SwiftValueTypeBox<V> = Swift_peer.pointee()!
+            let onChange_swift = SwiftClosure0.closure(forJavaObject: onChange, options: [])! as @Sendable () -> Void
             return SkipBridge.assumeMainActorUnchecked {
-                let body = peer_swift.value.body
+                let body = withObservationTracking {
+                    return peer_swift.value.body
+                } onChange: {
+                    onChange_swift()
+                }
                 return ((body as? SkipUIBridging)?.Java_view as? JConvertible)?.toJavaObject(options: [])
             }
         }
@@ -8801,14 +8865,24 @@ final class BridgeToKotlinTests: XCTestCase {
             }
         }
         """, kotlin: """
-        enum class E: skip.ui.View, skip.lib.SwiftProjecting {
+        enum class E: skip.ui.View, skip.ui.Renderable, skip.lib.SwiftProjecting {
 
             a;
 
             override fun body(): skip.ui.View {
-                return skip.ui.ComposeBuilder { composectx: skip.ui.ComposeContext -> Swift_composableBody(name)?.Compose(composectx) ?: skip.ui.ComposeResult.ok }
+                return skip.ui.ComposeBuilder { composectx: skip.ui.ComposeContext ->
+                    Render(composectx)
+                    skip.ui.ComposeResult.ok
+                }
             }
-            private external fun Swift_composableBody(name: String): skip.ui.View?
+
+            @androidx.compose.runtime.Composable
+            override fun Render(context: skip.ui.ComposeContext) {
+                val observationInvalidation = androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(0) }
+                observationInvalidation.value
+                Swift_composableBody(name, onChange = { observationInvalidation.value += 1 })?.Compose(context)
+            }
+            private external fun Swift_composableBody(name: String, onChange: () -> Unit): skip.ui.View?
 
             override fun Swift_projection(options: Int): () -> Any = Swift_projectionImpl(options)
             private external fun Swift_projectionImpl(options: Int): () -> Any
@@ -8818,6 +8892,7 @@ final class BridgeToKotlinTests: XCTestCase {
         }
         """, swiftBridgeSupport: """
 
+        import Observation
         import SkipSwiftUI
         extension E: BridgedToKotlin, SkipUIBridging, SkipUI.View {
             nonisolated private static let Java_class = try! JClass(name: "E")
@@ -8852,11 +8927,16 @@ final class BridgeToKotlinTests: XCTestCase {
             return SwiftClosure0.javaObject(for: factory, options: [])!
         }
         @_cdecl("Java_E_Swift_1composableBody")
-        public func E_Swift_composableBody(_ Java_env: JNIEnvPointer, _ Java_target: JavaObjectPointer, _ name: JavaString) -> JavaObjectPointer? {
+        public func E_Swift_composableBody(_ Java_env: JNIEnvPointer, _ Java_target: JavaObjectPointer, _ name: JavaString, _ onChange: JavaObjectPointer) -> JavaObjectPointer? {
             let name_swift = String.fromJavaObject(name, options: [])
             let peer_swift = E.fromJavaName(name_swift)
+            let onChange_swift = SwiftClosure0.closure(forJavaObject: onChange, options: [])! as @Sendable () -> Void
             return SkipBridge.assumeMainActorUnchecked {
-                let body = peer_swift.body
+                let body = withObservationTracking {
+                    return peer_swift.body
+                } onChange: {
+                    onChange_swift()
+                }
                 return ((body as? SkipUIBridging)?.Java_view as? JConvertible)?.toJavaObject(options: [])
             }
         }
@@ -8876,7 +8956,7 @@ final class BridgeToKotlinTests: XCTestCase {
             }
         }
         """, kotlin: """
-        sealed class E<out T>: skip.ui.View, skip.bridge.SwiftPeerBridged, skip.lib.SwiftProjecting {
+        sealed class E<out T>: skip.ui.View, skip.ui.Renderable, skip.bridge.SwiftPeerBridged, skip.lib.SwiftProjecting {
 
             class ACase<T>(val associated0: T): E<T>() {
             }
@@ -8898,9 +8978,19 @@ final class BridgeToKotlinTests: XCTestCase {
             override fun hashCode(): Int = Swift_peer.hashCode()
 
             override fun body(): skip.ui.View {
-                return skip.ui.ComposeBuilder { composectx: skip.ui.ComposeContext -> Swift_composableBody(Swift_peer)?.Compose(composectx) ?: skip.ui.ComposeResult.ok }
+                return skip.ui.ComposeBuilder { composectx: skip.ui.ComposeContext ->
+                    Render(composectx)
+                    skip.ui.ComposeResult.ok
+                }
             }
-            private external fun Swift_composableBody(Swift_peer: skip.bridge.SwiftObjectPointer): skip.ui.View?
+
+            @androidx.compose.runtime.Composable
+            override fun Render(context: skip.ui.ComposeContext) {
+                val observationInvalidation = androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(0) }
+                observationInvalidation.value
+                Swift_composableBody(Swift_peer, onChange = { observationInvalidation.value += 1 })?.Compose(context)
+            }
+            private external fun Swift_composableBody(Swift_peer: skip.bridge.SwiftObjectPointer, onChange: () -> Unit): skip.ui.View?
 
             override fun Swift_projection(options: Int): () -> Any = Swift_projectionImpl(options)
             private external fun Swift_projectionImpl(options: Int): () -> Any
@@ -8911,6 +9001,7 @@ final class BridgeToKotlinTests: XCTestCase {
         }
         """, swiftBridgeSupport: """
 
+        import Observation
         import SkipSwiftUI
         extension E: BridgedToKotlin, SkipUIBridging, SkipUI.View {
             nonisolated private static var Java_class: JClass { try! JClass(name: "E") }
@@ -8965,10 +9056,15 @@ final class BridgeToKotlinTests: XCTestCase {
             return SwiftClosure0.javaObject(for: factory, options: [])!
         }
         @_cdecl("Java_E_Swift_1composableBody")
-        public func E_Swift_composableBody(_ Java_env: JNIEnvPointer, _ Java_target: JavaObjectPointer, _ Swift_peer: SwiftObjectPointer) -> JavaObjectPointer? {
+        public func E_Swift_composableBody(_ Java_env: JNIEnvPointer, _ Java_target: JavaObjectPointer, _ Swift_peer: SwiftObjectPointer, _ onChange: JavaObjectPointer) -> JavaObjectPointer? {
             let peer_swift: E_TypeErased = Swift_peer.pointee()!
+            let onChange_swift = SwiftClosure0.closure(forJavaObject: onChange, options: [])! as @Sendable () -> Void
             return SkipBridge.assumeMainActorUnchecked {
-                let body = peer_swift.body()
+                let body = withObservationTracking {
+                    return peer_swift.body()
+                } onChange: {
+                    onChange_swift()
+                }
                 return ((body as? SkipUIBridging)?.Java_view as? JConvertible)?.toJavaObject(options: [])
             }
         }
@@ -8985,7 +9081,7 @@ final class BridgeToKotlinTests: XCTestCase {
             }
         }
         """, kotlin: """
-        internal class V: skip.ui.View, skip.bridge.SwiftPeerBridged, skip.lib.SwiftProjecting {
+        internal class V: skip.ui.View, skip.ui.Renderable, skip.bridge.SwiftPeerBridged, skip.lib.SwiftProjecting {
             var Swift_peer: skip.bridge.SwiftObjectPointer = skip.bridge.SwiftObjectNil
 
             constructor(Swift_peer: skip.bridge.SwiftObjectPointer, marker: skip.bridge.SwiftPeerMarker?) {
@@ -9017,15 +9113,26 @@ final class BridgeToKotlinTests: XCTestCase {
             private external fun Swift_syncState_focused(Swift_peer: skip.bridge.SwiftObjectPointer, support: skip.ui.StateSupport)
 
             override fun body(): skip.ui.View {
-                return skip.ui.ComposeBuilder { composectx: skip.ui.ComposeContext -> Swift_composableBody(Swift_peer)?.Compose(composectx) ?: skip.ui.ComposeResult.ok }
+                return skip.ui.ComposeBuilder { composectx: skip.ui.ComposeContext ->
+                    Render(composectx)
+                    skip.ui.ComposeResult.ok
+                }
             }
-            private external fun Swift_composableBody(Swift_peer: skip.bridge.SwiftObjectPointer): skip.ui.View?
+
+            @androidx.compose.runtime.Composable
+            override fun Render(context: skip.ui.ComposeContext) {
+                val observationInvalidation = androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(0) }
+                observationInvalidation.value
+                Swift_composableBody(Swift_peer, onChange = { observationInvalidation.value += 1 })?.Compose(context)
+            }
+            private external fun Swift_composableBody(Swift_peer: skip.bridge.SwiftObjectPointer, onChange: () -> Unit): skip.ui.View?
 
             override fun Swift_projection(options: Int): () -> Any = Swift_projectionImpl(options)
             private external fun Swift_projectionImpl(options: Int): () -> Any
         }
         """, swiftBridgeSupport: """
 
+        import Observation
         import SkipFuseUI
         extension V: BridgedToKotlin, SkipUIBridging, SkipUI.View {
             nonisolated private static let Java_class = try! JClass(name: "V")
@@ -9078,10 +9185,15 @@ final class BridgeToKotlinTests: XCTestCase {
             }
         }
         @_cdecl("Java_V_Swift_1composableBody")
-        public func V_Swift_composableBody(_ Java_env: JNIEnvPointer, _ Java_target: JavaObjectPointer, _ Swift_peer: SwiftObjectPointer) -> JavaObjectPointer? {
+        public func V_Swift_composableBody(_ Java_env: JNIEnvPointer, _ Java_target: JavaObjectPointer, _ Swift_peer: SwiftObjectPointer, _ onChange: JavaObjectPointer) -> JavaObjectPointer? {
             let peer_swift: SwiftValueTypeBox<V> = Swift_peer.pointee()!
+            let onChange_swift = SwiftClosure0.closure(forJavaObject: onChange, options: [])! as @Sendable () -> Void
             return SkipBridge.assumeMainActorUnchecked {
-                let body = peer_swift.value.body
+                let body = withObservationTracking {
+                    return peer_swift.value.body
+                } onChange: {
+                    onChange_swift()
+                }
                 return ((body as? SkipUIBridging)?.Java_view as? JConvertible)?.toJavaObject(options: [])
             }
         }
@@ -9098,7 +9210,7 @@ final class BridgeToKotlinTests: XCTestCase {
             }
         }
         """, kotlin: """
-        internal class V: skip.ui.View, skip.bridge.SwiftPeerBridged, skip.lib.SwiftProjecting {
+        internal class V: skip.ui.View, skip.ui.Renderable, skip.bridge.SwiftPeerBridged, skip.lib.SwiftProjecting {
             var Swift_peer: skip.bridge.SwiftObjectPointer = skip.bridge.SwiftObjectNil
 
             constructor(Swift_peer: skip.bridge.SwiftObjectPointer, marker: skip.bridge.SwiftPeerMarker?) {
@@ -9130,15 +9242,26 @@ final class BridgeToKotlinTests: XCTestCase {
             private external fun Swift_syncState_i(Swift_peer: skip.bridge.SwiftObjectPointer, support: skip.ui.StateSupport)
 
             override fun body(): skip.ui.View {
-                return skip.ui.ComposeBuilder { composectx: skip.ui.ComposeContext -> Swift_composableBody(Swift_peer)?.Compose(composectx) ?: skip.ui.ComposeResult.ok }
+                return skip.ui.ComposeBuilder { composectx: skip.ui.ComposeContext ->
+                    Render(composectx)
+                    skip.ui.ComposeResult.ok
+                }
             }
-            private external fun Swift_composableBody(Swift_peer: skip.bridge.SwiftObjectPointer): skip.ui.View?
+
+            @androidx.compose.runtime.Composable
+            override fun Render(context: skip.ui.ComposeContext) {
+                val observationInvalidation = androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(0) }
+                observationInvalidation.value
+                Swift_composableBody(Swift_peer, onChange = { observationInvalidation.value += 1 })?.Compose(context)
+            }
+            private external fun Swift_composableBody(Swift_peer: skip.bridge.SwiftObjectPointer, onChange: () -> Unit): skip.ui.View?
 
             override fun Swift_projection(options: Int): () -> Any = Swift_projectionImpl(options)
             private external fun Swift_projectionImpl(options: Int): () -> Any
         }
         """, swiftBridgeSupport: """
 
+        import Observation
         import SkipFuseUI
         extension V: BridgedToKotlin, SkipUIBridging, SkipUI.View {
             nonisolated private static let Java_class = try! JClass(name: "V")
@@ -9191,10 +9314,15 @@ final class BridgeToKotlinTests: XCTestCase {
             }
         }
         @_cdecl("Java_V_Swift_1composableBody")
-        public func V_Swift_composableBody(_ Java_env: JNIEnvPointer, _ Java_target: JavaObjectPointer, _ Swift_peer: SwiftObjectPointer) -> JavaObjectPointer? {
+        public func V_Swift_composableBody(_ Java_env: JNIEnvPointer, _ Java_target: JavaObjectPointer, _ Swift_peer: SwiftObjectPointer, _ onChange: JavaObjectPointer) -> JavaObjectPointer? {
             let peer_swift: SwiftValueTypeBox<V> = Swift_peer.pointee()!
+            let onChange_swift = SwiftClosure0.closure(forJavaObject: onChange, options: [])! as @Sendable () -> Void
             return SkipBridge.assumeMainActorUnchecked {
-                let body = peer_swift.value.body
+                let body = withObservationTracking {
+                    return peer_swift.value.body
+                } onChange: {
+                    onChange_swift()
+                }
                 return ((body as? SkipUIBridging)?.Java_view as? JConvertible)?.toJavaObject(options: [])
             }
         }
@@ -9211,7 +9339,7 @@ final class BridgeToKotlinTests: XCTestCase {
             }
         }
         """, kotlin: """
-        internal class V: skip.ui.View, skip.bridge.SwiftPeerBridged, skip.lib.SwiftProjecting {
+        internal class V: skip.ui.View, skip.ui.Renderable, skip.bridge.SwiftPeerBridged, skip.lib.SwiftProjecting {
             var Swift_peer: skip.bridge.SwiftObjectPointer = skip.bridge.SwiftObjectNil
 
             constructor(Swift_peer: skip.bridge.SwiftObjectPointer, marker: skip.bridge.SwiftPeerMarker?) {
@@ -9243,15 +9371,26 @@ final class BridgeToKotlinTests: XCTestCase {
             private external fun Swift_syncState_value(Swift_peer: skip.bridge.SwiftObjectPointer, support: skip.ui.AppStorageSupport)
 
             override fun body(): skip.ui.View {
-                return skip.ui.ComposeBuilder { composectx: skip.ui.ComposeContext -> Swift_composableBody(Swift_peer)?.Compose(composectx) ?: skip.ui.ComposeResult.ok }
+                return skip.ui.ComposeBuilder { composectx: skip.ui.ComposeContext ->
+                    Render(composectx)
+                    skip.ui.ComposeResult.ok
+                }
             }
-            private external fun Swift_composableBody(Swift_peer: skip.bridge.SwiftObjectPointer): skip.ui.View?
+
+            @androidx.compose.runtime.Composable
+            override fun Render(context: skip.ui.ComposeContext) {
+                val observationInvalidation = androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(0) }
+                observationInvalidation.value
+                Swift_composableBody(Swift_peer, onChange = { observationInvalidation.value += 1 })?.Compose(context)
+            }
+            private external fun Swift_composableBody(Swift_peer: skip.bridge.SwiftObjectPointer, onChange: () -> Unit): skip.ui.View?
 
             override fun Swift_projection(options: Int): () -> Any = Swift_projectionImpl(options)
             private external fun Swift_projectionImpl(options: Int): () -> Any
         }
         """, swiftBridgeSupport: """
 
+        import Observation
         import SkipFuseUI
         extension V: BridgedToKotlin, SkipUIBridging, SkipUI.View {
             nonisolated private static let Java_class = try! JClass(name: "V")
@@ -9304,10 +9443,15 @@ final class BridgeToKotlinTests: XCTestCase {
             }
         }
         @_cdecl("Java_V_Swift_1composableBody")
-        public func V_Swift_composableBody(_ Java_env: JNIEnvPointer, _ Java_target: JavaObjectPointer, _ Swift_peer: SwiftObjectPointer) -> JavaObjectPointer? {
+        public func V_Swift_composableBody(_ Java_env: JNIEnvPointer, _ Java_target: JavaObjectPointer, _ Swift_peer: SwiftObjectPointer, _ onChange: JavaObjectPointer) -> JavaObjectPointer? {
             let peer_swift: SwiftValueTypeBox<V> = Swift_peer.pointee()!
+            let onChange_swift = SwiftClosure0.closure(forJavaObject: onChange, options: [])! as @Sendable () -> Void
             return SkipBridge.assumeMainActorUnchecked {
-                let body = peer_swift.value.body
+                let body = withObservationTracking {
+                    return peer_swift.value.body
+                } onChange: {
+                    onChange_swift()
+                }
                 return ((body as? SkipUIBridging)?.Java_view as? JConvertible)?.toJavaObject(options: [])
             }
         }
@@ -9368,14 +9512,18 @@ final class BridgeToKotlinTests: XCTestCase {
             private external fun Swift_syncState_count(Swift_peer: skip.bridge.SwiftObjectPointer, support: skip.ui.StateSupport)
 
             override fun body(content: skip.ui.View): skip.ui.View {
-                return skip.ui.ComposeBuilder { composectx: skip.ui.ComposeContext -> Swift_composableBody(Swift_peer, content)?.Compose(composectx) ?: skip.ui.ComposeResult.ok }
+                return skip.ui.ComposeBuilder { composectx: skip.ui.ComposeContext ->
+                    val observationInvalidation = androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(0) }
+                    observationInvalidation.value
+                    Swift_composableBody(Swift_peer, content, onChange = { observationInvalidation.value += 1 })?.Compose(composectx) ?: skip.ui.ComposeResult.ok
+                }
             }
-            private external fun Swift_composableBody(Swift_peer: skip.bridge.SwiftObjectPointer, content: skip.ui.View): skip.ui.View?
+            private external fun Swift_composableBody(Swift_peer: skip.bridge.SwiftObjectPointer, content: skip.ui.View, onChange: () -> Unit): skip.ui.View?
 
             override fun Swift_projection(options: Int): () -> Any = Swift_projectionImpl(options)
             private external fun Swift_projectionImpl(options: Int): () -> Any
         }
-        internal class V: skip.ui.View, skip.bridge.SwiftPeerBridged, skip.lib.SwiftProjecting {
+        internal class V: skip.ui.View, skip.ui.Renderable, skip.bridge.SwiftPeerBridged, skip.lib.SwiftProjecting {
             var Swift_peer: skip.bridge.SwiftObjectPointer = skip.bridge.SwiftObjectNil
 
             constructor(Swift_peer: skip.bridge.SwiftObjectPointer, marker: skip.bridge.SwiftPeerMarker?) {
@@ -9398,15 +9546,26 @@ final class BridgeToKotlinTests: XCTestCase {
             override fun hashCode(): Int = Swift_peer.hashCode()
 
             override fun body(): skip.ui.View {
-                return skip.ui.ComposeBuilder { composectx: skip.ui.ComposeContext -> Swift_composableBody(Swift_peer)?.Compose(composectx) ?: skip.ui.ComposeResult.ok }
+                return skip.ui.ComposeBuilder { composectx: skip.ui.ComposeContext ->
+                    Render(composectx)
+                    skip.ui.ComposeResult.ok
+                }
             }
-            private external fun Swift_composableBody(Swift_peer: skip.bridge.SwiftObjectPointer): skip.ui.View?
+
+            @androidx.compose.runtime.Composable
+            override fun Render(context: skip.ui.ComposeContext) {
+                val observationInvalidation = androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(0) }
+                observationInvalidation.value
+                Swift_composableBody(Swift_peer, onChange = { observationInvalidation.value += 1 })?.Compose(context)
+            }
+            private external fun Swift_composableBody(Swift_peer: skip.bridge.SwiftObjectPointer, onChange: () -> Unit): skip.ui.View?
 
             override fun Swift_projection(options: Int): () -> Any = Swift_projectionImpl(options)
             private external fun Swift_projectionImpl(options: Int): () -> Any
         }
         """, swiftBridgeSupport: """
 
+        import Observation
         import SkipFuseUI
         extension VM: BridgedToKotlin, SkipUI.ViewModifier {
             nonisolated private static let Java_class = try! JClass(name: "VM")
@@ -9476,11 +9635,16 @@ final class BridgeToKotlinTests: XCTestCase {
             }
         }
         @_cdecl("Java_VM_Swift_1composableBody")
-        public func VM_Swift_composableBody(_ Java_env: JNIEnvPointer, _ Java_target: JavaObjectPointer, _ Swift_peer: SwiftObjectPointer, _ content: JavaObjectPointer) -> JavaObjectPointer? {
+        public func VM_Swift_composableBody(_ Java_env: JNIEnvPointer, _ Java_target: JavaObjectPointer, _ Swift_peer: SwiftObjectPointer, _ content: JavaObjectPointer, _ onChange: JavaObjectPointer) -> JavaObjectPointer? {
             let peer_swift: SwiftValueTypeBox<VM> = Swift_peer.pointee()!
             let content_swift = JavaBackedView(content)!
+            let onChange_swift = SwiftClosure0.closure(forJavaObject: onChange, options: [])! as @Sendable () -> Void
             return SkipBridge.assumeMainActorUnchecked {
-                let body = peer_swift.value.body(content: content_swift)
+                let body = withObservationTracking {
+                    return peer_swift.value.body(content: content_swift)
+                } onChange: {
+                    onChange_swift()
+                }
                 return ((body as? SkipUIBridging)?.Java_view as? JConvertible)?.toJavaObject(options: [])
             }
         }
@@ -9495,10 +9659,15 @@ final class BridgeToKotlinTests: XCTestCase {
             return SwiftClosure0.javaObject(for: factory, options: [])!
         }
         @_cdecl("Java_V_Swift_1composableBody")
-        public func V_Swift_composableBody(_ Java_env: JNIEnvPointer, _ Java_target: JavaObjectPointer, _ Swift_peer: SwiftObjectPointer) -> JavaObjectPointer? {
+        public func V_Swift_composableBody(_ Java_env: JNIEnvPointer, _ Java_target: JavaObjectPointer, _ Swift_peer: SwiftObjectPointer, _ onChange: JavaObjectPointer) -> JavaObjectPointer? {
             let peer_swift: SwiftValueTypeBox<V> = Swift_peer.pointee()!
+            let onChange_swift = SwiftClosure0.closure(forJavaObject: onChange, options: [])! as @Sendable () -> Void
             return SkipBridge.assumeMainActorUnchecked {
-                let body = peer_swift.value.body
+                let body = withObservationTracking {
+                    return peer_swift.value.body
+                } onChange: {
+                    onChange_swift()
+                }
                 return ((body as? SkipUIBridging)?.Java_view as? JConvertible)?.toJavaObject(options: [])
             }
         }
@@ -9681,15 +9850,20 @@ final class BridgeToKotlinTests: XCTestCase {
             private external fun Swift_syncState_count(Swift_peer: skip.bridge.SwiftObjectPointer, support: skip.ui.StateSupport)
 
             override fun body(): skip.ui.View {
-                return skip.ui.ComposeBuilder { composectx: skip.ui.ComposeContext -> Swift_composableBody(Swift_peer)?.Compose(composectx) ?: skip.ui.ComposeResult.ok }
+                return skip.ui.ComposeBuilder { composectx: skip.ui.ComposeContext ->
+                    val observationInvalidation = androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(0) }
+                    observationInvalidation.value
+                    Swift_composableBody(Swift_peer, onChange = { observationInvalidation.value += 1 })?.Compose(composectx) ?: skip.ui.ComposeResult.ok
+                }
             }
-            private external fun Swift_composableBody(Swift_peer: skip.bridge.SwiftObjectPointer): skip.ui.View?
+            private external fun Swift_composableBody(Swift_peer: skip.bridge.SwiftObjectPointer, onChange: () -> Unit): skip.ui.View?
 
             override fun Swift_projection(options: Int): () -> Any = Swift_projectionImpl(options)
             private external fun Swift_projectionImpl(options: Int): () -> Any
         }
         """, swiftBridgeSupport: """
 
+        import Observation
         import SkipFuseUI
         extension T: BridgedToKotlin, SkipUIBridging, SkipUI.ToolbarContent {
             nonisolated private static let Java_class = try! JClass(name: "T")
@@ -9742,10 +9916,15 @@ final class BridgeToKotlinTests: XCTestCase {
             }
         }
         @_cdecl("Java_T_Swift_1composableBody")
-        public func T_Swift_composableBody(_ Java_env: JNIEnvPointer, _ Java_target: JavaObjectPointer, _ Swift_peer: SwiftObjectPointer) -> JavaObjectPointer? {
+        public func T_Swift_composableBody(_ Java_env: JNIEnvPointer, _ Java_target: JavaObjectPointer, _ Swift_peer: SwiftObjectPointer, _ onChange: JavaObjectPointer) -> JavaObjectPointer? {
             let peer_swift: SwiftValueTypeBox<T> = Swift_peer.pointee()!
+            let onChange_swift = SwiftClosure0.closure(forJavaObject: onChange, options: [])! as @Sendable () -> Void
             return SkipBridge.assumeMainActorUnchecked {
-                let body = peer_swift.value.body
+                let body = withObservationTracking {
+                    return peer_swift.value.body
+                } onChange: {
+                    onChange_swift()
+                }
                 return ((body as? SkipUIBridging)?.Java_view as? JConvertible)?.toJavaObject(options: [])
             }
         }
@@ -9959,7 +10138,7 @@ final class BridgeToKotlinTests: XCTestCase {
         """, kotlin: """
         import androidx.compose.runtime.Composable
 
-        internal class V: skip.ui.View, skip.bridge.SwiftPeerBridged, skip.lib.SwiftProjecting {
+        internal class V: skip.ui.View, skip.ui.Renderable, skip.bridge.SwiftPeerBridged, skip.lib.SwiftProjecting {
             var Swift_peer: skip.bridge.SwiftObjectPointer = skip.bridge.SwiftObjectNil
 
             constructor(Swift_peer: skip.bridge.SwiftObjectPointer, marker: skip.bridge.SwiftPeerMarker?) {
@@ -9982,9 +10161,19 @@ final class BridgeToKotlinTests: XCTestCase {
             override fun hashCode(): Int = Swift_peer.hashCode()
 
             override fun body(): skip.ui.View {
-                return skip.ui.ComposeBuilder { composectx: skip.ui.ComposeContext -> Swift_composableBody(Swift_peer)?.Compose(composectx) ?: skip.ui.ComposeResult.ok }
+                return skip.ui.ComposeBuilder { composectx: skip.ui.ComposeContext ->
+                    Render(composectx)
+                    skip.ui.ComposeResult.ok
+                }
             }
-            private external fun Swift_composableBody(Swift_peer: skip.bridge.SwiftObjectPointer): skip.ui.View?
+
+            @androidx.compose.runtime.Composable
+            override fun Render(context: skip.ui.ComposeContext) {
+                val observationInvalidation = androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(0) }
+                observationInvalidation.value
+                Swift_composableBody(Swift_peer, onChange = { observationInvalidation.value += 1 })?.Compose(context)
+            }
+            private external fun Swift_composableBody(Swift_peer: skip.bridge.SwiftObjectPointer, onChange: () -> Unit): skip.ui.View?
 
             override fun Swift_projection(options: Int): () -> Any = Swift_projectionImpl(options)
             private external fun Swift_projectionImpl(options: Int): () -> Any
@@ -10003,6 +10192,7 @@ final class BridgeToKotlinTests: XCTestCase {
             private external fun Swift_projectionImpl(options: Int): () -> Any
         }
         """, swiftBridgeSupport: """
+        import Observation
         import SkipFuseUI
         extension V: BridgedToKotlin, SkipUIBridging, SkipUI.View {
             nonisolated private static let Java_class = try! JClass(name: "V")
@@ -10032,10 +10222,15 @@ final class BridgeToKotlinTests: XCTestCase {
             return SwiftClosure0.javaObject(for: factory, options: [])!
         }
         @_cdecl("Java_V_Swift_1composableBody")
-        public func V_Swift_composableBody(_ Java_env: JNIEnvPointer, _ Java_target: JavaObjectPointer, _ Swift_peer: SwiftObjectPointer) -> JavaObjectPointer? {
+        public func V_Swift_composableBody(_ Java_env: JNIEnvPointer, _ Java_target: JavaObjectPointer, _ Swift_peer: SwiftObjectPointer, _ onChange: JavaObjectPointer) -> JavaObjectPointer? {
             let peer_swift: SwiftValueTypeBox<V> = Swift_peer.pointee()!
+            let onChange_swift = SwiftClosure0.closure(forJavaObject: onChange, options: [])! as @Sendable () -> Void
             return SkipBridge.assumeMainActorUnchecked {
-                let body = peer_swift.value.body
+                let body = withObservationTracking {
+                    return peer_swift.value.body
+                } onChange: {
+                    onChange_swift()
+                }
                 return ((body as? SkipUIBridging)?.Java_view as? JConvertible)?.toJavaObject(options: [])
             }
         }
@@ -10110,7 +10305,7 @@ final class BridgeToKotlinTests: XCTestCase {
         import androidx.compose.runtime.saveable.rememberSaveable
         import androidx.compose.runtime.setValue
 
-        internal class V: skip.ui.View, skip.bridge.SwiftPeerBridged, skip.lib.SwiftProjecting {
+        internal class V: skip.ui.View, skip.ui.Renderable, skip.bridge.SwiftPeerBridged, skip.lib.SwiftProjecting {
             var Swift_peer: skip.bridge.SwiftObjectPointer = skip.bridge.SwiftObjectNil
 
             constructor(Swift_peer: skip.bridge.SwiftObjectPointer, marker: skip.bridge.SwiftPeerMarker?) {
@@ -10133,9 +10328,19 @@ final class BridgeToKotlinTests: XCTestCase {
             override fun hashCode(): Int = Swift_peer.hashCode()
 
             override fun body(): skip.ui.View {
-                return skip.ui.ComposeBuilder { composectx: skip.ui.ComposeContext -> Swift_composableBody(Swift_peer)?.Compose(composectx) ?: skip.ui.ComposeResult.ok }
+                return skip.ui.ComposeBuilder { composectx: skip.ui.ComposeContext ->
+                    Render(composectx)
+                    skip.ui.ComposeResult.ok
+                }
             }
-            private external fun Swift_composableBody(Swift_peer: skip.bridge.SwiftObjectPointer): skip.ui.View?
+
+            @androidx.compose.runtime.Composable
+            override fun Render(context: skip.ui.ComposeContext) {
+                val observationInvalidation = androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(0) }
+                observationInvalidation.value
+                Swift_composableBody(Swift_peer, onChange = { observationInvalidation.value += 1 })?.Compose(context)
+            }
+            private external fun Swift_composableBody(Swift_peer: skip.bridge.SwiftObjectPointer, onChange: () -> Unit): skip.ui.View?
 
             override fun Swift_projection(options: Int): () -> Any = Swift_projectionImpl(options)
             private external fun Swift_projectionImpl(options: Int): () -> Any
@@ -10170,6 +10375,7 @@ final class BridgeToKotlinTests: XCTestCase {
         }
         """, swiftBridgeSupport: """
 
+        import Observation
         import SkipFuseUI
         extension V: BridgedToKotlin, SkipUIBridging, SkipUI.View {
             nonisolated private static let Java_class = try! JClass(name: "V")
@@ -10199,10 +10405,15 @@ final class BridgeToKotlinTests: XCTestCase {
             return SwiftClosure0.javaObject(for: factory, options: [])!
         }
         @_cdecl("Java_V_Swift_1composableBody")
-        public func V_Swift_composableBody(_ Java_env: JNIEnvPointer, _ Java_target: JavaObjectPointer, _ Swift_peer: SwiftObjectPointer) -> JavaObjectPointer? {
+        public func V_Swift_composableBody(_ Java_env: JNIEnvPointer, _ Java_target: JavaObjectPointer, _ Swift_peer: SwiftObjectPointer, _ onChange: JavaObjectPointer) -> JavaObjectPointer? {
             let peer_swift: SwiftValueTypeBox<V> = Swift_peer.pointee()!
+            let onChange_swift = SwiftClosure0.closure(forJavaObject: onChange, options: [])! as @Sendable () -> Void
             return SkipBridge.assumeMainActorUnchecked {
-                let body = peer_swift.value.body
+                let body = withObservationTracking {
+                    return peer_swift.value.body
+                } onChange: {
+                    onChange_swift()
+                }
                 return ((body as? SkipUIBridging)?.Java_view as? JConvertible)?.toJavaObject(options: [])
             }
         }
