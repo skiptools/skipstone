@@ -58,6 +58,17 @@ struct SkipstoneCommand: BuildPluginOptionsCommand, StreamingCommand {
         })
     }
 
+    static func packageRoot(containing projectFolder: AbsolutePath, fs: FileSystem) throws -> AbsolutePath {
+        var folder = projectFolder
+        while !fs.isFile(folder.appending(component: "Package.swift")) {
+            guard folder.parentDirectory != folder else {
+                throw ValidationError("No Package.swift found above \(projectFolder.pathString)")
+            }
+            folder = folder.parentDirectory
+        }
+        return folder
+    }
+
     func performCommand(with out: MessageQueue) async throws {
         #if DEBUG
         let v = skipVersion + "*" // * indicates debug version
@@ -673,11 +684,9 @@ struct SkipstoneCommand: BuildPluginOptionsCommand, StreamingCommand {
                 """
             }
 
-            // The source of the link tree needs to be the root project for the module in question, which we don't have access to (it can't be the `rootPath`, since that will be the topmost package that resulted in the transpiler invocation, which may not be the module in question).
-            // So we need to guess from the projectFolderPath, which will be something like `/path/to/project-name/Sources/TargetName` by tacking `../..` to the end of the path.
-            // WARNING: this is delicate, because there is nothing guaranteeing that the project follows the convention of `Sources/TargetName` for their modules!
-            //let mirrorSource = rootPath
-            let mirrorSource = projectFolderPath.appending(components: "..", "..")
+            // Targets can use a custom path, including a test package nested inside the
+            // component package. Mirror the target's owning package, not a fixed ancestor.
+            let mirrorSource = try Self.packageRoot(containing: projectFolderPath, fs: fs)
 
             //warn("creating absolute merged link tree from: swiftLinkFolder=\(swiftLinkFolder) to mirrorSource=\(mirrorSource) (rootPath=\(rootPath)) with dependencyIdPaths=\(dependencyIdPaths)")
             try createMirroredLinkTree(swiftLinkFolder, pointingAt: mirrorSource, shallow: true, excluding: ["Packages", "Package.resolved", ".build", ".swiftpm", "skip-export", "build"]) { destPath, path in
@@ -1590,11 +1599,15 @@ extension FileManager {
     public func enumeratedURLs(of folderURL: URL) throws -> [URL] {
         var childFileURLs: [URL] = []
 
-        if let fileURLs = self.enumerator(at: folderURL, includingPropertiesForKeys: [.isRegularFileKey, .isSymbolicLinkKey], options: [.skipsHiddenFiles, .skipsPackageDescendants]) {
+        // A mirrored target can itself be a symlink. Enumerate its destination while
+        // preserving the caller's paths for source hashes and generated-file mappings.
+        let resolvedFolderURL = folderURL.resolvingSymlinksInPath()
+        if let fileURLs = self.enumerator(at: resolvedFolderURL, includingPropertiesForKeys: [.isRegularFileKey, .isSymbolicLinkKey], options: [.skipsHiddenFiles, .skipsPackageDescendants]) {
             for case let fileURL as URL in fileURLs {
                 let attrs = try fileURL.resourceValues(forKeys: [.isRegularFileKey, .isSymbolicLinkKey])
                 if attrs.isRegularFile == true || attrs.isSymbolicLink == true {
-                    childFileURLs.append(fileURL)
+                    let relativePath = fileURL.standardizedFileURL.path.dropFirst(resolvedFolderURL.standardizedFileURL.path.count).trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+                    childFileURLs.append(folderURL.appendingPathComponent(relativePath))
                 }
             }
         }
