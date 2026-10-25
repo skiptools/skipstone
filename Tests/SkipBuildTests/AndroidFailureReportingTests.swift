@@ -85,7 +85,9 @@ final class AndroidFailureReportingTests: XCTestCase {
         print("\(testName) running: \(env.keys.sorted().map { "\($0)=\(env[$0]!) " }.joined())\(args.joined(separator: " "))")
         var output: [String] = []
         var result: ProcessResult? = nil
-        for try await outputLine in Process.streamLines(command: ["/usr/bin/env"] + args, environment: penv, workingDirectory: dir, includeStdErr: true, onExit: { result = $0 }) {
+        // cd in a shell, since Process ignores workingDirectory on Linux
+        let cmd = ["/bin/sh", "-c", #"cd "$0" && exec "$@""#, dir.path] + args
+        for try await outputLine in Process.streamLines(command: cmd, environment: penv, includeStdErr: true, onExit: { result = $0 }) {
             print("\(testName) [\(outputLine.err ? "stderr" : "stdout")]> \(outputLine.line)")
             output.append(outputLine.line)
         }
