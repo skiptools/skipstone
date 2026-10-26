@@ -151,6 +151,12 @@ jobs:
           #- 'r29'
 
     steps:
+      - name: Checkout skipstone.git
+        uses: actions/checkout@v7
+        with:
+          # skip.git submodule needed for SkipDriveExternal
+          submodules: true
+
       - uses: Homebrew/actions/setup-homebrew@main
 
       # The transpiled (Lite) and Fuse framework `swift test` runs execute the Kotlin suite under
@@ -303,16 +309,6 @@ jobs:
             skip android test --verbose --arch ${{ matrix.android-arch }}
           fi
 
-          # now add a failing test to make sure it actually fails
-          echo '@Test func shouldFail() { #expect(1+1 == 3, "Test should fail") }' >> Tests/PackageDemoTests/PackageDemoTests.swift
-
-          swift build --build-tests
-          # a bare `! cmd` can't fail the step under `bash -e` unless it is the last command
-          if swift test; then echo "swift test should have failed"; exit 1; fi
-          if [[ "${RUNNER_ARCH}" != "ARM64" ]]; then
-            ! skip android test --apk --arch ${{ matrix.android-arch }}
-          fi
-
       - name: "Test new Skip Lite framework on emulator"
         working-directory: ${{ runner.temp }}
         run: |
@@ -344,18 +340,13 @@ jobs:
             ANDROID_SERIAL=emulator-5554 swift test
           fi
 
-          # now add a failing test to make sure it actually fails
-          echo '#if os(Android)' >> Tests/DemoFrameworkTests/DemoFrameworkTests.swift
-          echo '@Test func shouldFailOnAndroid() { #expect(1+1 == 3, "Test should fail on Android") }' >> Tests/DemoFrameworkTests/DemoFrameworkTests.swift
-          echo '#endif' >> Tests/DemoFrameworkTests/DemoFrameworkTests.swift
-
-          swift build --build-tests
-          # Robolectric should still pass
-          if [[ "${RUNNER_OS}" != "Linux" ]]; then
-            swift test
-          fi
-          # Emulator test should fail
-          if [[ "${RUNNER_ARCH}" != "ARM64" ]]; then
-            ! ANDROID_SERIAL=emulator-5554 swift test
-          fi
+      # Adds a failing test to new projects and checks that the emulator runs fail because of it.
+      # The test logs the runs' output with a line prefix, so the expected failures' error
+      # lines don't become annotations on green runs
+      - name: "Test that Android test failures are reported"
+        if: runner.arch != 'ARM64'
+        env:
+          ANDROID_SERIAL: emulator-5554
+          ANDROID_ARCH: ${{ matrix.android-arch }}
+        run: swift test --filter AndroidFailureReportingTests
 
