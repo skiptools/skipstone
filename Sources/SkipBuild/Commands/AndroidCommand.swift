@@ -2350,7 +2350,8 @@ struct SwiftSDKOpenAPI {
                 // e.g.: https://download.swift.org/swift-6.2.3-release/static-sdk/swift-6.2.3-RELEASE/swift-6.2.3-RELEASE_static-linux-0.0.1.artifactbundle.tar.gz
                 // e.g.: https://download.swift.org/swift-6.2.3-release/wasm-sdk/swift-6.2.3-RELEASE/swift-6.2.3-RELEASE_wasm.artifactbundle.tar.gz
                 // unlike the development endpoints which have a useful "dir" and "download" property, we have to guess based on convention
-                let sdkPath = sdkName == "static" ? "static-linux-0.0.1" : sdkName // special-case legacy static linux name
+                // the static linux bundle name carries its own version: static-linux-0.0.1 through 6.2.3, static-linux-0.1.0 from 6.2.4
+                let sdkPath = sdkName == "static" ? "static-linux-" + (sdk.version ?? "0.0.1") : sdkName
                 let downloadPath = "\(release.tag)_\(sdkPath).artifactbundle.tar.gz"
                 let downloadURL = downloadEndpointRoot.appending(components: release.tag.lowercased(), sdkPlatform, release.tag, downloadPath)
                 return SwiftSDKDownloadable(version: release.name, name: sdk.name, checksum: checksum, downloadURL: downloadURL)
@@ -2381,6 +2382,7 @@ struct SwiftSDKOpenAPI {
             var platform: String // static-sdk
             var checksum: String? // f30ec724d824ef43b5546e02ca06a8682dafab4b26a99fbb0e858c347e507a2c
             var archs: [String]? // ["x86_64","arm64"]
+            var version: String? // 0.1.0
         }
     }
 
