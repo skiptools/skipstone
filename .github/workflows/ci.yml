@@ -340,9 +340,9 @@ jobs:
             ANDROID_SERIAL=emulator-5554 swift test
           fi
 
-      # Adds a failing test to new projects and checks that the emulator run fails with its message.
-      # The test logs the runs' output with a line prefix, so the expected failures' `::error`
-      # lines don't show up as annotations on green runs
+      # Adds a failing test to new projects and checks that the emulator runs fail because of it.
+      # The test logs the runs' output with a line prefix, so the expected failures' error
+      # lines don't become annotations on green runs
       - name: "Test that Android test failures are reported"
         if: runner.arch != 'ARM64'
         env:

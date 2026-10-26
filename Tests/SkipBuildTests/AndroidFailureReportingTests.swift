@@ -9,8 +9,7 @@ import SkipDriveExternal
 /// Checks that a failing test in a new project is reported as a failure when run on an Android emulator.
 ///
 /// Run by the CI emulator job with `ANDROID_SERIAL` set to the emulator; skipped otherwise.
-/// The children's output is logged with a line prefix, so the `::error` workflow commands
-/// that the expected failures print do not become GitHub annotations.
+/// The children's output is logged with a line prefix, so the expected failures do not become GitHub annotations.
 final class AndroidFailureReportingTests: XCTestCase {
     func testSwiftPackageFailureIsReported() async throws {
         let serial = try androidSerial()
@@ -44,7 +43,8 @@ final class AndroidFailureReportingTests: XCTestCase {
         // can't subclass swift-corelibs-foundation's Bundle
         try await run(in: dir, env: env, "swift", "test")
         #endif
-        try await run(in: dir, env: env.merging(["ANDROID_SERIAL": serial]) { $1 }, expectFailure: "Test should fail on Android", "swift", "test")
+        // the gradle harness doesn't relay the Swift Testing output from the device, only SwiftTestRunner's count of failed tests
+        try await run(in: dir, env: env.merging(["ANDROID_SERIAL": serial]) { $1 }, expectFailure: "native Swift Testing cases should all pass expected:<0> but was:<1>", "swift", "test")
     }
 
     private var androidArch: String {
@@ -88,7 +88,9 @@ final class AndroidFailureReportingTests: XCTestCase {
         // cd in a shell, since Process ignores workingDirectory on Linux
         let cmd = ["/bin/sh", "-c", #"cd "$0" && exec "$@""#, dir.path] + args
         for try await outputLine in Process.streamLines(command: cmd, environment: penv, includeStdErr: true, onExit: { result = $0 }) {
-            print("\(testName) [\(outputLine.err ? "stderr" : "stdout")]> \(outputLine.line)")
+            // the colon keeps setup-java's javac problem matcher (^([^:]+):(\d+): (warning|error): ...) from turning
+            // the expected XCTest failure lines into annotations
+            print("\(testName) [\(outputLine.err ? "stderr" : "stdout")]: \(outputLine.line)")
             output.append(outputLine.line)
         }
 
