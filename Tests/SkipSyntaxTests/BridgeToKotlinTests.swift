@@ -824,7 +824,7 @@ final class BridgeToKotlinTests: XCTestCase {
             return SwiftObjectPointer.pointer(to: f_return_swift, retain: true)
         }
         @_cdecl("Java_C_Swift_1release")
-        public func C_Swift_release(_ Java_env: JNIEnvPointer, _ Java_target: JavaObjectPointer, _ Swift_peer: SwiftObjectPointer) {
+        nonisolated public func C_Swift_release(_ Java_env: JNIEnvPointer, _ Java_target: JavaObjectPointer, _ Swift_peer: SwiftObjectPointer) {
             Swift_peer.release(as: C.self)
         }
         @_cdecl("Java_C_Swift_1projectionImpl")
@@ -909,7 +909,7 @@ final class BridgeToKotlinTests: XCTestCase {
             return SwiftObjectPointer.pointer(to: f_return_swift, retain: true)
         }
         @_cdecl("Java_C_Swift_1release")
-        public func C_Swift_release(_ Java_env: JNIEnvPointer, _ Java_target: JavaObjectPointer, _ Swift_peer: SwiftObjectPointer) {
+        nonisolated public func C_Swift_release(_ Java_env: JNIEnvPointer, _ Java_target: JavaObjectPointer, _ Swift_peer: SwiftObjectPointer) {
             Swift_peer.release(as: C.self)
         }
         @_cdecl("Java_C_Swift_1projectionImpl")
@@ -1358,7 +1358,7 @@ final class BridgeToKotlinTests: XCTestCase {
             return SwiftObjectPointer.pointer(to: f_return_swift, retain: true)
         }
         @_cdecl("Java_C_Swift_1release")
-        public func C_Swift_release(_ Java_env: JNIEnvPointer, _ Java_target: JavaObjectPointer, _ Swift_peer: SwiftObjectPointer) {
+        nonisolated public func C_Swift_release(_ Java_env: JNIEnvPointer, _ Java_target: JavaObjectPointer, _ Swift_peer: SwiftObjectPointer) {
             Swift_peer.release(as: C.self)
         }
         @_cdecl("Java_C_Swift_1projectionImpl")
@@ -1498,7 +1498,7 @@ final class BridgeToKotlinTests: XCTestCase {
             nonisolated private static let Java_constructor_methodID = Java_class.getMethodID(name: "<init>", sig: "(JLskip/bridge/SwiftPeerMarker;)V")!
         }
         @_cdecl("Java_V_Swift_1release")
-        public func V_Swift_release(_ Java_env: JNIEnvPointer, _ Java_target: JavaObjectPointer, _ Swift_peer: SwiftObjectPointer) {
+        nonisolated public func V_Swift_release(_ Java_env: JNIEnvPointer, _ Java_target: JavaObjectPointer, _ Swift_peer: SwiftObjectPointer) {
             Swift_peer.release(as: SwiftValueTypeBox<V>.self)
         }
         @_cdecl("Java_V_Swift_1constructor_10")
@@ -1648,7 +1648,7 @@ final class BridgeToKotlinTests: XCTestCase {
             return SwiftObjectPointer.pointer(to: f_return_swift, retain: true)
         }
         @_cdecl("Java_S_Swift_1release")
-        public func S_Swift_release(_ Java_env: JNIEnvPointer, _ Java_target: JavaObjectPointer, _ Swift_peer: SwiftObjectPointer) {
+        nonisolated public func S_Swift_release(_ Java_env: JNIEnvPointer, _ Java_target: JavaObjectPointer, _ Swift_peer: SwiftObjectPointer) {
             Swift_peer.release(as: S.self)
         }
         @_cdecl("Java_S_Swift_1projectionImpl")
@@ -1731,7 +1731,7 @@ final class BridgeToKotlinTests: XCTestCase {
             return SwiftObjectPointer.pointer(to: f_return_swift, retain: true)
         }
         @_cdecl("Java_S_Swift_1release")
-        public func S_Swift_release(_ Java_env: JNIEnvPointer, _ Java_target: JavaObjectPointer, _ Swift_peer: SwiftObjectPointer) {
+        nonisolated public func S_Swift_release(_ Java_env: JNIEnvPointer, _ Java_target: JavaObjectPointer, _ Swift_peer: SwiftObjectPointer) {
             Swift_peer.release(as: S.self)
         }
         @_cdecl("Java_S_Swift_1i")
@@ -2014,7 +2014,7 @@ final class BridgeToKotlinTests: XCTestCase {
             return SwiftObjectPointer.pointer(to: f_return_swift, retain: true)
         }
         @_cdecl("Java_C_Swift_1release")
-        public func C_Swift_release(_ Java_env: JNIEnvPointer, _ Java_target: JavaObjectPointer, _ Swift_peer: SwiftObjectPointer) {
+        nonisolated public func C_Swift_release(_ Java_env: JNIEnvPointer, _ Java_target: JavaObjectPointer, _ Swift_peer: SwiftObjectPointer) {
             Swift_peer.release(as: C.self)
         }
         @_cdecl("Java_C_Swift_1i")
@@ -2105,7 +2105,7 @@ final class BridgeToKotlinTests: XCTestCase {
             return SwiftObjectPointer.pointer(to: f_return_swift, retain: true)
         }
         @_cdecl("Java_C_Swift_1release")
-        public func C_Swift_release(_ Java_env: JNIEnvPointer, _ Java_target: JavaObjectPointer, _ Swift_peer: SwiftObjectPointer) {
+        nonisolated public func C_Swift_release(_ Java_env: JNIEnvPointer, _ Java_target: JavaObjectPointer, _ Swift_peer: SwiftObjectPointer) {
             Swift_peer.release(as: C.self)
         }
         @_cdecl("Java_C_Swift_1i")
@@ -2260,7 +2260,7 @@ final class BridgeToKotlinTests: XCTestCase {
             return SwiftObjectPointer.pointer(to: f_return_swift, retain: true)
         }
         @_cdecl("Java_A_00024B_Swift_1release")
-        public func A$B_Swift_release(_ Java_env: JNIEnvPointer, _ Java_target: JavaObjectPointer, _ Swift_peer: SwiftObjectPointer) {
+        nonisolated public func A$B_Swift_release(_ Java_env: JNIEnvPointer, _ Java_target: JavaObjectPointer, _ Swift_peer: SwiftObjectPointer) {
             Swift_peer.release(as: A.B.self)
         }
         @_cdecl("Java_A_00024B_Swift_1projectionImpl")
@@ -2270,7 +2270,7 @@ final class BridgeToKotlinTests: XCTestCase {
             return SwiftClosure0.javaObject(for: factory, options: [])!
         }
         @_cdecl("Java_A_00024B_00024C_Swift_1release")
-        public func A$B$C_Swift_release(_ Java_env: JNIEnvPointer, _ Java_target: JavaObjectPointer, _ Swift_peer: SwiftObjectPointer) {
+        nonisolated public func A$B$C_Swift_release(_ Java_env: JNIEnvPointer, _ Java_target: JavaObjectPointer, _ Swift_peer: SwiftObjectPointer) {
             Swift_peer.release(as: SwiftValueTypeBox<A.B.C>.self)
         }
         @_cdecl("Java_A_00024B_00024C_Swift_1b")
@@ -2388,7 +2388,7 @@ final class BridgeToKotlinTests: XCTestCase {
             nonisolated private static let Java_constructor_methodID = Java_class.getMethodID(name: "<init>", sig: "(JLskip/bridge/SwiftPeerMarker;)V")!
         }
         @_cdecl("Java_C_Swift_1release")
-        public func C_Swift_release(_ Java_env: JNIEnvPointer, _ Java_target: JavaObjectPointer, _ Swift_peer: SwiftObjectPointer) {
+        nonisolated public func C_Swift_release(_ Java_env: JNIEnvPointer, _ Java_target: JavaObjectPointer, _ Swift_peer: SwiftObjectPointer) {
             Swift_peer.release(as: C.self)
         }
         @_cdecl("Java_C_Swift_1i")
@@ -2492,7 +2492,7 @@ final class BridgeToKotlinTests: XCTestCase {
             nonisolated private static let Java_constructor_methodID = Java_class.getMethodID(name: "<init>", sig: "(JLskip/bridge/SwiftPeerMarker;)V")!
         }
         @_cdecl("Java_C_Swift_1release")
-        public func C_Swift_release(_ Java_env: JNIEnvPointer, _ Java_target: JavaObjectPointer, _ Swift_peer: SwiftObjectPointer) {
+        nonisolated public func C_Swift_release(_ Java_env: JNIEnvPointer, _ Java_target: JavaObjectPointer, _ Swift_peer: SwiftObjectPointer) {
             Swift_peer.release(as: C.self)
         }
         @_cdecl("Java_C_Swift_1projectionImpl")
@@ -2558,7 +2558,7 @@ final class BridgeToKotlinTests: XCTestCase {
             nonisolated private static let Java_constructor_methodID = Java_class.getMethodID(name: "<init>", sig: "(JLskip/bridge/SwiftPeerMarker;)V")!
         }
         @_cdecl("Java_C_Swift_1release")
-        public func C_Swift_release(_ Java_env: JNIEnvPointer, _ Java_target: JavaObjectPointer, _ Swift_peer: SwiftObjectPointer) {
+        nonisolated public func C_Swift_release(_ Java_env: JNIEnvPointer, _ Java_target: JavaObjectPointer, _ Swift_peer: SwiftObjectPointer) {
             Swift_peer.release(as: C.self)
         }
         @_cdecl("Java_C_Swift_1constructor_10")
@@ -2630,7 +2630,7 @@ final class BridgeToKotlinTests: XCTestCase {
             nonisolated private static let Java_constructor_methodID = Java_class.getMethodID(name: "<init>", sig: "(JLskip/bridge/SwiftPeerMarker;)V")!
         }
         @_cdecl("Java_C_Swift_1release")
-        public func C_Swift_release(_ Java_env: JNIEnvPointer, _ Java_target: JavaObjectPointer, _ Swift_peer: SwiftObjectPointer) {
+        nonisolated public func C_Swift_release(_ Java_env: JNIEnvPointer, _ Java_target: JavaObjectPointer, _ Swift_peer: SwiftObjectPointer) {
             Swift_peer.release(as: C.self)
         }
         @_cdecl("Java_C_Swift_1constructor_10")
@@ -2722,7 +2722,7 @@ final class BridgeToKotlinTests: XCTestCase {
             return SwiftObjectPointer.pointer(to: f_return_swift, retain: true)
         }
         @_cdecl("Java_C_Swift_1release")
-        public func C_Swift_release(_ Java_env: JNIEnvPointer, _ Java_target: JavaObjectPointer, _ Swift_peer: SwiftObjectPointer) {
+        nonisolated public func C_Swift_release(_ Java_env: JNIEnvPointer, _ Java_target: JavaObjectPointer, _ Swift_peer: SwiftObjectPointer) {
             Swift_peer.release(as: C.self)
         }
         @_cdecl("Java_C_Swift_1projectionImpl")
@@ -2794,7 +2794,7 @@ final class BridgeToKotlinTests: XCTestCase {
             return SwiftObjectPointer.pointer(to: f_return_swift, retain: true)
         }
         @_cdecl("Java_C_Swift_1release")
-        public func C_Swift_release(_ Java_env: JNIEnvPointer, _ Java_target: JavaObjectPointer, _ Swift_peer: SwiftObjectPointer) {
+        nonisolated public func C_Swift_release(_ Java_env: JNIEnvPointer, _ Java_target: JavaObjectPointer, _ Swift_peer: SwiftObjectPointer) {
             Swift_peer.release(as: C.self)
         }
         @_cdecl("Java_C_Swift_1projectionImpl")
@@ -2872,7 +2872,7 @@ final class BridgeToKotlinTests: XCTestCase {
             return SwiftObjectPointer.pointer(to: f_return_swift, retain: true)
         }
         @_cdecl("Java_C_Swift_1release")
-        public func C_Swift_release(_ Java_env: JNIEnvPointer, _ Java_target: JavaObjectPointer, _ Swift_peer: SwiftObjectPointer) {
+        nonisolated public func C_Swift_release(_ Java_env: JNIEnvPointer, _ Java_target: JavaObjectPointer, _ Swift_peer: SwiftObjectPointer) {
             Swift_peer.release(as: C.self)
         }
         @_cdecl("Java_C_Swift_1i")
@@ -2957,7 +2957,7 @@ final class BridgeToKotlinTests: XCTestCase {
             return SwiftObjectPointer.pointer(to: f_return_swift, retain: true)
         }
         @_cdecl("Java_C_Swift_1release")
-        public func C_Swift_release(_ Java_env: JNIEnvPointer, _ Java_target: JavaObjectPointer, _ Swift_peer: SwiftObjectPointer) {
+        nonisolated public func C_Swift_release(_ Java_env: JNIEnvPointer, _ Java_target: JavaObjectPointer, _ Swift_peer: SwiftObjectPointer) {
             Swift_peer.release(as: C.self)
         }
         @_cdecl("Java_C_Swift_1add_10")
@@ -3046,7 +3046,7 @@ final class BridgeToKotlinTests: XCTestCase {
             return SwiftObjectPointer.pointer(to: f_return_swift, retain: true)
         }
         @_cdecl("Java_C_Swift_1release")
-        public func C_Swift_release(_ Java_env: JNIEnvPointer, _ Java_target: JavaObjectPointer, _ Swift_peer: SwiftObjectPointer) {
+        nonisolated public func C_Swift_release(_ Java_env: JNIEnvPointer, _ Java_target: JavaObjectPointer, _ Swift_peer: SwiftObjectPointer) {
             Swift_peer.release(as: C.self)
         }
         @_cdecl("Java_C_Swift_1callback_1add_10")
@@ -3127,7 +3127,7 @@ final class BridgeToKotlinTests: XCTestCase {
             return SwiftObjectPointer.pointer(to: f_return_swift, retain: true)
         }
         @_cdecl("Java_C_Swift_1release")
-        public func C_Swift_release(_ Java_env: JNIEnvPointer, _ Java_target: JavaObjectPointer, _ Swift_peer: SwiftObjectPointer) {
+        nonisolated public func C_Swift_release(_ Java_env: JNIEnvPointer, _ Java_target: JavaObjectPointer, _ Swift_peer: SwiftObjectPointer) {
             Swift_peer.release(as: C.self)
         }
         @_cdecl("Java_C_Swift_1projectionImpl")
@@ -3205,7 +3205,7 @@ final class BridgeToKotlinTests: XCTestCase {
             return SwiftObjectPointer.pointer(to: f_return_swift, retain: true)
         }
         @_cdecl("Java_C_Swift_1release")
-        public func C_Swift_release(_ Java_env: JNIEnvPointer, _ Java_target: JavaObjectPointer, _ Swift_peer: SwiftObjectPointer) {
+        nonisolated public func C_Swift_release(_ Java_env: JNIEnvPointer, _ Java_target: JavaObjectPointer, _ Swift_peer: SwiftObjectPointer) {
             Swift_peer.release(as: C.self)
         }
         @_cdecl("Java_C_00024Companion_Swift_1Companion_1i")
@@ -3288,7 +3288,7 @@ final class BridgeToKotlinTests: XCTestCase {
             return SwiftObjectPointer.pointer(to: f_return_swift, retain: true)
         }
         @_cdecl("Java_C_Swift_1release")
-        public func C_Swift_release(_ Java_env: JNIEnvPointer, _ Java_target: JavaObjectPointer, _ Swift_peer: SwiftObjectPointer) {
+        nonisolated public func C_Swift_release(_ Java_env: JNIEnvPointer, _ Java_target: JavaObjectPointer, _ Swift_peer: SwiftObjectPointer) {
             Swift_peer.release(as: C.self)
         }
         @_cdecl("Java_C_00024Companion_Swift_1Companion_1add_10")
@@ -3380,7 +3380,7 @@ final class BridgeToKotlinTests: XCTestCase {
             return SwiftObjectPointer.pointer(to: f_return_swift, retain: true)
         }
         @_cdecl("Java_C_Swift_1release")
-        public func C_Swift_release(_ Java_env: JNIEnvPointer, _ Java_target: JavaObjectPointer, _ Swift_peer: SwiftObjectPointer) {
+        nonisolated public func C_Swift_release(_ Java_env: JNIEnvPointer, _ Java_target: JavaObjectPointer, _ Swift_peer: SwiftObjectPointer) {
             Swift_peer.release(as: C.self)
         }
         @_cdecl("Java_C_Swift_1projectionImpl")
@@ -3487,7 +3487,7 @@ final class BridgeToKotlinTests: XCTestCase {
             return SwiftObjectPointer.pointer(to: f_return_swift, retain: true)
         }
         @_cdecl("Java_C_Swift_1release")
-        public func C_Swift_release(_ Java_env: JNIEnvPointer, _ Java_target: JavaObjectPointer, _ Swift_peer: SwiftObjectPointer) {
+        nonisolated public func C_Swift_release(_ Java_env: JNIEnvPointer, _ Java_target: JavaObjectPointer, _ Swift_peer: SwiftObjectPointer) {
             Swift_peer.release(as: C.self)
         }
         @_cdecl("Java_C_Swift_1i")
@@ -3602,7 +3602,7 @@ final class BridgeToKotlinTests: XCTestCase {
             return SwiftObjectPointer.pointer(to: f_return_swift, retain: true)
         }
         @_cdecl("Java_C_Swift_1release")
-        public func C_Swift_release(_ Java_env: JNIEnvPointer, _ Java_target: JavaObjectPointer, _ Swift_peer: SwiftObjectPointer) {
+        nonisolated public func C_Swift_release(_ Java_env: JNIEnvPointer, _ Java_target: JavaObjectPointer, _ Swift_peer: SwiftObjectPointer) {
             Swift_peer.release(as: C.self)
         }
         @_cdecl("Java_C_Swift_1i")
@@ -3756,7 +3756,7 @@ final class BridgeToKotlinTests: XCTestCase {
             nonisolated public static let Java_subclass1Constructor = (Java_class, Java_constructor_methodID)
         }
         @_cdecl("Java_Base_Swift_1release")
-        public func Base_Swift_release(_ Java_env: JNIEnvPointer, _ Java_target: JavaObjectPointer, _ Swift_peer: SwiftObjectPointer) {
+        nonisolated public func Base_Swift_release(_ Java_env: JNIEnvPointer, _ Java_target: JavaObjectPointer, _ Swift_peer: SwiftObjectPointer) {
             Swift_peer.release(as: Base.self)
         }
         @_cdecl("Java_Base_Swift_1i")
@@ -3909,7 +3909,7 @@ final class BridgeToKotlinTests: XCTestCase {
             return SwiftObjectPointer.pointer(to: f_return_swift, retain: true)
         }
         @_cdecl("Java_Base_Swift_1release")
-        public func Base_Swift_release(_ Java_env: JNIEnvPointer, _ Java_target: JavaObjectPointer, _ Swift_peer: SwiftObjectPointer) {
+        nonisolated public func Base_Swift_release(_ Java_env: JNIEnvPointer, _ Java_target: JavaObjectPointer, _ Swift_peer: SwiftObjectPointer) {
             Swift_peer.release(as: Base.self)
         }
         @_cdecl("Java_Base_Swift_1projectionImpl")
@@ -4063,7 +4063,7 @@ final class BridgeToKotlinTests: XCTestCase {
             nonisolated private static let Java_constructor_methodID = Java_class.getMethodID(name: "<init>", sig: "(JLskip/bridge/SwiftPeerMarker;)V")!
         }
         @_cdecl("Java_Sub1_Swift_1release")
-        public func Sub1_Swift_release(_ Java_env: JNIEnvPointer, _ Java_target: JavaObjectPointer, _ Swift_peer: SwiftObjectPointer) {
+        nonisolated public func Sub1_Swift_release(_ Java_env: JNIEnvPointer, _ Java_target: JavaObjectPointer, _ Swift_peer: SwiftObjectPointer) {
             Swift_peer.release(as: Sub1.self)
         }
         @_cdecl("Java_Sub1_Swift_1s")
@@ -4095,7 +4095,7 @@ final class BridgeToKotlinTests: XCTestCase {
             return SwiftObjectPointer.pointer(to: f_return_swift, retain: true)
         }
         @_cdecl("Java_Sub2_Swift_1release")
-        public func Sub2_Swift_release(_ Java_env: JNIEnvPointer, _ Java_target: JavaObjectPointer, _ Swift_peer: SwiftObjectPointer) {
+        nonisolated public func Sub2_Swift_release(_ Java_env: JNIEnvPointer, _ Java_target: JavaObjectPointer, _ Swift_peer: SwiftObjectPointer) {
             Swift_peer.release(as: Sub2.self)
         }
         @_cdecl("Java_Sub2_Swift_1projectionImpl")
@@ -4199,7 +4199,7 @@ final class BridgeToKotlinTests: XCTestCase {
             nonisolated private static let Java_constructor_methodID = Java_class.getMethodID(name: "<init>", sig: "(JLskip/bridge/SwiftPeerMarker;)V")!
         }
         @_cdecl("Java_S_Swift_1release")
-        public func S_Swift_release(_ Java_env: JNIEnvPointer, _ Java_target: JavaObjectPointer, _ Swift_peer: SwiftObjectPointer) {
+        nonisolated public func S_Swift_release(_ Java_env: JNIEnvPointer, _ Java_target: JavaObjectPointer, _ Swift_peer: SwiftObjectPointer) {
             Swift_peer.release(as: SwiftValueTypeBox<S>.self)
         }
         @_cdecl("Java_S_Swift_1i")
@@ -4316,7 +4316,7 @@ final class BridgeToKotlinTests: XCTestCase {
             nonisolated private static let Java_constructor_methodID = Java_class.getMethodID(name: "<init>", sig: "(JLskip/bridge/SwiftPeerMarker;)V")!
         }
         @_cdecl("Java_S_Swift_1release")
-        public func S_Swift_release(_ Java_env: JNIEnvPointer, _ Java_target: JavaObjectPointer, _ Swift_peer: SwiftObjectPointer) {
+        nonisolated public func S_Swift_release(_ Java_env: JNIEnvPointer, _ Java_target: JavaObjectPointer, _ Swift_peer: SwiftObjectPointer) {
             Swift_peer.release(as: SwiftValueTypeBox<S>.self)
         }
         @_cdecl("Java_S_Swift_1i")
@@ -4439,7 +4439,7 @@ final class BridgeToKotlinTests: XCTestCase {
             nonisolated private static let Java_constructor_methodID = Java_class.getMethodID(name: "<init>", sig: "(JLskip/bridge/SwiftPeerMarker;)V")!
         }
         @_cdecl("Java_S_Swift_1release")
-        public func S_Swift_release(_ Java_env: JNIEnvPointer, _ Java_target: JavaObjectPointer, _ Swift_peer: SwiftObjectPointer) {
+        nonisolated public func S_Swift_release(_ Java_env: JNIEnvPointer, _ Java_target: JavaObjectPointer, _ Swift_peer: SwiftObjectPointer) {
             Swift_peer.release(as: SwiftValueTypeBox<S>.self)
         }
         @_cdecl("Java_S_Swift_1i")
@@ -4557,7 +4557,7 @@ final class BridgeToKotlinTests: XCTestCase {
             nonisolated private static let Java_constructor_methodID = Java_class.getMethodID(name: "<init>", sig: "(JLskip/bridge/SwiftPeerMarker;)V")!
         }
         @_cdecl("Java_S_Swift_1release")
-        public func S_Swift_release(_ Java_env: JNIEnvPointer, _ Java_target: JavaObjectPointer, _ Swift_peer: SwiftObjectPointer) {
+        nonisolated public func S_Swift_release(_ Java_env: JNIEnvPointer, _ Java_target: JavaObjectPointer, _ Swift_peer: SwiftObjectPointer) {
             Swift_peer.release(as: SwiftValueTypeBox<S>.self)
         }
         @_cdecl("Java_S_Swift_1i")
@@ -4657,7 +4657,7 @@ final class BridgeToKotlinTests: XCTestCase {
             nonisolated private static let Java_constructor_methodID = Java_class.getMethodID(name: "<init>", sig: "(JLskip/bridge/SwiftPeerMarker;)V")!
         }
         @_cdecl("Java_S_Swift_1release")
-        public func S_Swift_release(_ Java_env: JNIEnvPointer, _ Java_target: JavaObjectPointer, _ Swift_peer: SwiftObjectPointer) {
+        nonisolated public func S_Swift_release(_ Java_env: JNIEnvPointer, _ Java_target: JavaObjectPointer, _ Swift_peer: SwiftObjectPointer) {
             Swift_peer.release(as: SwiftValueTypeBox<S>.self)
         }
         @_cdecl("Java_S_Swift_1i")
@@ -4846,7 +4846,7 @@ final class BridgeToKotlinTests: XCTestCase {
             return SwiftObjectPointer.pointer(to: f_return_swift, retain: true)
         }
         @_cdecl("Java_C_Swift_1release")
-        public func C_Swift_release(_ Java_env: JNIEnvPointer, _ Java_target: JavaObjectPointer, _ Swift_peer: SwiftObjectPointer) {
+        nonisolated public func C_Swift_release(_ Java_env: JNIEnvPointer, _ Java_target: JavaObjectPointer, _ Swift_peer: SwiftObjectPointer) {
             Swift_peer.release(as: C.self)
         }
         @_cdecl("Java_C_Swift_1a_10")
@@ -5307,7 +5307,7 @@ final class BridgeToKotlinTests: XCTestCase {
             return SwiftObjectPointer.pointer(to: f_return_swift, retain: true)
         }
         @_cdecl("Java_C_Swift_1release")
-        public func C_Swift_release(_ Java_env: JNIEnvPointer, _ Java_target: JavaObjectPointer, _ Swift_peer: SwiftObjectPointer) {
+        nonisolated public func C_Swift_release(_ Java_env: JNIEnvPointer, _ Java_target: JavaObjectPointer, _ Swift_peer: SwiftObjectPointer) {
             Swift_peer.release(as: C.self)
         }
         @_cdecl("Java_C_Swift_1callback_1f_10")
@@ -5475,7 +5475,7 @@ final class BridgeToKotlinTests: XCTestCase {
             return SwiftObjectPointer.pointer(to: f_return_swift, retain: true)
         }
         @_cdecl("Java_C_Swift_1release")
-        public func C_Swift_release(_ Java_env: JNIEnvPointer, _ Java_target: JavaObjectPointer, _ Swift_peer: SwiftObjectPointer) {
+        nonisolated public func C_Swift_release(_ Java_env: JNIEnvPointer, _ Java_target: JavaObjectPointer, _ Swift_peer: SwiftObjectPointer) {
             Swift_peer.release(as: C.self)
         }
         @_cdecl("Java_C_Swift_1p")
@@ -5783,7 +5783,7 @@ final class BridgeToKotlinTests: XCTestCase {
             return SwiftObjectPointer.pointer(to: f_return_swift, retain: true)
         }
         @_cdecl("Java_E_00024S_Swift_1release")
-        public func E$S_Swift_release(_ Java_env: JNIEnvPointer, _ Java_target: JavaObjectPointer, _ Swift_peer: SwiftObjectPointer) {
+        nonisolated public func E$S_Swift_release(_ Java_env: JNIEnvPointer, _ Java_target: JavaObjectPointer, _ Swift_peer: SwiftObjectPointer) {
             Swift_peer.release(as: SwiftValueTypeBox<E.S>.self)
         }
         @_cdecl("Java_E_00024S_Swift_1projectionImpl")
@@ -5950,7 +5950,7 @@ final class BridgeToKotlinTests: XCTestCase {
             return SwiftObjectPointer.pointer(to: f_return_swift, retain: true)
         }
         @_cdecl("Java_C_Swift_1release")
-        public func C_Swift_release(_ Java_env: JNIEnvPointer, _ Java_target: JavaObjectPointer, _ Swift_peer: SwiftObjectPointer) {
+        nonisolated public func C_Swift_release(_ Java_env: JNIEnvPointer, _ Java_target: JavaObjectPointer, _ Swift_peer: SwiftObjectPointer) {
             Swift_peer.release(as: C.self)
         }
         @_cdecl("Java_C_00024Companion_Swift_1Companion_1s_10")
@@ -6035,7 +6035,7 @@ final class BridgeToKotlinTests: XCTestCase {
             return SwiftObjectPointer.pointer(to: f_return_swift, retain: true)
         }
         @_cdecl("Java_C_Swift_1release")
-        public func C_Swift_release(_ Java_env: JNIEnvPointer, _ Java_target: JavaObjectPointer, _ Swift_peer: SwiftObjectPointer) {
+        nonisolated public func C_Swift_release(_ Java_env: JNIEnvPointer, _ Java_target: JavaObjectPointer, _ Swift_peer: SwiftObjectPointer) {
             Swift_peer.release(as: C.self)
         }
         @_cdecl("Java_C_Swift_1f_10")
@@ -6116,7 +6116,7 @@ final class BridgeToKotlinTests: XCTestCase {
             return SwiftObjectPointer.pointer(to: f_return_swift, retain: true)
         }
         @_cdecl("Java_C_Swift_1release")
-        public func C_Swift_release(_ Java_env: JNIEnvPointer, _ Java_target: JavaObjectPointer, _ Swift_peer: SwiftObjectPointer) {
+        nonisolated public func C_Swift_release(_ Java_env: JNIEnvPointer, _ Java_target: JavaObjectPointer, _ Swift_peer: SwiftObjectPointer) {
             Swift_peer.release(as: C.self)
         }
         @_cdecl("Java_C_Swift_1projectionImpl")
@@ -6218,7 +6218,7 @@ final class BridgeToKotlinTests: XCTestCase {
             return SwiftObjectPointer.pointer(to: f_return_swift, retain: true)
         }
         @_cdecl("Java_C_Swift_1release")
-        public func C_Swift_release(_ Java_env: JNIEnvPointer, _ Java_target: JavaObjectPointer, _ Swift_peer: SwiftObjectPointer) {
+        nonisolated public func C_Swift_release(_ Java_env: JNIEnvPointer, _ Java_target: JavaObjectPointer, _ Swift_peer: SwiftObjectPointer) {
             Swift_peer.release(as: C.self)
         }
         @_cdecl("Java_C_Swift_1i")
@@ -6349,7 +6349,7 @@ final class BridgeToKotlinTests: XCTestCase {
             return SwiftObjectPointer.pointer(to: f_return_swift, retain: true)
         }
         @_cdecl("Java_C_Swift_1release")
-        public func C_Swift_release(_ Java_env: JNIEnvPointer, _ Java_target: JavaObjectPointer, _ Swift_peer: SwiftObjectPointer) {
+        nonisolated public func C_Swift_release(_ Java_env: JNIEnvPointer, _ Java_target: JavaObjectPointer, _ Swift_peer: SwiftObjectPointer) {
             Swift_peer.release(as: C.self)
         }
         @_cdecl("Java_C_Swift_1urls")
@@ -6579,7 +6579,7 @@ final class BridgeToKotlinTests: XCTestCase {
             return SwiftObjectPointer.pointer(to: f_return_swift, retain: true)
         }
         @_cdecl("Java_C_Swift_1release")
-        public func C_Swift_release(_ Java_env: JNIEnvPointer, _ Java_target: JavaObjectPointer, _ Swift_peer: SwiftObjectPointer) {
+        nonisolated public func C_Swift_release(_ Java_env: JNIEnvPointer, _ Java_target: JavaObjectPointer, _ Swift_peer: SwiftObjectPointer) {
             Swift_peer.release(as: C.self)
         }
         @_cdecl("Java_C_Swift_1t2")
@@ -6801,7 +6801,7 @@ final class BridgeToKotlinTests: XCTestCase {
             return SwiftObjectPointer.pointer(to: f_return_swift, retain: true)
         }
         @_cdecl("Java_A_Swift_1release")
-        public func A_Swift_release(_ Java_env: JNIEnvPointer, _ Java_target: JavaObjectPointer, _ Swift_peer: SwiftObjectPointer) {
+        nonisolated public func A_Swift_release(_ Java_env: JNIEnvPointer, _ Java_target: JavaObjectPointer, _ Swift_peer: SwiftObjectPointer) {
             Swift_peer.release(as: A.self)
         }
         @_cdecl("Java_A_Swift_1callback_1x")
@@ -7241,7 +7241,7 @@ final class BridgeToKotlinTests: XCTestCase {
             nonisolated private static let Java_constructor_methodID = Java_class.getMethodID(name: "<init>", sig: "(JLskip/bridge/SwiftPeerMarker;)V")!
         }
         @_cdecl("Java_CustomError_Swift_1release")
-        public func CustomError_Swift_release(_ Java_env: JNIEnvPointer, _ Java_target: JavaObjectPointer, _ Swift_peer: SwiftObjectPointer) {
+        nonisolated public func CustomError_Swift_release(_ Java_env: JNIEnvPointer, _ Java_target: JavaObjectPointer, _ Swift_peer: SwiftObjectPointer) {
             Swift_peer.release(as: SwiftValueTypeBox<CustomError>.self)
         }
         @_cdecl("Java_CustomError_Swift_1constructor_10")
@@ -7436,7 +7436,7 @@ final class BridgeToKotlinTests: XCTestCase {
                 return typeErased
             }
         }
-        private final class C_TypeErased : @unchecked Sendable {
+        nonisolated private final class C_TypeErased : @unchecked Sendable {
             let genericvalue: Any
             let genericptr: SwiftObjectPointer
             init(_ value: AnyObject) {
@@ -7453,7 +7453,7 @@ final class BridgeToKotlinTests: XCTestCase {
             var mainActorIdentity_1: (@MainActor (Any) -> Any)!
         }
         @_cdecl("Java_C_Swift_1release")
-        public func C_Swift_release(_ Java_env: JNIEnvPointer, _ Java_target: JavaObjectPointer, _ Swift_peer: SwiftObjectPointer) {
+        nonisolated public func C_Swift_release(_ Java_env: JNIEnvPointer, _ Java_target: JavaObjectPointer, _ Swift_peer: SwiftObjectPointer) {
             Swift_peer.release(as: C_TypeErased.self)
         }
         @_cdecl("Java_C_Swift_1value")
@@ -7662,7 +7662,7 @@ final class BridgeToKotlinTests: XCTestCase {
                 return typeErased
             }
         }
-        private final class S_TypeErased : @unchecked Sendable {
+        nonisolated private final class S_TypeErased : @unchecked Sendable {
             var genericvalue: Any
             init(_ value: Any) {
                 self.genericvalue = value
@@ -7674,7 +7674,7 @@ final class BridgeToKotlinTests: XCTestCase {
             var mutatingRet_2: ((Any) -> Int)!
         }
         @_cdecl("Java_S_Swift_1release")
-        public func S_Swift_release(_ Java_env: JNIEnvPointer, _ Java_target: JavaObjectPointer, _ Swift_peer: SwiftObjectPointer) {
+        nonisolated public func S_Swift_release(_ Java_env: JNIEnvPointer, _ Java_target: JavaObjectPointer, _ Swift_peer: SwiftObjectPointer) {
             Swift_peer.release(as: S_TypeErased.self)
         }
         @_cdecl("Java_S_Swift_1value")
@@ -7811,7 +7811,7 @@ final class BridgeToKotlinTests: XCTestCase {
                 return typeErased
             }
         }
-        private final class E_TypeErased : @unchecked Sendable {
+        nonisolated private final class E_TypeErased : @unchecked Sendable {
             let genericvalue: Any
             init(_ value: Any) {
                 self.genericvalue = value
@@ -7819,7 +7819,7 @@ final class BridgeToKotlinTests: XCTestCase {
             var aValue_0: (() -> Any?)!
         }
         @_cdecl("Java_E_Swift_1release")
-        public func E_Swift_release(_ Java_env: JNIEnvPointer, _ Java_target: JavaObjectPointer, _ Swift_peer: SwiftObjectPointer) {
+        nonisolated public func E_Swift_release(_ Java_env: JNIEnvPointer, _ Java_target: JavaObjectPointer, _ Swift_peer: SwiftObjectPointer) {
             Swift_peer.release(as: E_TypeErased.self)
         }
         @_cdecl("Java_E_Swift_1aValue_10")
@@ -7930,7 +7930,7 @@ final class BridgeToKotlinTests: XCTestCase {
             return SwiftObjectPointer.pointer(to: f_return_swift, retain: true)
         }
         @_cdecl("Java_C_Swift_1release")
-        public func C_Swift_release(_ Java_env: JNIEnvPointer, _ Java_target: JavaObjectPointer, _ Swift_peer: SwiftObjectPointer) {
+        nonisolated public func C_Swift_release(_ Java_env: JNIEnvPointer, _ Java_target: JavaObjectPointer, _ Swift_peer: SwiftObjectPointer) {
             Swift_peer.release(as: C.self)
         }
         @_cdecl("Java_C_Swift_1f_10")
@@ -8043,7 +8043,7 @@ final class BridgeToKotlinTests: XCTestCase {
                 return typeErased
             }
         }
-        private final class C_TypeErased : @unchecked Sendable {
+        nonisolated private final class C_TypeErased : @unchecked Sendable {
             let genericvalue: Any
             let genericptr: SwiftObjectPointer
             init(_ value: AnyObject) {
@@ -8058,7 +8058,7 @@ final class BridgeToKotlinTests: XCTestCase {
             var g_1: (() -> Void)!
         }
         @_cdecl("Java_C_Swift_1release")
-        public func C_Swift_release(_ Java_env: JNIEnvPointer, _ Java_target: JavaObjectPointer, _ Swift_peer: SwiftObjectPointer) {
+        nonisolated public func C_Swift_release(_ Java_env: JNIEnvPointer, _ Java_target: JavaObjectPointer, _ Swift_peer: SwiftObjectPointer) {
             Swift_peer.release(as: C_TypeErased.self)
         }
         @_cdecl("Java_C_Swift_1i")
@@ -8207,7 +8207,7 @@ final class BridgeToKotlinTests: XCTestCase {
             return SwiftObjectPointer.pointer(to: f_return_swift, retain: true)
         }
         @_cdecl("Java_C_Swift_1release")
-        public func C_Swift_release(_ Java_env: JNIEnvPointer, _ Java_target: JavaObjectPointer, _ Swift_peer: SwiftObjectPointer) {
+        nonisolated public func C_Swift_release(_ Java_env: JNIEnvPointer, _ Java_target: JavaObjectPointer, _ Swift_peer: SwiftObjectPointer) {
             Swift_peer.release(as: C.self)
         }
         @_cdecl("Java_C_Swift_1projectionImpl")
@@ -8340,7 +8340,7 @@ final class BridgeToKotlinTests: XCTestCase {
             }
         }
         @_cdecl("Java_V_Swift_1release")
-        public func V_Swift_release(_ Java_env: JNIEnvPointer, _ Java_target: JavaObjectPointer, _ Swift_peer: SwiftObjectPointer) {
+        nonisolated public func V_Swift_release(_ Java_env: JNIEnvPointer, _ Java_target: JavaObjectPointer, _ Swift_peer: SwiftObjectPointer) {
             Swift_peer.release(as: SwiftValueTypeBox<V>.self)
         }
         @_cdecl("Java_V_Swift_1i")
@@ -8457,7 +8457,7 @@ final class BridgeToKotlinTests: XCTestCase {
             }
         }
         @_cdecl("Java_V_Swift_1release")
-        public func V_Swift_release(_ Java_env: JNIEnvPointer, _ Java_target: JavaObjectPointer, _ Swift_peer: SwiftObjectPointer) {
+        nonisolated public func V_Swift_release(_ Java_env: JNIEnvPointer, _ Java_target: JavaObjectPointer, _ Swift_peer: SwiftObjectPointer) {
             Swift_peer.release(as: SwiftValueTypeBox<V>.self)
         }
         @_cdecl("Java_V_Swift_1projectionImpl")
@@ -8626,7 +8626,7 @@ final class BridgeToKotlinTests: XCTestCase {
                 return typeErased
             }
         }
-        private final class V_TypeErased : @unchecked Sendable {
+        nonisolated private final class V_TypeErased : @unchecked Sendable {
             let genericvalue: Any
             init(_ value: Any) {
                 self.genericvalue = value
@@ -8636,7 +8636,7 @@ final class BridgeToKotlinTests: XCTestCase {
             var Java_syncState_t: (@MainActor (SkipUI.StateSupport) -> Void)!
         }
         @_cdecl("Java_V_Swift_1release")
-        public func V_Swift_release(_ Java_env: JNIEnvPointer, _ Java_target: JavaObjectPointer, _ Swift_peer: SwiftObjectPointer) {
+        nonisolated public func V_Swift_release(_ Java_env: JNIEnvPointer, _ Java_target: JavaObjectPointer, _ Swift_peer: SwiftObjectPointer) {
             Swift_peer.release(as: V_TypeErased.self)
         }
         @_cdecl("Java_V_Swift_1projectionImpl")
@@ -8751,7 +8751,7 @@ final class BridgeToKotlinTests: XCTestCase {
             }
         }
         @_cdecl("Java_V_Swift_1release")
-        public func V_Swift_release(_ Java_env: JNIEnvPointer, _ Java_target: JavaObjectPointer, _ Swift_peer: SwiftObjectPointer) {
+        nonisolated public func V_Swift_release(_ Java_env: JNIEnvPointer, _ Java_target: JavaObjectPointer, _ Swift_peer: SwiftObjectPointer) {
             Swift_peer.release(as: SwiftValueTypeBox<V>.self)
         }
         @_cdecl("Java_V_Swift_1projectionImpl")
@@ -8945,7 +8945,7 @@ final class BridgeToKotlinTests: XCTestCase {
                 return typeErased
             }
         }
-        private final class E_TypeErased : @unchecked Sendable {
+        nonisolated private final class E_TypeErased : @unchecked Sendable {
             let genericvalue: Any
             init(_ value: Any) {
                 self.genericvalue = value
@@ -8953,7 +8953,7 @@ final class BridgeToKotlinTests: XCTestCase {
             var body: (@MainActor () -> Any)!
         }
         @_cdecl("Java_E_Swift_1release")
-        public func E_Swift_release(_ Java_env: JNIEnvPointer, _ Java_target: JavaObjectPointer, _ Swift_peer: SwiftObjectPointer) {
+        nonisolated public func E_Swift_release(_ Java_env: JNIEnvPointer, _ Java_target: JavaObjectPointer, _ Swift_peer: SwiftObjectPointer) {
             Swift_peer.release(as: E_TypeErased.self)
         }
         @_cdecl("Java_E_Swift_1projectionImpl")
@@ -9051,7 +9051,7 @@ final class BridgeToKotlinTests: XCTestCase {
             }
         }
         @_cdecl("Java_V_Swift_1release")
-        public func V_Swift_release(_ Java_env: JNIEnvPointer, _ Java_target: JavaObjectPointer, _ Swift_peer: SwiftObjectPointer) {
+        nonisolated public func V_Swift_release(_ Java_env: JNIEnvPointer, _ Java_target: JavaObjectPointer, _ Swift_peer: SwiftObjectPointer) {
             Swift_peer.release(as: SwiftValueTypeBox<V>.self)
         }
         @_cdecl("Java_V_Swift_1projectionImpl")
@@ -9164,7 +9164,7 @@ final class BridgeToKotlinTests: XCTestCase {
             }
         }
         @_cdecl("Java_V_Swift_1release")
-        public func V_Swift_release(_ Java_env: JNIEnvPointer, _ Java_target: JavaObjectPointer, _ Swift_peer: SwiftObjectPointer) {
+        nonisolated public func V_Swift_release(_ Java_env: JNIEnvPointer, _ Java_target: JavaObjectPointer, _ Swift_peer: SwiftObjectPointer) {
             Swift_peer.release(as: SwiftValueTypeBox<V>.self)
         }
         @_cdecl("Java_V_Swift_1projectionImpl")
@@ -9277,7 +9277,7 @@ final class BridgeToKotlinTests: XCTestCase {
             }
         }
         @_cdecl("Java_V_Swift_1release")
-        public func V_Swift_release(_ Java_env: JNIEnvPointer, _ Java_target: JavaObjectPointer, _ Swift_peer: SwiftObjectPointer) {
+        nonisolated public func V_Swift_release(_ Java_env: JNIEnvPointer, _ Java_target: JavaObjectPointer, _ Swift_peer: SwiftObjectPointer) {
             Swift_peer.release(as: SwiftValueTypeBox<V>.self)
         }
         @_cdecl("Java_V_Swift_1projectionImpl")
@@ -9308,6 +9308,139 @@ final class BridgeToKotlinTests: XCTestCase {
             let peer_swift: SwiftValueTypeBox<V> = Swift_peer.pointee()!
             return SkipBridge.assumeMainActorUnchecked {
                 let body = peer_swift.value.body
+                return ((body as? SkipUIBridging)?.Java_view as? JConvertible)?.toJavaObject(options: [])
+            }
+        }
+        """, transformers: transformers)
+    }
+
+    func testGenericAppStorage() async throws {
+        try await check(swiftBridge: """
+        import SkipFuseUI
+        struct V<T>: View {
+            @AppStorage var value = false
+            var body: some View {
+                Text("Hello")
+            }
+        }
+        """, kotlin: """
+        internal class V<T>: skip.ui.View, skip.bridge.SwiftPeerBridged, skip.lib.SwiftProjecting {
+            var Swift_peer: skip.bridge.SwiftObjectPointer = skip.bridge.SwiftObjectNil
+
+            constructor(Swift_peer: skip.bridge.SwiftObjectPointer, marker: skip.bridge.SwiftPeerMarker?) {
+                this.Swift_peer = Swift_peer
+            }
+
+            fun finalize() {
+                Swift_release(Swift_peer)
+                Swift_peer = skip.bridge.SwiftObjectNil
+            }
+            private external fun Swift_release(Swift_peer: skip.bridge.SwiftObjectPointer)
+
+            override fun Swift_peer(): skip.bridge.SwiftObjectPointer = Swift_peer
+
+            override fun equals(other: Any?): Boolean {
+                if (other !is skip.bridge.SwiftPeerBridged) return false
+                return Swift_peer == other.Swift_peer()
+            }
+
+            override fun hashCode(): Int = Swift_peer.hashCode()
+
+            @androidx.compose.runtime.Composable
+            override fun Evaluate(context: skip.ui.ComposeContext, options: Int): kotlin.collections.List<Renderable> {
+                val rememberedvalue = androidx.compose.runtime.saveable.rememberSaveable(stateSaver = context.stateSaver as androidx.compose.runtime.saveable.Saver<skip.ui.AppStorageSupport, Any>) { androidx.compose.runtime.mutableStateOf(Swift_initState_value(Swift_peer)) }
+                Swift_syncState_value(Swift_peer, rememberedvalue.value)
+                return super.Evaluate(context, options)
+            }
+            private external fun Swift_initState_value(Swift_peer: skip.bridge.SwiftObjectPointer): skip.ui.AppStorageSupport
+            private external fun Swift_syncState_value(Swift_peer: skip.bridge.SwiftObjectPointer, support: skip.ui.AppStorageSupport)
+
+            override fun body(): skip.ui.View {
+                return skip.ui.ComposeBuilder { composectx: skip.ui.ComposeContext -> Swift_composableBody(Swift_peer)?.Compose(composectx) ?: skip.ui.ComposeResult.ok }
+            }
+            private external fun Swift_composableBody(Swift_peer: skip.bridge.SwiftObjectPointer): skip.ui.View?
+
+            override fun Swift_projection(options: Int): () -> Any = Swift_projectionImpl(options)
+            private external fun Swift_projectionImpl(options: Int): () -> Any
+        }
+        """, swiftBridgeSupport: """
+
+        import SkipFuseUI
+        extension V: BridgedToKotlin, SkipUIBridging, SkipUI.View {
+            nonisolated private static var Java_class: JClass { try! JClass(name: "V") }
+            nonisolated static func fromJavaObject(_ obj: JavaObjectPointer?, options: JConvertibleOptions) -> Self {
+                let ptr = SwiftObjectPointer.peer(of: obj!, options: options)
+                let typeErased: V_TypeErased = ptr.pointee()!
+                return typeErased.genericvalue as! Self
+            }
+            nonisolated func toJavaObject(options: JConvertibleOptions) -> JavaObjectPointer? {
+                let typeErased = toTypeErased()
+                let Swift_peer = SwiftObjectPointer.pointer(to: typeErased, retain: true)
+                return try! Self.Java_class.create(ctor: Self.Java_constructor_methodID, options: options, args: [Swift_peer.toJavaParameter(options: options), (nil as JavaObjectPointer?).toJavaParameter(options: options)])
+            }
+            nonisolated private static var Java_constructor_methodID: JavaMethodID { Java_class.getMethodID(name: "<init>", sig: "(JLskip/bridge/SwiftPeerMarker;)V")! }
+            func Java_initState_value() -> SkipUI.AppStorageSupport {
+                return $value.appStorageBox!.Java_initStateSupport()
+            }
+            func Java_syncState_value(support: SkipUI.AppStorageSupport) {
+                $value.appStorageBox!.Java_syncStateSupport(support)
+            }
+            nonisolated var Java_view: any SkipUI.View {
+                return self
+            }
+        }
+        extension V: TypeErasedConvertible {
+            nonisolated func toTypeErased() -> AnyObject {
+                let typeErased = V_TypeErased(self)
+                typeErased.body = { [unowned typeErased] in (typeErased.genericvalue as! Self).body }
+                typeErased.Java_initState_value = { [unowned typeErased] in (typeErased.genericvalue as! Self).Java_initState_value() }
+                typeErased.Java_syncState_value = { [unowned typeErased] in (typeErased.genericvalue as! Self).Java_syncState_value(support: $0) }
+                return typeErased
+            }
+        }
+        nonisolated private final class V_TypeErased : @unchecked Sendable {
+            let genericvalue: Any
+            init(_ value: Any) {
+                self.genericvalue = value
+            }
+            var body: (@MainActor () -> Any)!
+            var Java_initState_value: (@MainActor () -> SkipUI.AppStorageSupport)!
+            var Java_syncState_value: (@MainActor (SkipUI.AppStorageSupport) -> Void)!
+        }
+        @_cdecl("Java_V_Swift_1release")
+        nonisolated public func V_Swift_release(_ Java_env: JNIEnvPointer, _ Java_target: JavaObjectPointer, _ Swift_peer: SwiftObjectPointer) {
+            Swift_peer.release(as: V_TypeErased.self)
+        }
+        @_cdecl("Java_V_Swift_1projectionImpl")
+        public func V_Swift_projectionImpl(_ Java_env: JNIEnvPointer, _ Java_target: JavaObjectPointer, _ options: Int32) -> JavaObjectPointer {
+            let ptr = SwiftObjectPointer.peer(of: Java_target, options: JConvertibleOptions(rawValue: Int(options)))
+            let peer_swift: V_TypeErased = ptr.pointee()!
+            let projection = peer_swift.genericvalue
+            let factory: () -> Any = { projection }
+            return SwiftClosure0.javaObject(for: factory, options: [])!
+        }
+        @_cdecl("Java_V_Swift_1initState_1value")
+        public func V_Swift_initState_value(_ Java_env: JNIEnvPointer, _ Java_target: JavaObjectPointer, _ Swift_peer: SwiftObjectPointer) -> JavaObjectPointer {
+            let peer_swift: V_TypeErased = Swift_peer.pointee()!
+            return SkipBridge.assumeMainActorUnchecked {
+                return peer_swift.Java_initState_value().toJavaObject(options: [])!
+            }
+        }
+        @_cdecl("Java_V_Swift_1syncState_1value")
+        public func V_Swift_syncState_value(_ Java_env: JNIEnvPointer, _ Java_target: JavaObjectPointer, _ Swift_peer: SwiftObjectPointer, _ support: JavaObjectPointer) {
+            let peer_swift: V_TypeErased = Swift_peer.pointee()!
+            let support_sendable = UncheckedSendableBox(support)
+            SkipBridge.assumeMainActorUnchecked {
+                let support = support_sendable.wrappedValue
+                let support_swift = SkipUI.AppStorageSupport.fromJavaObject(support, options: [])
+                peer_swift.Java_syncState_value(support_swift)
+            }
+        }
+        @_cdecl("Java_V_Swift_1composableBody")
+        public func V_Swift_composableBody(_ Java_env: JNIEnvPointer, _ Java_target: JavaObjectPointer, _ Swift_peer: SwiftObjectPointer) -> JavaObjectPointer? {
+            let peer_swift: V_TypeErased = Swift_peer.pointee()!
+            return SkipBridge.assumeMainActorUnchecked {
+                let body = peer_swift.body()
                 return ((body as? SkipUIBridging)?.Java_view as? JConvertible)?.toJavaObject(options: [])
             }
         }
@@ -9449,7 +9582,7 @@ final class BridgeToKotlinTests: XCTestCase {
             }
         }
         @_cdecl("Java_VM_Swift_1release")
-        public func VM_Swift_release(_ Java_env: JNIEnvPointer, _ Java_target: JavaObjectPointer, _ Swift_peer: SwiftObjectPointer) {
+        nonisolated public func VM_Swift_release(_ Java_env: JNIEnvPointer, _ Java_target: JavaObjectPointer, _ Swift_peer: SwiftObjectPointer) {
             Swift_peer.release(as: SwiftValueTypeBox<VM>.self)
         }
         @_cdecl("Java_VM_Swift_1projectionImpl")
@@ -9485,7 +9618,7 @@ final class BridgeToKotlinTests: XCTestCase {
             }
         }
         @_cdecl("Java_V_Swift_1release")
-        public func V_Swift_release(_ Java_env: JNIEnvPointer, _ Java_target: JavaObjectPointer, _ Swift_peer: SwiftObjectPointer) {
+        nonisolated public func V_Swift_release(_ Java_env: JNIEnvPointer, _ Java_target: JavaObjectPointer, _ Swift_peer: SwiftObjectPointer) {
             Swift_peer.release(as: SwiftValueTypeBox<V>.self)
         }
         @_cdecl("Java_V_Swift_1projectionImpl")
@@ -9589,7 +9722,7 @@ final class BridgeToKotlinTests: XCTestCase {
                 return typeErased
             }
         }
-        private final class VM_TypeErased : @unchecked Sendable {
+        nonisolated private final class VM_TypeErased : @unchecked Sendable {
             let genericvalue: Any
             init(_ value: Any) {
                 self.genericvalue = value
@@ -9599,7 +9732,7 @@ final class BridgeToKotlinTests: XCTestCase {
             var Java_syncState_t: (@MainActor (SkipUI.StateSupport) -> Void)!
         }
         @_cdecl("Java_VM_Swift_1release")
-        public func VM_Swift_release(_ Java_env: JNIEnvPointer, _ Java_target: JavaObjectPointer, _ Swift_peer: SwiftObjectPointer) {
+        nonisolated public func VM_Swift_release(_ Java_env: JNIEnvPointer, _ Java_target: JavaObjectPointer, _ Swift_peer: SwiftObjectPointer) {
             Swift_peer.release(as: VM_TypeErased.self)
         }
         @_cdecl("Java_VM_Swift_1projectionImpl")
@@ -9715,7 +9848,7 @@ final class BridgeToKotlinTests: XCTestCase {
             }
         }
         @_cdecl("Java_T_Swift_1release")
-        public func T_Swift_release(_ Java_env: JNIEnvPointer, _ Java_target: JavaObjectPointer, _ Swift_peer: SwiftObjectPointer) {
+        nonisolated public func T_Swift_release(_ Java_env: JNIEnvPointer, _ Java_target: JavaObjectPointer, _ Swift_peer: SwiftObjectPointer) {
             Swift_peer.release(as: SwiftValueTypeBox<T>.self)
         }
         @_cdecl("Java_T_Swift_1projectionImpl")
@@ -10022,7 +10155,7 @@ final class BridgeToKotlinTests: XCTestCase {
             }
         }
         @_cdecl("Java_V_Swift_1release")
-        public func V_Swift_release(_ Java_env: JNIEnvPointer, _ Java_target: JavaObjectPointer, _ Swift_peer: SwiftObjectPointer) {
+        nonisolated public func V_Swift_release(_ Java_env: JNIEnvPointer, _ Java_target: JavaObjectPointer, _ Swift_peer: SwiftObjectPointer) {
             Swift_peer.release(as: SwiftValueTypeBox<V>.self)
         }
         @_cdecl("Java_V_Swift_1projectionImpl")
@@ -10189,7 +10322,7 @@ final class BridgeToKotlinTests: XCTestCase {
             }
         }
         @_cdecl("Java_V_Swift_1release")
-        public func V_Swift_release(_ Java_env: JNIEnvPointer, _ Java_target: JavaObjectPointer, _ Swift_peer: SwiftObjectPointer) {
+        nonisolated public func V_Swift_release(_ Java_env: JNIEnvPointer, _ Java_target: JavaObjectPointer, _ Swift_peer: SwiftObjectPointer) {
             Swift_peer.release(as: SwiftValueTypeBox<V>.self)
         }
         @_cdecl("Java_V_Swift_1projectionImpl")
@@ -10289,7 +10422,7 @@ final class BridgeToKotlinTests: XCTestCase {
         // (either manually or through the synthesized Bundle.module property),
         // which forwards the bundle access up to the Android asset manager
         extension AndroidBundle {
-            convenience init?(path: String, unusedp_0: Void? = nil) {
+            nonisolated convenience init?(path: String, unusedp_0: Void? = nil) {
                 self.init(path: path, moduleName: "") {
                     try! AnyDynamicObject(className: ".module._ModuleBundleAccessor_").moduleBundle!
                 }
@@ -10303,7 +10436,7 @@ final class BridgeToKotlinTests: XCTestCase {
         // up to the Android asset manager (this only uses API that is also present in older SkipAndroidBridge
         // versions, where AndroidBundle.init(for:) is an exact match that takes precedence over this interceptor)
         extension AndroidBundle {
-            convenience init(for aClass: AnyClass, unusedp_0: Void? = nil) {
+            nonisolated convenience init(for aClass: AnyClass, unusedp_0: Void? = nil) {
                 // without a JVM there is no Kotlin module bundle, so back the bundle with the native main bundle
                 let path = isJNIInitialized ? AndroidBundle.main.bundlePath + "/_.resources" : Foundation.Bundle.main.bundlePath
                 self.init(path: path, moduleName: "", moduleBundle: {
@@ -10417,7 +10550,7 @@ final class BridgeToKotlinTests: XCTestCase {
             return SwiftObjectPointer.pointer(to: f_return_swift, retain: true)
         }
         @_cdecl("Java_C_Swift_1release")
-        public func C_Swift_release(_ Java_env: JNIEnvPointer, _ Java_target: JavaObjectPointer, _ Swift_peer: SwiftObjectPointer) {
+        nonisolated public func C_Swift_release(_ Java_env: JNIEnvPointer, _ Java_target: JavaObjectPointer, _ Swift_peer: SwiftObjectPointer) {
             Swift_peer.release(as: C.self)
         }
         @_cdecl("Java_C_Swift_1i")
@@ -10504,7 +10637,7 @@ final class BridgeToKotlinTests: XCTestCase {
             return SwiftObjectPointer.pointer(to: f_return_swift, retain: true)
         }
         @_cdecl("Java_C_Swift_1release")
-        public func C_Swift_release(_ Java_env: JNIEnvPointer, _ Java_target: JavaObjectPointer, _ Swift_peer: SwiftObjectPointer) {
+        nonisolated public func C_Swift_release(_ Java_env: JNIEnvPointer, _ Java_target: JavaObjectPointer, _ Swift_peer: SwiftObjectPointer) {
             Swift_peer.release(as: C.self)
         }
         @_cdecl("Java_C_Swift_1i")
@@ -10594,7 +10727,7 @@ final class BridgeToKotlinTests: XCTestCase {
             return SwiftObjectPointer.pointer(to: f_return_swift, retain: true)
         }
         @_cdecl("Java_C_Swift_1release")
-        public func C_Swift_release(_ Java_env: JNIEnvPointer, _ Java_target: JavaObjectPointer, _ Swift_peer: SwiftObjectPointer) {
+        nonisolated public func C_Swift_release(_ Java_env: JNIEnvPointer, _ Java_target: JavaObjectPointer, _ Swift_peer: SwiftObjectPointer) {
             Swift_peer.release(as: C.self)
         }
         @_cdecl("Java_C_Swift_1i")

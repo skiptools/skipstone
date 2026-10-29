@@ -204,6 +204,10 @@ struct CDeclFunction {
     let cdecl: String
     let signature: TypeSignature
     let body: [String]
+    /// Emits the function `nonisolated`, for an entry point the JVM calls off the main thread
+    /// (a peer release runs on the finalizer daemon) in a module whose default isolation is
+    /// MainActor, where a plain global function would trap on its executor check.
+    var isNonisolated = false
 
     /// Return the `cdecl` declarations for a given external function name.
     static func declaration(for statement: KotlinStatement, isCompanion: Bool, name: String, translator: KotlinTranslator) -> (cdecl: String, cdeclFunctionName: String) {
@@ -234,7 +238,7 @@ struct CDeclFunction {
 
     func append(to output: OutputGenerator, indentation: Indentation) {
         output.append(indentation).append("@_cdecl(\"").append(cdecl).append("\")\n")
-        output.append(indentation).append("public func ").append(name).append("(_ Java_env: JNIEnvPointer, _ Java_target: JavaObjectPointer")
+        output.append(indentation).append(isNonisolated ? "nonisolated public func " : "public func ").append(name).append("(_ Java_env: JNIEnvPointer, _ Java_target: JavaObjectPointer")
         for parameter in signature.parameters {
             output.append(", _")
             if let label = parameter.label {

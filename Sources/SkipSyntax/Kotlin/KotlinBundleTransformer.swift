@@ -89,6 +89,8 @@ public final class KotlinBundleTransformer: KotlinTransformer {
         let outputNode = SwiftDefinition { output, indentation, _ in
             // The blank line after the SkipBridge import is expected by our bridge testing
             // the unusedp_0 param is needed or else error: initializer 'init(path:)' declared in 'Bundle' cannot be overridden from extension
+            // the interceptors are nonisolated because the synthesized Bundle.module is a nonisolated static, and in a module
+            // whose default isolation is MainActor an extension member would otherwise be main-actor isolated
             output.append("""
             import SkipBridge
 
@@ -101,7 +103,7 @@ public final class KotlinBundleTransformer: KotlinTransformer {
             // (either manually or through the synthesized Bundle.module property),
             // which forwards the bundle access up to the Android asset manager
             extension AndroidBundle {
-                convenience init?(path: String, unusedp_0: Void? = nil) {
+                nonisolated convenience init?(path: String, unusedp_0: Void? = nil) {
                     self.init(path: path, moduleName: "\(moduleName)") {
                         try! AnyDynamicObject(className: "\(packageName).\(className)").moduleBundle!
                     }
@@ -115,7 +117,7 @@ public final class KotlinBundleTransformer: KotlinTransformer {
             // up to the Android asset manager (this only uses API that is also present in older SkipAndroidBridge
             // versions, where AndroidBundle.init(for:) is an exact match that takes precedence over this interceptor)
             extension AndroidBundle {
-                convenience init(for aClass: AnyClass, unusedp_0: Void? = nil) {
+                nonisolated convenience init(for aClass: AnyClass, unusedp_0: Void? = nil) {
                     // without a JVM there is no Kotlin module bundle, so back the bundle with the native main bundle
                     let path = isJNIInitialized ? AndroidBundle.main.bundlePath + "/_\(moduleName).resources" : Foundation.Bundle.main.bundlePath
                     self.init(path: path, moduleName: "\(moduleName)", moduleBundle: {
